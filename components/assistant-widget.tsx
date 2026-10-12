@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import type { BuildStamp } from "@/lib/build-info";
 
+import { Logo } from "./logo";
 import { Spotlight } from "./spotlight";
 
 interface ChatLine {
@@ -209,7 +209,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
   const panel = (
     <div className="flex h-full min-h-0 flex-col bg-paper text-ink">
       <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-        <Image src="/images/logo-mark.png" alt="" width={28} height={28} className="h-7 w-7" />
+        <Logo tone="ink" width={28} height={28} className="h-7 w-7" />
         <div className="min-w-0">
           <p className="font-serif text-lg leading-none">Price Ranger</p>
           <p className="text-[11px] uppercase tracking-wide text-muted">Assistant</p>
@@ -318,7 +318,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
           onClick={() => setOpen(true)}
           className="ranger-pulse fixed bottom-24 right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-pine shadow-lg lg:bottom-6 lg:right-6"
         >
-          <Image src="/images/logo-mark.png" alt="" width={48} height={48} className="h-12 w-12" />
+          <Logo tone="light" width={48} height={48} className="h-12 w-12" />
           <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-xs font-bold text-pine-deep">
             ✦
           </span>

@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { signOut } from "@/app/actions";
 
+import { Logo } from "./logo";
 import { BottomNav, Sidebar } from "./nav";
 
 export function Shell({
@@ -20,7 +20,7 @@ export function Shell({
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 bg-pine text-cream lg:hidden">
           <div className="flex h-14 items-center gap-2 px-4">
-            <Image src="/images/logo-mark.png" alt="" width={32} height={32} className="h-8 w-8" />
+            <Logo tone="light" width={32} height={32} className="h-8 w-8" />
             <Link href="/" className="font-serif text-lg tracking-tight">
               Price Ranger
             </Link>

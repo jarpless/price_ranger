@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { sendMagicLink } from "@/app/actions";
 import { createPasswordAccount, signInWithPassword, startOAuth } from "@/app/auth-actions";
+import { Logo } from "@/components/logo";
 import { PasskeyButton } from "@/components/passkey-button";
 import { Button, Notice, TextField } from "@/components/ui";
 import { enabledOAuthButtons, passkeyConfigured } from "@/lib/auth-providers";
@@ -23,8 +23,9 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-5 py-10 lg:max-w-xl">
-      <Image
-        src="/images/logo-full.png"
+      <Logo
+        variant="full"
+        tone="ink"
         alt="Price Ranger"
         width={512}
         height={512}

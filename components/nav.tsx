@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { signOut } from "@/app/actions";
+
+import { Logo } from "./logo";
 
 export function navItems(quotesLabel: string) {
   return [
@@ -54,7 +55,7 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col bg-pine text-cream lg:flex">
       <div className="flex items-center gap-2 px-5 pb-2 pt-6">
-        <Image src="/images/logo-mark.png" alt="" width={36} height={36} className="h-9 w-9" />
+        <Logo tone="light" width={36} height={36} className="h-9 w-9" />
         <div>
           <p className="font-serif text-lg leading-none">Price Ranger</p>
           <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-gold">Basecamp</p>

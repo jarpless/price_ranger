@@ -1,8 +1,8 @@
-import Image from "next/image";
-import Link from "next/link";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import { verifyEmailCode } from "@/app/auth-actions";
+import { Logo } from "@/components/logo";
 import { Notice, TextField } from "@/components/ui";
 import { DEV_CODE_COOKIE, DEV_LINK_COOKIE } from "@/lib/session";
 
@@ -20,7 +20,7 @@ export default async function SentPage({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-5 py-10">
-      <Image src="/images/logo-mark.png" alt="" width={64} height={64} className="mb-6 h-16 w-16" />
+      <Logo tone="ink" width={64} height={64} className="mb-6 h-16 w-16" />
       <h1 className="font-serif text-3xl">Check your email</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
         {email
