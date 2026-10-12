@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { importPriceCsv, setCatalogPrice } from "@/app/basecamp-actions";
@@ -21,6 +21,8 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
   const [editing, setEditing] = useState<string | null>(null);
   const [price, setPrice] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, startSave] = useTransition();
+  const [importing, startImport] = useTransition();
 
   const brands = [...new Set(hits.map((hit) => hit.brandName).filter(Boolean))].sort();
   const categories = [...new Set(hits.map((hit) => hit.category).filter(Boolean))].sort();
@@ -55,13 +57,16 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
     );
   }
 
-  async function save(skuId: string) {
-    const result = await setCatalogPrice(skuId, price);
-    setMessage(result.ok ? "Saved to your prices." : result.error);
-    if (result.ok) {
-      setEditing(null);
-      router.refresh();
-    }
+  function save(skuId: string) {
+    const next = price;
+    startSave(async () => {
+      const result = await setCatalogPrice(skuId, next);
+      setMessage(result.ok ? "Saved to your prices." : result.error);
+      if (result.ok) {
+        setEditing(null);
+        router.refresh();
+      }
+    });
   }
 
   return (
@@ -95,18 +100,20 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <label className="inline-flex h-10 cursor-pointer items-center rounded-2xl border border-line bg-paper px-3 font-semibold hover:border-pine">
-          Import CSV into prices
+          {importing ? "Importing…" : "Import CSV into prices"}
           <input
             type="file"
             accept=".csv,text/csv"
             className="sr-only"
-            onChange={async (event) => {
+            onChange={(event) => {
               const file = event.target.files?.[0];
               event.target.value = "";
               if (!file) return;
-              const result = await importPriceCsv(await file.text());
-              setMessage(result.ok ? `Imported ${result.added}.` : result.errors[0] || "Import failed.");
-              if (result.ok) router.refresh();
+              startImport(async () => {
+                const result = await importPriceCsv(await file.text());
+                setMessage(result.ok ? `Imported ${result.added}.` : result.errors[0] || "Import failed.");
+                if (result.ok) router.refresh();
+              });
             }}
           />
         </label>
@@ -172,8 +179,14 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
                           className="h-10 w-24 rounded-xl border border-line px-2"
                           inputMode="decimal"
                         />
-                        <button type="button" className="font-semibold text-pine" onClick={() => void save(hit.id)}>
-                          Save
+                        <button
+                          type="button"
+                          disabled={saving}
+                          aria-busy={saving}
+                          className="font-semibold text-pine disabled:opacity-60"
+                          onClick={() => save(hit.id)}
+                        >
+                          {saving ? "Saving…" : "Save"}
                         </button>
                       </span>
                     ) : (

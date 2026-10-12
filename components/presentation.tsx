@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 import { useEffect, useState } from "react";
 
 import { Logo } from "@/components/logo";

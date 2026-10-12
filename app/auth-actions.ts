@@ -136,13 +136,14 @@ export async function chooseIndustry(formData: FormData) {
   const data = await getData();
   const library = await data.listLibrary(user.id);
   if (library.length === 0) {
-    for (const item of VOCABULARIES[industry].starters) {
-      await data.createCustomItem(user.id, {
+    await data.importLibraryRows(
+      user.id,
+      VOCABULARIES[industry].starters.map((item) => ({
         name: item.name,
         unit: item.unit,
         unitPriceCents: item.unitPriceCents,
-      });
-    }
+      })),
+    );
   }
   revalidatePath("/", "layout");
   redirect("/");

@@ -1,10 +1,10 @@
 /** Single source of truth for the shipping version and ranger codename. */
-export const APP_VERSION = "2.1.0";
+export const APP_VERSION = "2.1.1";
 
 export const APP_CODENAME = "Basecamp";
 
-/** Shown on every screen. Major.minor plus the codename, without the patch. */
-export const VERSION_LABEL = "v2.1 Basecamp";
+/** Shown on every screen. */
+export const VERSION_LABEL = "v2.1.1 Basecamp";
 
 export interface Release {
   version: string;
@@ -26,8 +26,15 @@ export const RELEASES: Release[] = [
     version: "2.1.0",
     label: "v2.1 Basecamp",
     codename: "Basecamp",
-    state: "current",
+    state: "shipped",
     summary: "Desktop and phone layouts, feedback capture, and the in-app assistant.",
+  },
+  {
+    version: "2.1.1",
+    label: "v2.1.1 Basecamp",
+    codename: "Basecamp",
+    state: "current",
+    summary: "Taps show a pending state immediately. Auth is checked once per request, and the app runs closer to the database.",
   },
   {
     version: "2.2.0",

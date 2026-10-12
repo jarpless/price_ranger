@@ -57,6 +57,18 @@ body {
   }
 }
 
+button,
+a,
+summary {
+  touch-action: manipulation;
+}
+
+button:active:not(:disabled),
+a:active,
+summary:active {
+  filter: brightness(0.94);
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,

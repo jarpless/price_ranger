@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { dataBackend } from "./env";
 import { effectivePlan, isPlanId, type PlanId } from "./plans";
@@ -40,7 +41,7 @@ function accountFromRow(user: {
   };
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
   const backend = dataBackend();
   if (backend === "supabase") {
     const supabase = await createClient();
@@ -79,7 +80,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const user = await getLocalUser(userId);
   if (!user) return null;
   return accountFromRow(user);
-}
+});
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();

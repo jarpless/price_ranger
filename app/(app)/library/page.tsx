@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 
 import { createCustomItem } from "@/app/actions";
 import { PriceTable } from "@/components/price-table";

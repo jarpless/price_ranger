@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 import { usePathname } from "next/navigation";
 
 import { signOut } from "@/app/actions";
 
+import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
 
 export function navItems(quotesLabel: string) {
@@ -91,9 +92,12 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
         </Link>
       ) : (
         <form action={signOut} className="px-3 pb-5">
-          <button className="h-10 w-full rounded-xl text-sm font-semibold text-cream/80 hover:bg-white/10 hover:text-cream">
+          <SubmitButton
+            pendingLabel="Signing out…"
+            className="h-10 w-full rounded-xl text-sm font-semibold text-cream/80 hover:bg-white/10 hover:text-cream"
+          >
             Sign out
-          </button>
+          </SubmitButton>
         </form>
       )}
     </aside>

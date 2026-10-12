@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { importPriceCsv, patchLibraryItem } from "@/app/basecamp-actions";
@@ -25,6 +25,8 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: "", unit: "each", price: "" });
   const [message, setMessage] = useState("");
+  const [saving, startSave] = useTransition();
+  const [importing, startImport] = useTransition();
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -49,24 +51,29 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
     );
   }
 
-  async function save(id: string) {
-    const result = await patchLibraryItem({ id, ...draft });
-    setMessage(result.ok ? "Saved." : result.error);
-    if (result.ok) {
-      setEditing(null);
-      router.refresh();
-    }
+  function save(id: string) {
+    const next = { ...draft };
+    startSave(async () => {
+      const result = await patchLibraryItem({ id, ...next });
+      setMessage(result.ok ? "Saved." : result.error);
+      if (result.ok) {
+        setEditing(null);
+        router.refresh();
+      }
+    });
   }
 
-  async function onFile(file: File) {
-    const text = await file.text();
-    const result = await importPriceCsv(text);
-    setMessage(
-      result.ok
-        ? `Imported ${result.added} price${result.added === 1 ? "" : "s"}${result.errors.length ? `. ${result.errors[0]}` : "."}`
-        : result.errors[0] || "Could not import that file.",
-    );
-    if (result.ok) router.refresh();
+  function onFile(file: File) {
+    startImport(async () => {
+      const text = await file.text();
+      const result = await importPriceCsv(text);
+      setMessage(
+        result.ok
+          ? `Imported ${result.added} price${result.added === 1 ? "" : "s"}${result.errors.length ? `. ${result.errors[0]}` : "."}`
+          : result.errors[0] || "Could not import that file.",
+      );
+      if (result.ok) router.refresh();
+    });
   }
 
   return (
@@ -94,7 +101,7 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
           data-spotlight="price-import"
           className="inline-flex h-11 cursor-pointer items-center justify-center rounded-2xl border border-line bg-paper px-4 text-sm font-semibold hover:border-pine"
         >
-          Import CSV
+          {importing ? "Importing…" : "Import CSV"}
           <input
             type="file"
             accept=".csv,text/csv"
@@ -210,8 +217,14 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                     <td className="px-4 py-3">
                       {open ? (
                         <span className="flex gap-2">
-                          <button type="button" className="font-semibold text-pine" onClick={() => void save(item.id)}>
-                            Save
+                          <button
+                            type="button"
+                            disabled={saving}
+                            aria-busy={saving}
+                            className="font-semibold text-pine disabled:opacity-60"
+                            onClick={() => save(item.id)}
+                          >
+                            {saving ? "Saving…" : "Save"}
                           </button>
                           <button type="button" className="text-muted" onClick={() => setEditing(null)}>
                             Cancel

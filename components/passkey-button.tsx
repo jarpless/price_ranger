@@ -2,22 +2,21 @@
 
 import { useState } from "react";
 
-import { createBrowserClient } from "@supabase/ssr";
-
 export function PasskeyButton() {
   const [message, setMessage] = useState("");
+  const [pending, setPending] = useState(false);
 
   async function signIn() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      setMessage("Passkeys need Supabase.");
-      return;
+    setPending(true);
+    setMessage("");
+    try {
+      const { signInWithPasskey } = await import("@/lib/passkey-client");
+      const error = await signInWithPasskey();
+      setMessage(error ?? "Signed in.");
+      if (!error) window.location.assign("/");
+    } finally {
+      setPending(false);
     }
-    const supabase = createBrowserClient(url, key);
-    const { error } = await supabase.auth.signInWithPasskey();
-    setMessage(error ? error.message : "Signed in.");
-    if (!error) window.location.assign("/");
   }
 
   return (
@@ -25,9 +24,11 @@ export function PasskeyButton() {
       <button
         type="button"
         onClick={() => void signIn()}
-        className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-line bg-paper text-base font-semibold text-ink hover:border-pine"
+        disabled={pending}
+        aria-busy={pending}
+        className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-line bg-paper text-base font-semibold text-ink hover:border-pine disabled:opacity-60"
       >
-        Sign in with a passkey
+        {pending ? "Checking this device…" : "Sign in with a passkey"}
       </button>
       {message ? <p className="mt-2 text-sm text-muted">{message}</p> : null}
     </div>
@@ -36,18 +37,16 @@ export function PasskeyButton() {
 
 export function PasskeyOffer() {
   const [message, setMessage] = useState("");
+  const [pending, setPending] = useState(false);
 
   async function register() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) return;
-    const supabase = createBrowserClient(url, key);
-    const { error } = await supabase.auth.registerPasskey();
-    setMessage(
-      error
-        ? error.message
-        : "Passkey saved on this device. Supabase has to have Passkeys turned on for this to succeed.",
-    );
+    setPending(true);
+    try {
+      const { registerPasskey } = await import("@/lib/passkey-client");
+      setMessage(await registerPasskey());
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -59,9 +58,11 @@ export function PasskeyOffer() {
       <button
         type="button"
         onClick={() => void register()}
-        className="mt-4 inline-flex h-11 items-center rounded-2xl bg-pine px-4 text-sm font-semibold text-cream"
+        disabled={pending}
+        aria-busy={pending}
+        className="mt-4 inline-flex h-11 items-center rounded-2xl bg-pine px-4 text-sm font-semibold text-cream disabled:opacity-60"
       >
-        Add a passkey
+        {pending ? "Saving…" : "Add a passkey"}
       </button>
       {message ? <p className="mt-2 text-sm text-muted">{message}</p> : null}
     </section>

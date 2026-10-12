@@ -6,6 +6,11 @@ export function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+export function guestErrorDetail(message: string): string {
+  const cleaned = message.replace(/[\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 180);
+  return cleaned || "Guest sign-in did not complete.";
+}
+
 export const FORM_ERRORS: Record<string, string> = {
   missing: "Add the missing details and try again.",
   price: "Enter a price like 320 or 12.50.",

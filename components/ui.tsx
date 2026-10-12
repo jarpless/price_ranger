@@ -1,10 +1,45 @@
-import Link from "next/link";
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+"use client";
 
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useFormStatus } from "react-dom";
+
+import { PendingLink } from "@/components/pending-link";
 import { FORM_ERRORS } from "@/lib/form";
 
 const field =
   "w-full rounded-2xl border border-line bg-paper px-4 text-base text-ink outline-none focus:border-pine";
+
+const variants = {
+  primary: "bg-pine text-cream hover:bg-pine-deep",
+  secondary: "border border-line bg-paper text-ink hover:border-pine hover:bg-cream",
+  ghost: "bg-transparent text-pine hover:bg-cream",
+  danger: "bg-transparent text-danger hover:bg-[#f8e8e4]",
+};
+
+const sizes = {
+  md: "h-12 w-full text-base",
+  sm: "h-10 w-auto px-3 text-sm",
+};
+
+export function SubmitButton({
+  pendingLabel = "Working…",
+  className = "",
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { pendingLabel?: string }) {
+  const { pending: formPending } = useFormStatus();
+  const pending = formPending && props.type !== "button";
+  return (
+    <button
+      {...props}
+      aria-busy={pending || undefined}
+      disabled={pending || props.disabled}
+      className={`disabled:opacity-60 ${className}`}
+    >
+      {pending ? pendingLabel : children}
+    </button>
+  );
+}
 
 export function Button({
   variant = "primary",
@@ -14,21 +49,12 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "md" | "sm";
+  pendingLabel?: string;
 }) {
-  const variants = {
-    primary: "bg-pine text-cream hover:bg-pine-deep",
-    secondary: "border border-line bg-paper text-ink hover:border-pine hover:bg-cream",
-    ghost: "bg-transparent text-pine hover:bg-cream",
-    danger: "bg-transparent text-danger hover:bg-[#f8e8e4]",
-  };
-  const sizes = {
-    md: "h-12 w-full text-base",
-    sm: "h-10 w-auto px-3 text-sm",
-  };
   return (
-    <button
+    <SubmitButton
       {...props}
-      className={`inline-flex items-center justify-center rounded-2xl px-4 font-semibold disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-2xl px-4 font-semibold ${variants[variant]} ${sizes[size]} ${className}`}
     />
   );
 }
@@ -75,20 +101,21 @@ export function SelectField({
   );
 }
 
-export function Notice({ code }: { code?: string }) {
-  if (!code || !FORM_ERRORS[code]) return null;
+export function Notice({ code, detail }: { code?: string; detail?: string }) {
+  const message = detail?.trim() || (code ? FORM_ERRORS[code] : "");
+  if (!message) return null;
   return (
     <p role="alert" className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-sm text-danger">
-      {FORM_ERRORS[code]}
+      {message}
     </p>
   );
 }
 
 export function BackLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="mb-3 inline-flex text-sm font-semibold text-pine">
+    <PendingLink href={href} className="mb-3 inline-flex text-sm font-semibold text-pine">
       ← {children}
-    </Link>
+    </PendingLink>
   );
 }
 

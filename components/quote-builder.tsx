@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type DragEvent } from "react";
+import { useMemo, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { addTier, presentQuote, updateQuote, useGoodBetterBest } from "@/app/actions";
@@ -10,6 +10,8 @@ import { groupCents } from "@/lib/project";
 import { customerSummary } from "@/lib/summary";
 import type { ItemGroup, LibraryItem, QuoteRecord } from "@/lib/types";
 import { unitWord } from "@/lib/units";
+
+import { SubmitButton } from "./ui";
 
 export function QuoteBuilder({
   quote,
@@ -30,6 +32,8 @@ export function QuoteBuilder({
   const [query, setQuery] = useState("");
   const [groupName, setGroupName] = useState("");
   const [over, setOver] = useState<string | null>(null);
+  const [adding, startAdd] = useTransition();
+  const [savingLine, startSaveLine] = useTransition();
   const selected = groups.find((group) => group.id === selectedId) || groups[0] || null;
 
   const visibleItems = useMemo(() => {
@@ -68,9 +72,12 @@ export function QuoteBuilder({
           {jobLabel}
           <input name="title" defaultValue={quote.title} required className="mt-1 h-11 w-full rounded-2xl border border-line bg-paper px-3" />
         </label>
-        <button className="h-11 rounded-2xl border border-line bg-paper px-4 text-sm font-semibold hover:border-pine">
+        <SubmitButton
+          pendingLabel="Saving…"
+          className="h-11 rounded-2xl border border-line bg-paper px-4 text-sm font-semibold hover:border-pine"
+        >
           Save details
-        </button>
+        </SubmitButton>
       </form>
 
       <div className="grid h-[calc(100dvh-10rem)] grid-cols-[280px_minmax(0,1fr)_320px] gap-4">
@@ -132,14 +139,17 @@ export function QuoteBuilder({
             ))}
             <form
               className="flex gap-2 pt-2"
-              onSubmit={async (event) => {
+              onSubmit={(event) => {
                 event.preventDefault();
-                const result = await quickCreateGroup(groupName);
-                if (result.ok) {
-                  setGroupName("");
-                  setSelectedId(result.id);
-                  router.refresh();
-                }
+                const name = groupName;
+                startAdd(async () => {
+                  const result = await quickCreateGroup(name);
+                  if (result.ok) {
+                    setGroupName("");
+                    setSelectedId(result.id);
+                    router.refresh();
+                  }
+                });
               }}
             >
               <input
@@ -148,7 +158,13 @@ export function QuoteBuilder({
                 placeholder="New group"
                 className="h-10 min-w-0 flex-1 rounded-xl border border-line px-3 text-sm"
               />
-              <button className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream">Add</button>
+              <button
+                disabled={adding}
+                aria-busy={adding}
+                className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream disabled:opacity-60"
+              >
+                {adding ? "Adding…" : "Add"}
+              </button>
             </form>
           </div>
         </section>
@@ -180,15 +196,17 @@ export function QuoteBuilder({
                     <p className="font-semibold">{item.name}</p>
                     <form
                       className="mt-2 flex flex-wrap items-end gap-2"
-                      onSubmit={async (event) => {
+                      onSubmit={(event) => {
                         event.preventDefault();
                         const form = new FormData(event.currentTarget);
-                        await patchGroupLine({
-                          itemId: item.id,
-                          quantity: String(form.get("quantity") || ""),
-                          price: String(form.get("price") || ""),
+                        startSaveLine(async () => {
+                          await patchGroupLine({
+                            itemId: item.id,
+                            quantity: String(form.get("quantity") || ""),
+                            price: String(form.get("price") || ""),
+                          });
+                          router.refresh();
                         });
-                        router.refresh();
                       }}
                     >
                       <label className="text-xs font-medium">
@@ -199,7 +217,13 @@ export function QuoteBuilder({
                         Price
                         <input name="price" defaultValue={dollarsInputValue(item.unitPriceCents)} className="mt-1 block h-10 w-24 rounded-xl border border-line px-2" />
                       </label>
-                      <button className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream">Save</button>
+                      <button
+                        disabled={savingLine}
+                        aria-busy={savingLine}
+                        className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream disabled:opacity-60"
+                      >
+                        {savingLine ? "Saving…" : "Save"}
+                      </button>
                     </form>
                   </li>
                 ))}
@@ -243,21 +267,31 @@ export function QuoteBuilder({
           })}
           <form action={addTier}>
             <input type="hidden" name="quoteId" value={quote.id} />
-            <button className="h-11 w-full rounded-2xl border border-line bg-paper text-sm font-semibold hover:border-pine">
+            <SubmitButton
+              pendingLabel="Adding…"
+              className="h-11 w-full rounded-2xl border border-line bg-paper text-sm font-semibold hover:border-pine"
+            >
               Add option
-            </button>
+            </SubmitButton>
           </form>
           <form action={useGoodBetterBest}>
             <input type="hidden" name="quoteId" value={quote.id} />
-            <button className="h-11 w-full rounded-2xl border border-line bg-paper text-sm font-semibold hover:border-pine">
+            <SubmitButton
+              pendingLabel="Setting up…"
+              className="h-11 w-full rounded-2xl border border-line bg-paper text-sm font-semibold hover:border-pine"
+            >
               Use Good, Better, Best
-            </button>
+            </SubmitButton>
           </form>
           <form action={presentQuote}>
             <input type="hidden" name="quoteId" value={quote.id} />
-            <button data-spotlight="present-button" className="h-12 w-full rounded-2xl bg-pine text-base font-semibold text-cream hover:bg-pine-deep">
+            <SubmitButton
+              data-spotlight="present-button"
+              pendingLabel="Presenting…"
+              className="h-12 w-full rounded-2xl bg-pine text-base font-semibold text-cream hover:bg-pine-deep"
+            >
               {presentLabel}
-            </button>
+            </SubmitButton>
           </form>
         </section>
       </div>

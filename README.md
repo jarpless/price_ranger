@@ -1,6 +1,6 @@
 # Price Ranger
 
-An estimating app for pricing work, a sale, or a service and presenting a few options. Phones and wide screens are both first-class. This checkout is v2.1 Basecamp (`lib/version.ts`).
+An estimating app for pricing work, a sale, or a service and presenting a few options. Phones and wide screens are both first-class. This checkout is v2.1.1 Basecamp (`lib/version.ts`).
 
 The plan is in [docs/PLAN.md](docs/PLAN.md). The changelog is [CHANGELOG.md](CHANGELOG.md). What the old prototype contained is in [docs/legacy-requirements.md](docs/legacy-requirements.md).
 

@@ -1,9 +1,9 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 
 import { verifyEmailCode } from "@/app/auth-actions";
 import { Logo } from "@/components/logo";
-import { Notice, TextField } from "@/components/ui";
+import { Button, Notice, TextField } from "@/components/ui";
 import { DEV_CODE_COOKIE, DEV_LINK_COOKIE } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +31,7 @@ export default async function SentPage({
         <Notice code={error} />
         <input type="hidden" name="email" value={email || ""} />
         <TextField label="6-digit code" name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" required />
-        <button className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-pine text-base font-semibold text-cream">
-          Use the code
-        </button>
+        <Button type="submit" pendingLabel="Checking the code…">Use the code</Button>
       </form>
       {devLink || devCode ? (
         <div className="mt-6 rounded-3xl border border-dashed border-gold bg-paper p-4">
