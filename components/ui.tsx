@@ -1,0 +1,101 @@
+import Link from "next/link";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+
+import { FORM_ERRORS } from "@/lib/form";
+
+const field =
+  "w-full rounded-2xl border border-line bg-paper px-4 text-base text-ink outline-none focus:border-pine";
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: "md" | "sm";
+}) {
+  const variants = {
+    primary: "bg-pine text-cream",
+    secondary: "border border-line bg-paper text-ink",
+    ghost: "bg-transparent text-pine",
+    danger: "bg-transparent text-danger",
+  };
+  const sizes = {
+    md: "h-12 w-full text-base",
+    sm: "h-10 w-auto px-3 text-sm",
+  };
+  return (
+    <button
+      {...props}
+      className={`inline-flex items-center justify-center rounded-2xl px-4 font-semibold disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
+    />
+  );
+}
+
+export function TextField({
+  label,
+  ...props
+}: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+  const id = props.id || props.name;
+  return (
+    <label className="block" htmlFor={id}>
+      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      <input id={id} {...props} className={`${field} h-12`} />
+    </label>
+  );
+}
+
+export function TextArea({
+  label,
+  ...props
+}: { label: string } & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const id = props.id || props.name;
+  return (
+    <label className="block" htmlFor={id}>
+      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      <textarea id={id} {...props} className={`${field} min-h-28 py-3 leading-relaxed`} />
+    </label>
+  );
+}
+
+export function SelectField({
+  label,
+  children,
+  ...props
+}: { label: string; children: ReactNode } & SelectHTMLAttributes<HTMLSelectElement>) {
+  const id = props.id || props.name;
+  return (
+    <label className="block" htmlFor={id}>
+      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      <select id={id} {...props} className={`${field} h-12`}>
+        {children}
+      </select>
+    </label>
+  );
+}
+
+export function Notice({ code }: { code?: string }) {
+  if (!code || !FORM_ERRORS[code]) return null;
+  return (
+    <p role="alert" className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-sm text-danger">
+      {FORM_ERRORS[code]}
+    </p>
+  );
+}
+
+export function BackLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="mb-3 inline-flex text-sm font-semibold text-pine">
+      ← {children}
+    </Link>
+  );
+}
+
+export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <section className={`rounded-3xl border border-line bg-paper p-4 ${className}`}>
+      {children}
+    </section>
+  );
+}

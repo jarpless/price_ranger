@@ -1,32 +1,53 @@
-import { LoginForm } from '@/components/auth/login-form'
-import Link from 'next/link'
-import Image from 'next/image'
-import Logo from '../../public/images/price_ranger_logo.png'
+import Image from "next/image";
 
-export default function LoginPage() {
+import { sendMagicLink } from "@/app/actions";
+import { Button, Notice, TextField } from "@/components/ui";
+import { dataBackend } from "@/lib/env";
+
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+  const local = dataBackend() === "local";
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
-      <div className="mb-8 flex flex-col items-center">
-        <Image
-          src={Logo}
-          alt="Price Ranger Logo"
-          width={200}
-          height={200}
-          priority
-        />
-        <p className="text-center text-lg text-muted-foreground max-w-md">
-          A simple and flexible tool for{' '}
-          <br />
-          pricing home improvement projects
-        </p>
-      </div>
-      <LoginForm />
-      <p className="mt-4 text-sm text-muted-foreground">
-        Don't have an account?{' '}
-        <Link href="/signup" className="text-primary hover:underline">
-          Sign up
-        </Link>
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
+      <Image
+        src="/images/logo-full.png"
+        alt="Price Ranger"
+        width={512}
+        height={512}
+        priority
+        className="mx-auto mb-6 h-auto w-48"
+      />
+      <h1 className="text-center font-serif text-3xl leading-tight">
+        Quote the job. Present the options.
+      </h1>
+      <p className="mt-3 text-center text-base leading-relaxed text-muted">
+        A simple way to price home improvement work and show a customer a few clear choices.
       </p>
-    </div>
-  )
-} 
+      <form action={sendMagicLink} className="mt-8 space-y-4">
+        <Notice code={error} />
+        <TextField
+          label="Email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
+          required
+        />
+        <Button type="submit">Email me a sign-in link</Button>
+      </form>
+      {local ? (
+        <p className="mt-6 text-center text-sm leading-relaxed text-muted">
+          Local mode: the sign-in link stays on this device. No email is sent.
+        </p>
+      ) : null}
+    </main>
+  );
+}
