@@ -9,8 +9,8 @@ import { assistantMessageCap, PLAN_PRICES_CENTS, PLANS } from "./plans";
 import { VERSION_LABEL, APP_VERSION } from "./version";
 
 test("version label is the single Basecamp stamp", () => {
-  assert.equal(APP_VERSION, "2.1.0");
-  assert.equal(VERSION_LABEL, "v2.1 Basecamp");
+  assert.equal(APP_VERSION, "2.1.1");
+  assert.equal(VERSION_LABEL, "v2.1.1 Basecamp");
 });
 
 test("assistant caps come from the plan config", () => {

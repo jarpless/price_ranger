@@ -1,6 +1,6 @@
 {
   "name": "price-ranger",
-  "version": "2.1.0",
+    "version": "2.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test lib/domain.test.ts lib/basecamp.test.ts",
+    "test": "node --import tsx --test lib/domain.test.ts lib/basecamp.test.ts lib/cookie-session.test.ts",
     "migration": "tsx scripts/build-migration.ts"
   },
   "dependencies": {

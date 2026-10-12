@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getSessionUser, safeNext, setLocalSession } from "@/lib/auth";
 import { dataBackend } from "@/lib/env";
+import { guestErrorDetail } from "@/lib/form";
 import { createGuestUser } from "@/lib/store/local";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +15,10 @@ export async function GET(request: Request) {
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInAnonymously();
-    if (error) redirect("/login?error=guest");
+    if (error) {
+      const detail = encodeURIComponent(guestErrorDetail(error.message));
+      redirect(`/login?error=guest&detail=${detail}`);
+    }
     redirect("/start");
   }
   if (dataBackend() !== "local") redirect("/setup");

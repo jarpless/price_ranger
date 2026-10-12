@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 import { notFound } from "next/navigation";
 
 import { TourPlayer } from "@/components/tour-player";

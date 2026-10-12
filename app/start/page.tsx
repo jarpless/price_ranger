@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { chooseIndustry } from "@/app/auth-actions";
 import { Logo } from "@/components/logo";
-import { Notice } from "@/components/ui";
+import { Notice, SubmitButton } from "@/components/ui";
 import { getSessionUser } from "@/lib/auth";
 import { INDUSTRY_IDS, VOCABULARIES } from "@/lib/vocabulary";
 
@@ -36,10 +36,13 @@ export default async function StartPage({
           return (
             <form key={id} action={chooseIndustry}>
               <input type="hidden" name="industry" value={id} />
-              <button className="flex h-full min-h-32 w-full flex-col items-start rounded-3xl border border-line bg-paper p-5 text-left hover:border-pine">
+              <SubmitButton
+                pendingLabel="Setting up…"
+                className="flex h-full min-h-32 w-full flex-col items-start rounded-3xl border border-line bg-paper p-5 text-left font-normal hover:border-pine"
+              >
                 <span className="font-serif text-2xl text-ink">{words.label}</span>
                 <span className="mt-2 text-sm leading-relaxed text-muted">{words.blurb}</span>
-              </button>
+              </SubmitButton>
             </form>
           );
         })}

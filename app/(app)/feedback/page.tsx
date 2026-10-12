@@ -1,7 +1,8 @@
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 import { notFound } from "next/navigation";
 
 import { saveFeedbackStatus } from "@/app/basecamp-actions";
+import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/owner";
 import { listFeedback, type FeedbackStatus } from "@/lib/store/basecamp";
@@ -80,7 +81,9 @@ export default async function FeedbackPage() {
                     className="mt-1 block h-10 rounded-xl border border-line px-2"
                   />
                 </label>
-                <button className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream">Save</button>
+                <SubmitButton pendingLabel="Saving…" className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream">
+                  Save
+                </SubmitButton>
               </form>
             </li>
           ))}

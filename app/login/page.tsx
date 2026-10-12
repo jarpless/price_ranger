@@ -1,22 +1,22 @@
-import Link from "next/link";
-
 import { sendMagicLink } from "@/app/actions";
 import { createPasswordAccount, signInWithPassword, startOAuth } from "@/app/auth-actions";
 import { Logo } from "@/components/logo";
 import { PasskeyButton } from "@/components/passkey-button";
+import { PendingLink } from "@/components/pending-link";
 import { Button, Notice, TextField } from "@/components/ui";
 import { enabledOAuthButtons, passkeyConfigured } from "@/lib/auth-providers";
 import { dataBackend } from "@/lib/env";
-import { FORM_ERRORS } from "@/lib/form";
+import { guestErrorDetail } from "@/lib/form";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; reason?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; reason?: string; next?: string; detail?: string }>;
 }) {
-  const { error, reason } = await searchParams;
+  const { error, reason, detail } = await searchParams;
+  const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const providers = enabledOAuthButtons();
   const passkey = passkeyConfigured();
@@ -43,7 +43,11 @@ export default async function LoginPage({
           Create an account to save and share this. The draft on this device comes with you.
         </p>
       ) : null}
-      {error && FORM_ERRORS[error] ? <div className="mt-6"><Notice code={error} /></div> : null}
+      {authDetail || error ? (
+        <div className="mt-6">
+          <Notice code={error} detail={authDetail} />
+        </div>
+      ) : null}
 
       {providers.length > 0 ? (
         <div className="mt-8 space-y-3">
@@ -93,12 +97,12 @@ export default async function LoginPage({
         </form>
       </details>
 
-      <Link
+      <PendingLink
         href="/auth/guest"
         className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl text-base font-semibold text-pine"
       >
         Continue without an account
-      </Link>
+      </PendingLink>
       {local ? (
         <p className="mt-4 text-center text-sm leading-relaxed text-muted">
           Local mode: the sign-in link and the code stay on this device. No email is sent.

@@ -1,9 +1,10 @@
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
 
 import { Logo } from "./logo";
 import { BottomNav, Sidebar } from "./nav";
+import { SubmitButton } from "./ui";
 
 export function Shell({
   children,
@@ -30,7 +31,9 @@ export function Shell({
               </Link>
             ) : (
               <form action={signOut} className="ml-auto">
-                <button className="text-sm font-medium text-cream/80">Sign out</button>
+                <SubmitButton pendingLabel="Signing out…" className="text-sm font-medium text-cream/80">
+                  Sign out
+                </SubmitButton>
               </form>
             )}
           </div>

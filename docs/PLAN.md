@@ -77,7 +77,7 @@ The catalog migration is `supabase/migrations/20261012000000_init.sql`. Basecamp
 
 ## v2.1 Basecamp
 
-Shipped on top of Trailhead. The version and codename live only in `lib/version.ts`. The on-screen stamp is `v2.1 Basecamp`, the short git sha (`VERCEL_GIT_COMMIT_SHA`, or `dev` locally), and the env (`prod`, `preview`, or `local` from `VERCEL_ENV`).
+Shipped on top of Trailhead. The version and codename live only in `lib/version.ts`. The on-screen stamp is `v2.1.1 Basecamp`, the short git sha (`VERCEL_GIT_COMMIT_SHA`, or `dev` locally), and the env (`prod`, `preview`, or `local` from `VERCEL_ENV`). Production functions run in `sfo1`, next to Supabase `us-west-1`.
 
 - Wide screens: left sidebar (Quotes, Prices, Catalog, Groups, Settings). Phones keep those same destinations as bottom tabs.
 - Quote builder on a wide screen is three panes: prices and groups, the selected group, and live Good / Better / Best totals. Drag a price onto a group, or a group onto an option.

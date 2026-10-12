@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { dataBackend } from "./lib/env";
 import { KIND_COOKIE, readSessionValue, SESSION_COOKIE, sessionSecret } from "./lib/session";
+import { readFreshSupabaseSession, type CookieSessionUser } from "./lib/supabase/cookie-session";
 import { refreshSupabaseSession } from "./lib/supabase/middleware";
 
 function isPublic(pathname: string) {
@@ -32,6 +33,17 @@ function copyCookies(from: NextResponse, to: NextResponse) {
   return to;
 }
 
+async function supabaseGate(request: NextRequest): Promise<{
+  user: CookieSessionUser | { id: string; email?: string | null; is_anonymous?: boolean } | null;
+  response: NextResponse;
+}> {
+  const fresh = readFreshSupabaseSession(request.cookies.getAll());
+  if (fresh.status === "known") {
+    return { user: fresh.user, response: NextResponse.next({ request }) };
+  }
+  return refreshSupabaseSession(request);
+}
+
 export async function middleware(request: NextRequest) {
   const backend = dataBackend();
   const { pathname } = request.nextUrl;
@@ -43,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     if (backend === "supabase") {
-      const { response, user } = await refreshSupabaseSession(request);
+      const { response, user } = await supabaseGate(request);
       if (!user) {
         return copyCookies(response, NextResponse.json({ error: "Sign in first." }, { status: 401 }));
       }
@@ -58,7 +70,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (backend === "supabase") {
-    const { response, user } = await refreshSupabaseSession(request);
+    const { response, user } = await supabaseGate(request);
     const account = user as { email?: string | null; is_anonymous?: boolean } | null;
     const guest = Boolean(account?.is_anonymous) || Boolean(account && !account.email);
     if (!user && !isPublic(pathname)) {

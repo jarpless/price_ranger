@@ -1,7 +1,8 @@
-import Link from "next/link";
+import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
 import { SettingsForm } from "@/components/settings-form";
+import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { buildStamp, stampText } from "@/lib/build-info";
 import { llmProvider } from "@/lib/assistant/llm";
@@ -70,7 +71,9 @@ export default async function SettingsPage() {
         <p className="text-sm text-muted">Feedback tools are on the owner account.</p>
       )}
       <form action={signOut}>
-        <button className="text-sm font-semibold text-pine">Sign out</button>
+        <SubmitButton pendingLabel="Signing out…" className="text-sm font-semibold text-pine">
+          Sign out
+        </SubmitButton>
       </form>
       {owner ? (
         <p className="text-sm">
