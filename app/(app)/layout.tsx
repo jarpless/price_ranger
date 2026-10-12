@@ -1,9 +1,17 @@
+import { redirect } from "next/navigation";
+
 import { requireUser } from "@/lib/auth";
 import { Shell } from "@/components/shell";
+import { vocabulary } from "@/lib/vocabulary";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  await requireUser();
-  return <Shell>{children}</Shell>;
+  const user = await requireUser();
+  if (!user.industry) redirect("/start");
+  return (
+    <Shell quotesLabel={vocabulary(user.industry).quotes} guest={user.guest}>
+      {children}
+    </Shell>
+  );
 }

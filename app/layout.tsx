@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
 
+import { AppChrome } from "@/components/app-chrome";
+
 import "./globals.css";
 
 const outfit = Outfit({
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
     default: "Price Ranger",
     template: "%s · Price Ranger",
   },
-  description: "A simple phone app for pricing a job and presenting a few options.",
+  description: "A simple app for pricing work, a sale, or a service and presenting a few options.",
   applicationName: "Price Ranger",
 };
 
@@ -33,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${outfit.variable} ${fraunces.variable} bg-cream font-sans text-ink antialiased`}>
         {children}
+        <AppChrome />
       </body>
     </html>
   );

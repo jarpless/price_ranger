@@ -1,6 +1,6 @@
 {
   "name": "price-ranger",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,13 +8,15 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test lib/domain.test.ts",
+    "test": "node --import tsx --test lib/domain.test.ts lib/basecamp.test.ts",
     "migration": "tsx scripts/build-migration.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.75.0",
+    "html-to-image": "^1.11.13",
     "next": "^15.5.4",
+    "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
@@ -22,6 +24,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.14",
     "@types/node": "^22.18.8",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "eslint": "^9.37.0",

@@ -16,10 +16,10 @@ export function Button({
   size?: "md" | "sm";
 }) {
   const variants = {
-    primary: "bg-pine text-cream",
-    secondary: "border border-line bg-paper text-ink",
-    ghost: "bg-transparent text-pine",
-    danger: "bg-transparent text-danger",
+    primary: "bg-pine text-cream hover:bg-pine-deep",
+    secondary: "border border-line bg-paper text-ink hover:border-pine hover:bg-cream",
+    ghost: "bg-transparent text-pine hover:bg-cream",
+    danger: "bg-transparent text-danger hover:bg-[#f8e8e4]",
   };
   const sizes = {
     md: "h-12 w-full text-base",

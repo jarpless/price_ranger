@@ -1,5 +1,8 @@
 export const SESSION_COOKIE = "pr_session";
+export const KIND_COOKIE = "pr_kind";
 export const DEV_LINK_COOKIE = "pr_dev_link";
+export const DEV_CODE_COOKIE = "pr_dev_code";
+export const PENDING_EMAIL_COOKIE = "pr_pending_email";
 
 const DEV_SECRET = "price-ranger-dev-secret";
 

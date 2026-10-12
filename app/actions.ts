@@ -10,7 +10,7 @@ import { clip, isEmail } from "@/lib/form";
 import { parseDollarsToCents, parseQuantity } from "@/lib/money";
 import { buildPresentation } from "@/lib/project";
 import { autoSummary } from "@/lib/summary";
-import { DEV_LINK_COOKIE } from "@/lib/session";
+import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, PENDING_EMAIL_COOKIE } from "@/lib/session";
 import { getData } from "@/lib/store";
 import { isUnit } from "@/lib/units";
 
@@ -24,9 +24,25 @@ export async function sendMagicLink(formData: FormData) {
 
   const origin = siteOriginFromHeaders(await headers());
   const result = await requestMagicLink(email, origin);
+  const cookieStore = await cookies();
+  cookieStore.set(PENDING_EMAIL_COOKIE, email, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 15,
+  });
   if (result.devLink) {
-    const cookieStore = await cookies();
     cookieStore.set(DEV_LINK_COOKIE, result.devLink, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+      path: "/",
+      maxAge: 60 * 15,
+    });
+  }
+  if (result.devCode) {
+    cookieStore.set(DEV_CODE_COOKIE, result.devCode, {
       httpOnly: true,
       sameSite: "lax",
       secure: false,
@@ -135,6 +151,7 @@ export async function deleteTier(formData: FormData) {
 export async function presentQuote(formData: FormData) {
   const user = await requireUser();
   const quoteId = clip(formData.get("quoteId"), 80);
+  if (user.guest) redirect(`/login?reason=save&next=/quotes/${quoteId}`);
   const data = await getData();
   const quote = await data.getQuote(user.id, quoteId);
   if (!quote) redirect("/");

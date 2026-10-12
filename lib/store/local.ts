@@ -1,10 +1,11 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { BRANDS, PRODUCTS, SKUS, type SkuSeed } from "../catalog";
 import { connectorBySlug } from "../connectors";
 import { filterCatalog, seededCatalogHits } from "../search";
+import type { LibraryImportRow } from "./types";
 import { toQuoteListItem } from "../project";
 import type { DataStore } from "./types";
 import type {
@@ -24,6 +25,12 @@ interface DbUser {
   id: string;
   email: string;
   createdAt: string;
+  guest?: boolean;
+  industry?: string | null;
+  plan?: string | null;
+  passExpiresAt?: string | null;
+  passwordHash?: string;
+  passwordSalt?: string;
 }
 
 interface MagicLink {
@@ -32,9 +39,24 @@ interface MagicLink {
   expiresAt: number;
 }
 
+interface EmailCode {
+  hash: string;
+  email: string;
+  expiresAt: number;
+}
+
+interface ShareRow {
+  token: string;
+  userId: string;
+  quoteId: string;
+  payload: unknown;
+}
+
 interface Db {
   users: DbUser[];
   magicLinks: MagicLink[];
+  emailCodes: EmailCode[];
+  shares: ShareRow[];
   brands: typeof BRANDS;
   products: typeof PRODUCTS;
   skus: SkuSeed[];
@@ -64,6 +86,8 @@ function emptyDb(): Db {
   return {
     users: [],
     magicLinks: [],
+    emailCodes: [],
+    shares: [],
     brands: BRANDS,
     products: PRODUCTS,
     skus: SKUS,
@@ -80,7 +104,12 @@ function emptyDb(): Db {
 async function read(): Promise<Db> {
   try {
     const raw = await readFile(dbPath, "utf8");
-    return JSON.parse(raw) as Db;
+    const db = JSON.parse(raw) as Db;
+    db.users ??= [];
+    db.magicLinks ??= [];
+    db.emailCodes ??= [];
+    db.shares ??= [];
+    return db;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyDb();
     throw error;
@@ -176,13 +205,162 @@ export async function consumeMagicLink(token: string): Promise<DbUser | null> {
     const link = db.magicLinks[index];
     db.magicLinks.splice(index, 1);
     if (link.expiresAt < Date.now()) return null;
-    let user = db.users.find((item) => item.email === link.email);
+    let user = db.users.find((item) => item.email === link.email && !item.guest);
     if (!user) {
-      user = { id: crypto.randomUUID(), email: link.email, createdAt: nowIso() };
+      user = {
+        id: crypto.randomUUID(),
+        email: link.email,
+        createdAt: nowIso(),
+        guest: false,
+        plan: "free",
+        industry: null,
+      };
       db.users.push(user);
     }
     return user;
   });
+}
+
+function passwordDigest(password: string, salt: string): string {
+  return scryptSync(password, salt, 32).toString("hex");
+}
+
+function passwordsMatch(password: string, user: DbUser): boolean {
+  if (!user.passwordHash || !user.passwordSalt) return false;
+  const actual = Buffer.from(passwordDigest(password, user.passwordSalt), "hex");
+  const expected = Buffer.from(user.passwordHash, "hex");
+  if (actual.length !== expected.length) return false;
+  return timingSafeEqual(actual, expected);
+}
+
+export async function issueEmailCode(email: string): Promise<string> {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  await update((db) => {
+    db.emailCodes = db.emailCodes.filter(
+      (item) => item.email !== email && item.expiresAt > Date.now(),
+    );
+    db.emailCodes.push({
+      hash: hashToken(code),
+      email,
+      expiresAt: Date.now() + 1000 * 60 * 15,
+    });
+  });
+  return code;
+}
+
+export async function consumeEmailCode(email: string, code: string): Promise<DbUser | null> {
+  const hash = hashToken(code.trim());
+  return update((db) => {
+    const index = db.emailCodes.findIndex((item) => item.hash === hash && item.email === email);
+    if (index < 0) return null;
+    const row = db.emailCodes[index];
+    db.emailCodes.splice(index, 1);
+    if (row.expiresAt < Date.now()) return null;
+    let user = db.users.find((item) => item.email === email && !item.guest);
+    if (!user) {
+      user = {
+        id: crypto.randomUUID(),
+        email,
+        createdAt: nowIso(),
+        guest: false,
+        plan: "free",
+        industry: null,
+      };
+      db.users.push(user);
+    }
+    return user;
+  });
+}
+
+export async function createGuestUser(): Promise<DbUser> {
+  return update((db) => {
+    const user: DbUser = {
+      id: crypto.randomUUID(),
+      email: "",
+      createdAt: nowIso(),
+      guest: true,
+      plan: "free",
+      industry: null,
+    };
+    db.users.push(user);
+    return user;
+  });
+}
+
+export async function setLocalIndustry(userId: string, industry: string): Promise<void> {
+  await update((db) => {
+    const user = db.users.find((item) => item.id === userId);
+    if (user) user.industry = industry;
+  });
+}
+
+export async function createLocalPasswordAccount(
+  email: string,
+  password: string,
+): Promise<DbUser | "taken" | "password"> {
+  if (password.length < 8) return "password";
+  return update((db) => {
+    if (db.users.some((item) => item.email === email && !item.guest)) return "taken";
+    const salt = randomBytes(16).toString("hex");
+    const user: DbUser = {
+      id: crypto.randomUUID(),
+      email,
+      createdAt: nowIso(),
+      guest: false,
+      plan: "free",
+      industry: null,
+      passwordSalt: salt,
+      passwordHash: passwordDigest(password, salt),
+    };
+    db.users.push(user);
+    return user;
+  });
+}
+
+export async function verifyLocalPassword(email: string, password: string): Promise<DbUser | null> {
+  const db = await read();
+  const user = db.users.find((item) => item.email === email && !item.guest);
+  if (!user || !passwordsMatch(password, user)) return null;
+  return user;
+}
+
+export async function adoptLocalGuest(guestId: string, userId: string): Promise<void> {
+  if (!guestId || guestId === userId) return;
+  await update((db) => {
+    const guest = db.users.find((item) => item.id === guestId && item.guest);
+    const user = db.users.find((item) => item.id === userId);
+    if (!guest || !user) return;
+    for (const item of db.library) if (item.userId === guestId) item.userId = userId;
+    for (const item of db.groups) if (item.userId === guestId) item.userId = userId;
+    for (const item of db.quotes) if (item.userId === guestId) item.userId = userId;
+    for (const item of db.connections) if (item.userId === guestId) item.userId = userId;
+    for (const item of db.shares) if (item.userId === guestId) item.userId = userId;
+    if (!user.industry && guest.industry) user.industry = guest.industry;
+    db.users = db.users.filter((item) => item.id !== guestId);
+  });
+}
+
+export async function publishLocalSheet(
+  userId: string,
+  quoteId: string,
+  payload: unknown,
+): Promise<string | null> {
+  return update((db) => {
+    if (!requireQuote(db, userId, quoteId)) return null;
+    const existing = db.shares.find((item) => item.userId === userId && item.quoteId === quoteId);
+    if (existing) {
+      existing.payload = payload;
+      return existing.token;
+    }
+    const token = randomBytes(12).toString("base64url");
+    db.shares.push({ token, userId, quoteId, payload });
+    return token;
+  });
+}
+
+export async function readLocalSheet(token: string): Promise<unknown | null> {
+  const db = await read();
+  return db.shares.find((item) => item.token === token)?.payload ?? null;
 }
 
 export async function getLocalUser(userId: string): Promise<DbUser | null> {
@@ -621,7 +799,31 @@ export const localStore = {
     });
   },
 
+  async listCatalog(): Promise<CatalogHit[]> {
+    return seededCatalogHits();
+  },
+
   async searchCatalog(query: string): Promise<CatalogHit[]> {
     return filterCatalog(seededCatalogHits(), query);
+  },
+
+  async importLibraryRows(userId: string, rows: LibraryImportRow[]): Promise<number> {
+    return update((db) => {
+      for (const row of rows) {
+        db.library.push({
+          id: crypto.randomUUID(),
+          userId,
+          skuId: null,
+          connectorSlug: null,
+          name: row.name,
+          unit: row.unit,
+          unitPriceCents: row.unitPriceCents,
+          samplePrice: false,
+          source: "custom",
+          createdAt: nowIso(),
+        });
+      }
+      return rows.length;
+    });
   },
 } satisfies DataStore;

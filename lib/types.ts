@@ -17,6 +17,9 @@ export type QuoteStatus = "draft" | "presented";
 export interface SessionUser {
   id: string;
   email: string;
+  guest: boolean;
+  industry: "trades" | "retail" | "services" | "yard" | null;
+  plan: "free" | "pass" | "plus" | "pro";
 }
 
 export interface LibraryItem {

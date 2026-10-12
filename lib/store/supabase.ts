@@ -14,7 +14,7 @@ import type {
   QuoteTier,
   Unit,
 } from "../types";
-import type { DataStore } from "./types";
+import type { DataStore, LibraryImportRow } from "./types";
 
 type QueryResult = { data: unknown; error: { message: string } | null };
 
@@ -659,14 +659,14 @@ export const supabaseStore = {
     return fresh.length;
   },
 
-  async searchCatalog(query: string): Promise<CatalogHit[]> {
+  async listCatalog(): Promise<CatalogHit[]> {
     const supabase = await client();
     const rows = await many(
       supabase
         .from("skus")
         .select("id, sku_code, name, variation, unit, list_price_cents, connector_slug, products(category, brands(name))"),
     );
-    const hits: CatalogHit[] = rows.map((row) => {
+    return rows.map((row) => {
       const product = firstRelation(row.products) as Record<string, unknown> | null;
       const brand = product ? (firstRelation(product.brands) as Record<string, unknown> | null) : null;
       return {
@@ -681,7 +681,27 @@ export const supabaseStore = {
         skuCode: (row.sku_code as string | null) ?? null,
       };
     });
-    return filterCatalog(hits, query);
+  },
+
+  async searchCatalog(query: string): Promise<CatalogHit[]> {
+    return filterCatalog(await this.listCatalog(), query);
+  },
+
+  async importLibraryRows(userId: string, rows: LibraryImportRow[]): Promise<number> {
+    if (rows.length === 0) return 0;
+    const supabase = await client();
+    const { error } = await supabase.from("library_items").insert(
+      rows.map((row) => ({
+        user_id: userId,
+        name: row.name,
+        unit: row.unit,
+        unit_price_cents: row.unitPriceCents,
+        sample_price: false,
+        source: "custom",
+      })),
+    );
+    if (error) throw new Error(error.message);
+    return rows.length;
   },
 } satisfies DataStore;
 

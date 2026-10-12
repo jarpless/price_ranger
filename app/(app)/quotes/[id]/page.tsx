@@ -7,12 +7,14 @@ import {
   updateQuote,
   useGoodBetterBest,
 } from "@/app/actions";
+import { QuoteBuilder } from "@/components/quote-builder";
 import { BackLink, Button, Card, Notice, TextField } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { formatUsd, priceSpan } from "@/lib/money";
 import { customerSummary } from "@/lib/summary";
 import { groupCents, presentationDrifted } from "@/lib/project";
 import { getData } from "@/lib/store";
+import { vocabulary } from "@/lib/vocabulary";
 import { notFound } from "next/navigation";
 
 export const metadata = { title: "Quote" };
@@ -27,22 +29,40 @@ export default async function QuotePage({
   const { id } = await params;
   const { error } = await searchParams;
   const user = await requireUser();
+  const words = vocabulary(user.industry);
   const data = await getData();
   const quote = await data.getQuote(user.id, id);
   if (!quote) notFound();
   const groups = await data.listGroups(user.id);
+  const library = await data.listLibrary(user.id);
   const byId = new Map(groups.map((group) => [group.id, group]));
   const drifted = presentationDrifted(quote, groups);
 
   return (
     <div className="space-y-4">
-      <BackLink href="/">Quotes</BackLink>
+      <div className="hidden lg:block">
+        <BackLink href="/">{words.quotes}</BackLink>
+        <h1 className="mb-4 font-serif text-4xl">{quote.customerName}</h1>
+        {drifted ? (
+          <p className="mb-4 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
+            Prices changed after you last presented. Present again to update the customer copy.
+          </p>
+        ) : null}
+        <QuoteBuilder
+          quote={quote}
+          groups={groups}
+          library={library}
+          labels={{ customer: words.customer, job: words.job, present: words.present }}
+        />
+      </div>
+      <div className="space-y-4 lg:hidden">
+      <BackLink href="/">{words.quotes}</BackLink>
       <h1 className="font-serif text-4xl">{quote.customerName}</h1>
       <form action={updateQuote} className="space-y-3">
         <input type="hidden" name="quoteId" value={quote.id} />
         <Notice code={error} />
-        <TextField label="Customer" name="customerName" defaultValue={quote.customerName} required />
-        <TextField label="Job" name="title" defaultValue={quote.title} required />
+        <TextField label={words.customer} name="customerName" defaultValue={quote.customerName} required />
+        <TextField label={words.job} name="title" defaultValue={quote.title} required />
         <Button type="submit" variant="secondary">
           Save details
         </Button>
@@ -54,7 +74,7 @@ export default async function QuotePage({
         </p>
       ) : null}
 
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between" data-spotlight="quote-options">
         <h2 className="font-serif text-2xl">Options</h2>
         <p className="font-serif text-xl text-pine">
           {priceSpan(
@@ -119,8 +139,15 @@ export default async function QuotePage({
 
       <form action={presentQuote}>
         <input type="hidden" name="quoteId" value={quote.id} />
-        <Button type="submit">Present to customer</Button>
+        <Button type="submit" data-spotlight="present-button">
+          {words.present}
+        </Button>
       </form>
+      {user.industry === "yard" ? (
+        <Link href={`/quotes/${quote.id}/sheet`} className="inline-flex text-sm font-semibold text-pine">
+          Print price sheet
+        </Link>
+      ) : null}
       <p className="text-sm leading-relaxed text-muted">
         Presenting saves a copy. Later edits stay off that copy until you present again.
       </p>
@@ -137,6 +164,7 @@ export default async function QuotePage({
           </Button>
         </form>
       </Card>
+      </div>
     </div>
   );
 }

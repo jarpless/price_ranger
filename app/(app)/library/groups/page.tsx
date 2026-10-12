@@ -14,8 +14,8 @@ export default async function GroupsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-serif text-4xl">Prices</h1>
-      <div className="grid grid-cols-2 rounded-2xl border border-line bg-paper p-1">
+      <h1 className="font-serif text-4xl">Groups</h1>
+      <div className="grid grid-cols-2 rounded-2xl border border-line bg-paper p-1 lg:hidden">
         <Link href="/library" className="flex h-10 items-center justify-center rounded-xl text-sm font-semibold text-muted">
           Items
         </Link>
@@ -39,10 +39,14 @@ export default async function GroupsPage() {
           Price Ranger writes the description for you.
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul data-spotlight="group-list" className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {groups.map((group) => (
             <li key={group.id}>
-              <Link href={`/library/groups/${group.id}`} className="block rounded-3xl border border-line bg-paper p-4">
+              <Link
+                href={`/library/groups/${group.id}`}
+                data-spotlight={`group-${group.id}`}
+                className="lift block h-full rounded-3xl border border-line bg-paper p-4"
+              >
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="font-serif text-2xl">{group.name}</h2>
                   <span className="font-serif text-xl">{formatUsd(groupCents(group))}</span>

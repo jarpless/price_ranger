@@ -9,6 +9,12 @@ import type {
   Unit,
 } from "../types";
 
+export interface LibraryImportRow {
+  name: string;
+  unit: Unit;
+  unitPriceCents: number;
+}
+
 export interface DataStore {
   listQuotes(userId: string): Promise<QuoteListItem[]>;
   getQuote(userId: string, quoteId: string): Promise<QuoteRecord | null>;
@@ -55,5 +61,7 @@ export interface DataStore {
   deleteGroup(userId: string, groupId: string): Promise<boolean>;
   listConnections(userId: string): Promise<ConnectorConnection[]>;
   connectConnector(userId: string, slug: string): Promise<number | null>;
+  listCatalog(): Promise<CatalogHit[]>;
   searchCatalog(query: string): Promise<CatalogHit[]>;
+  importLibraryRows(userId: string, rows: LibraryImportRow[]): Promise<number>;
 }

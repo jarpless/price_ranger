@@ -15,4 +15,10 @@ export const FORM_ERRORS: Record<string, string> = {
   name: "Give it a short name.",
   options: "Add an option before you present.",
   confirm: "Check the box to confirm.",
+  password: "Use at least 8 characters.",
+  taken: "That email already has an account. Sign in instead.",
+  code: "That code isn't valid anymore. Request a new one.",
+  provider: "That sign-in provider needs Supabase, with the provider turned on.",
+  guest: "Guest sign-in needs anonymous auth in Supabase, or local mode.",
+  signin: "That email and password did not match.",
 };
