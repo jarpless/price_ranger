@@ -157,7 +157,7 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
     actorId: input.userId,
     fromStatus: null,
     toStatus: "new",
-    note: classified.source === "model" ? "Classified by the model." : "Classified from the wording.",
+    note: classified.kind === "bug" ? "We saved this as a bug." : "We saved this as an idea.",
   });
   for (const extra of input.extras.slice(0, 4)) {
     await saveExtraImage({ feedbackId: report.id, userId: input.userId, png: extra });

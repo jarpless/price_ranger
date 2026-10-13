@@ -16,7 +16,9 @@ import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
+import { adjustmentFromSources, lineSettlement, priceError, visibleSources } from "@/lib/guide/pricing";
 import { formatUsd } from "@/lib/money";
+import { getData } from "@/lib/store";
 
 export const metadata = { title: "Your price" };
 
@@ -35,19 +37,38 @@ export default async function GuidePage({
   const row = await getGuideQuote(user.id, id);
   if (!row) notFound();
   const copy = stepCopy(row.step, row.path);
+  const sent = Boolean(row.step === "share" && row.sharedAt);
+  const title = sent ? "Sent" : row.step === "sold" ? copy.title : copy.title;
+  const now = sent ? "The link is ready. Mark it sold when you know." : copy.now;
   const price = row.priceCents != null ? formatUsd(row.priceCents) : "";
   const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
   const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
+  const data = await getData();
+  const quote = await data.getQuote(user.id, id);
+  const groups = await data.listGroups(user.id);
+  const adjustment = adjustmentFromSources(row.sources);
+  const byId = new Map(groups.map((group) => [group.id, group]));
+  const lines = (quote?.tiers[0]?.groupIds ?? []).flatMap((groupId) => byId.get(groupId)?.items ?? []).map((item) => {
+    const settled = lineSettlement(
+      { name: item.name, quantity: item.quantity, unitPriceCents: item.unitPriceCents },
+      adjustment,
+    );
+    return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
+  });
+  const sources = visibleSources(row.sources);
 
   return (
     <div data-guide-step={row.step} className="mx-auto max-w-[40rem]">
       <GuideProgress step={row.step} />
-      <h1 className="mt-6 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{copy.title}</h1>
-      <p className="mt-2 text-body text-muted">{copy.now}</p>
-      {error ? (
-        <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
-          {error === "share" ? "We could not send that yet. Try again." : "Add a few words, or a photo."}
-        </p>
+      <h1 className="mt-6 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{title}</h1>
+      <p className="mt-2 text-body text-muted">{now}</p>
+      {priceError(error) ? (
+        <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
+      ) : null}
+      {row.photoName ? (
+        // The photo route is the seller's copy of the picture they added.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/guide/${id}/photo`} alt={row.description} className="mt-6 max-h-64 w-full rounded-2xl border border-line object-contain bg-paper" />
       ) : null}
 
       {row.step === "describe" ? (
@@ -73,10 +94,23 @@ export default async function GuidePage({
 
       {showPrice ? (
         <div className="mt-6">
-          <p className="rounded-2xl border border-line bg-paper p-5 shadow-card">
+          <div className="rounded-2xl border border-line bg-paper p-5 shadow-card">
             <span className="block font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">{price}</span>
             <span className="mt-3 block text-body leading-6">{row.note}</span>
-          </p>
+            {lines.length > 0 ? (
+              <ul className="mt-4 space-y-3 border-t border-line pt-4">
+                {lines.map((line) => (
+                  <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3">
+                    <span>
+                      <span className="block text-base font-semibold">{line.name}</span>
+                      <span className="text-caption text-muted">{line.detail}</span>
+                    </span>
+                    <span className="shrink-0 font-serif text-title tabular-nums">{line.price}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <details className="mt-4 rounded-2xl border border-line bg-paper p-4 shadow-card">
             <summary className="cursor-pointer whitespace-nowrap text-base font-semibold">Change it</summary>
             <div className="mt-4 space-y-4">
@@ -86,6 +120,10 @@ export default async function GuidePage({
                 <label className="block text-base font-semibold">
                   Discount percent
                   <input name="percent" inputMode="numeric" placeholder="10" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
+                </label>
+                <label className="flex min-h-12 items-center gap-3 text-body">
+                  <input name="includeFees" type="checkbox" className="h-12 w-12 shrink-0" />
+                  Also take it off fees
                 </label>
                 <Button type="submit" variant="secondary">Take off</Button>
               </form>
@@ -114,7 +152,7 @@ export default async function GuidePage({
               <div>
                 <p className="text-base font-semibold">Sources</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-body text-muted">
-                  {row.sources.map((source) => (
+                  {sources.map((source) => (
                     <li key={source}>{source}</li>
                   ))}
                 </ul>
@@ -133,13 +171,31 @@ export default async function GuidePage({
       {row.step === "share" && row.sharedAt && shareHref ? (
         <div className="mt-6 space-y-4">
           <p className="font-serif text-price text-pine tabular-nums">{price}</p>
-          <p className="rounded-2xl border border-line bg-paper p-4 text-body leading-6 shadow-card">
-            Sent.{" "}
-            <Link href={shareHref} className="font-semibold text-pine underline">
-              Open the link
-            </Link>
-          </p>
-          <p className="text-body text-muted">Mark it sold when you know.</p>
+          {lines.length > 0 ? (
+            <ul className="rounded-2xl border border-line bg-paper p-4 shadow-card">
+              {lines.map((line) => (
+                <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3 py-2">
+                  <span>
+                    <span className="block text-base font-semibold">{line.name}</span>
+                    <span className="text-caption text-muted">{line.detail}</span>
+                  </span>
+                  <span className="font-serif text-title tabular-nums">{line.price}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <Link
+            href={shareHref}
+            className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink lg:w-auto lg:min-w-48 lg:px-6"
+          >
+            Open the link
+          </Link>
+          <a
+            href={`${shareHref}/pdf`}
+            className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink lg:w-auto lg:min-w-48 lg:px-6"
+          >
+            Download PDF
+          </a>
           <form action={continueGuide}>
             <input type="hidden" name="quoteId" value={row.quoteId} />
             <PrimaryDock>

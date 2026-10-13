@@ -1,3 +1,4 @@
+import { formatUsd } from "../money";
 import { isGuideStep, stepCopy, type GuidePath, type GuideStep } from "./flow";
 
 const ORDER: GuideStep[] = ["describe", "review", "adjust", "share", "sold"];
@@ -14,6 +15,19 @@ function stepFromPath(pathname: string): GuideStep | null {
  * Plain walkthrough for the step the person is on.
  * Returned before any model call so it works with no API key.
  */
+export function explainPrice(
+  message: string,
+  quote: { description: string; priceCents: number | null; note: string } | null,
+): string | null {
+  const text = message.trim().toLowerCase();
+  if (!/why (this|the) price|what should i do next/.test(text)) return null;
+  if (!quote || quote.priceCents == null) {
+    return "Add a photo or a few words. You'll see a price and a sentence that explains it. Next, tap Send.";
+  }
+  const name = quote.description || "this";
+  return `This is ${formatUsd(quote.priceCents)} for ${name}. ${quote.note} Next, tap Send to share the link.`;
+}
+
 export function guideAnswer(pathname: string, message: string): string | null {
   const text = message.trim().toLowerCase();
   if (!text) return null;

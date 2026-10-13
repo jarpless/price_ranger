@@ -1,7 +1,7 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
-import { requestDeletion, setDoNotSell } from "@/app/guide-actions";
+import { setDoNotSell } from "@/app/guide-actions";
 import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { buildStamp, stampText } from "@/lib/build-info";
@@ -16,7 +16,12 @@ import { RELEASES, VERSION_LABEL } from "@/lib/version";
 
 export const metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ privacy?: string }>;
+}) {
+  const { privacy } = await searchParams;
   const user = await requireUser();
   const owner = isOwnerEmail(user.email);
   const stamp = buildStamp();
@@ -31,9 +36,7 @@ export default async function SettingsPage() {
       <section data-spotlight="settings-feedback" className="rounded-3xl border border-line bg-paper p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">This build</p>
         <p className="mt-1 font-serif text-3xl">{stampText(stamp)}</p>
-        <p className="mt-2 text-sm text-muted">
-          Version and codename come from one module. The short git sha is {stamp.sha}. Env is {stamp.env}, from VERCEL_ENV when Vercel sets it.
-        </p>
+        <p className="mt-2 text-body text-muted">This is the version running now.</p>
       </section>
       <section className="rounded-3xl border border-line bg-paper p-5">
         <h2 className="font-serif text-2xl">Releases</h2>
@@ -84,23 +87,25 @@ export default async function SettingsPage() {
           {" · "}
           <Link href="/privacy" className="font-semibold text-pine">Privacy Policy</Link>
         </p>
-        {guide.deletionRequestedAt ? (
-          <p className="mt-3 text-sm">Deletion request received {guide.deletionRequestedAt.slice(0, 10)}.</p>
-        ) : (
-          <form action={requestDeletion} className="mt-3">
-            <SubmitButton className="text-sm font-semibold text-pine">Request deletion of my personal information</SubmitButton>
-          </form>
-        )}
+        {privacy === "delete-failed" ? (
+          <p className="mt-3 text-body text-danger">We could not delete the login from here. You are still signed in.</p>
+        ) : null}
+        {privacy === "saved" ? <p className="mt-3 text-body">Privacy choice saved.</p> : null}
+        <form action="/api/account/delete" method="post" className="mt-3">
+          <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-danger lg:w-auto">
+            Delete my account
+          </button>
+        </form>
         <form action={setDoNotSell} className="mt-4 space-y-3">
-          <label className="flex items-start gap-2 text-sm leading-relaxed">
-            <input type="checkbox" name="doNotSell" defaultChecked={guide.ccpaDoNotSell} className="mt-1 h-5 w-5" />
+          <label className="flex min-h-12 items-center gap-3 text-body leading-6">
+            <input type="checkbox" name="doNotSell" defaultChecked={guide.ccpaDoNotSell} className="h-12 w-12 shrink-0" />
             Opt out of the sale or sharing of my personal information
           </label>
-          <SubmitButton className="text-sm font-semibold text-pine">Save privacy choice</SubmitButton>
+          <SubmitButton className="inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">Save privacy choice</SubmitButton>
         </form>
       </section>
       <form action={signOut}>
-        <SubmitButton pendingLabel="Signing out…" className="text-sm font-semibold text-pine">
+        <SubmitButton pendingLabel="Signing out…" className="inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">
           Sign out
         </SubmitButton>
       </form>

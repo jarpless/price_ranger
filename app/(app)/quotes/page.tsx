@@ -1,7 +1,8 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { requireUser } from "@/lib/auth";
-import { priceSpan } from "@/lib/money";
+import { listGuideQuotes } from "@/lib/guide/store";
+import { formatUsd, priceSpan } from "@/lib/money";
 import { getData } from "@/lib/store";
 import { vocabulary } from "@/lib/vocabulary";
 
@@ -16,6 +17,8 @@ export default async function QuotesPage({
   const user = await requireUser();
   const words = vocabulary(user.industry);
   const needle = q.trim().toLowerCase();
+  const guideQuotes = await listGuideQuotes(user.id);
+  const guideById = new Map(guideQuotes.map((quote) => [quote.quoteId, quote]));
   const quotes = (await (await getData()).listQuotes(user.id)).filter((quote) => {
     if (!needle) return true;
     return `${quote.customerName} ${quote.title}`.toLowerCase().includes(needle);
@@ -39,7 +42,7 @@ export default async function QuotesPage({
       >
         New price
       </Link>
-      <Link href="/quotes/new" className="block text-sm font-semibold text-pine">
+      <Link href="/quotes/new" className="inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">
         Build a detailed quote
       </Link>
       {quotes.length === 0 ? (
@@ -51,20 +54,31 @@ export default async function QuotesPage({
         </div>
       ) : (
         <ul className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-3">
-          {quotes.map((quote) => (
+          {quotes.map((quote) => {
+            const guide = guideById.get(quote.id);
+            const status = guide?.outcome === "sold"
+              ? "Sold"
+              : guide?.outcome === "not_yet"
+                ? "Not yet"
+                : guide?.sharedAt
+                  ? "Sent"
+                  : quote.status === "presented"
+                    ? "Presented"
+                    : "Draft";
+            const amount = guide?.priceCents != null ? formatUsd(guide.priceCents) : priceSpan(quote.totals);
+            return (
             <li key={quote.id}>
               <Link href={`/quotes/${quote.id}`} className="lift block h-full rounded-3xl border border-line bg-paper p-4">
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="font-serif text-2xl">{quote.customerName}</h2>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    {quote.status === "presented" ? "Presented" : "Draft"}
-                  </span>
+                  <span className="text-caption font-semibold text-muted">{status}</span>
                 </div>
-                <p className="mt-1 text-sm text-muted">{quote.title}</p>
-                <p className="mt-3 font-serif text-3xl text-pine">{priceSpan(quote.totals)}</p>
+                <p className="mt-1 text-body text-muted">{quote.title}</p>
+                <p className="mt-3 font-serif text-price text-pine">{amount}</p>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

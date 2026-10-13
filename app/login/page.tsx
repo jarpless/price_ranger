@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; reason?: string; next?: string; detail?: string }>;
+  searchParams: Promise<{ error?: string; reason?: string; next?: string; detail?: string; notice?: string }>;
 }) {
-  const { error, reason, detail } = await searchParams;
+  const { error, reason, detail, notice } = await searchParams;
   const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const providers = enabledOAuthButtons();
@@ -39,11 +39,26 @@ export default async function LoginPage({
         A simple way to price work, a sale, or a service and show a few clear choices.
       </p>
       {reason === "save" ? (
-        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
-          Create an account to save and share this. The draft on this device comes with you.
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
+          Your draft stays on this device if the email never arrives. You can go back and keep pricing.
         </p>
       ) : null}
-      {authDetail || error ? (
+      {notice === "deleted" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
+          That account was deleted.
+        </p>
+      ) : null}
+      {notice === "busy" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
+          We&apos;re getting a lot of new visits right now. Sign in with email, or try again in a minute.
+        </p>
+      ) : null}
+      {notice === "cookies" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
+          This browser isn&apos;t keeping a sign-in. You can use email, or turn cookies on and open the app again.
+        </p>
+      ) : null}
+      {notice !== "busy" && notice !== "cookies" && (authDetail || error) ? (
         <div className="mt-6">
           <Notice code={error} detail={authDetail} />
         </div>
@@ -61,7 +76,7 @@ export default async function LoginPage({
           ))}
         </div>
       ) : null}
-      {passkey ? <PasskeyButton /> : null}
+      {passkey && reason !== "save" ? <PasskeyButton /> : null}
 
       <form action={sendMagicLink} className="mt-8 space-y-4">
         <TextField
@@ -79,7 +94,7 @@ export default async function LoginPage({
         You can also enter the 6-digit code from that email.
       </p>
 
-      <details className="mt-6 rounded-3xl border border-line bg-paper p-4">
+      <details open={reason === "save"} className="mt-6 rounded-3xl border border-line bg-paper p-4">
         <summary className="cursor-pointer text-sm font-semibold text-pine">Use a password instead</summary>
         <form action={signInWithPassword} className="mt-4 space-y-3">
           <TextField label="Email" name="email" type="email" autoComplete="username" required />
@@ -99,6 +114,7 @@ export default async function LoginPage({
 
       <PendingLink
         href="/auth/guest"
+        prefetch={false}
         className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl text-base font-semibold text-pine"
       >
         Continue without an account

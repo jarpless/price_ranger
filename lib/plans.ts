@@ -99,7 +99,7 @@ export function effectivePlan(plan: PlanId, passExpiresAt: string | null): PlanI
 
 export function assistantLimitMessage(plan: PlanId): string {
   const definition = PLANS[plan];
-  return `The ${definition.name} plan includes ${definition.assistantMessagesPerMonth} assistant messages a month. Checkout arrives in v2.2 Ridgeline.`;
+  return `The ${definition.name} plan includes ${definition.assistantMessagesPerMonth} assistant messages a month.`;
 }
 
 /** Rough USD per million tokens. Unknown models use the stronger rate so a guess does not undercount. */

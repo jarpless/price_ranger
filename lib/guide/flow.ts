@@ -78,8 +78,8 @@ export function onboardingCopy(variant: Variant): OnboardingCopy {
   return {
     welcomeTitle: "Price something without the guesswork.",
     welcomeBody: "A short path for an item, a job, or a price you want to check.",
-    stepsTitle: "Five short steps.",
-    stepsBody: "Add it, review the price, adjust if you want, send it, and mark it sold.",
+    stepsTitle: "Three short steps.",
+    stepsBody: "Add a photo or a few words, check the price, then send it. You can change it before you send.",
     termsTitle: "Agree to the terms to start.",
     termsBody: "Your prices stay on your account. You can try a sample next.",
   };
@@ -175,7 +175,7 @@ export interface PriceSuggestion {
 }
 
 const PRICE_RULES: { test: RegExp; cents: number; note: string }[] = [
-  { test: /roof|shingle/, cents: 850000, note: "Most full roof jobs like this land around this price." },
+  { test: /mixer|kitchenaid/, cents: 18000, note: "A common resale price for a used stand mixer." },
   { test: /lawn|mow/, cents: 4500, note: "A typical visit for a small lawn." },
   { test: /table/, cents: 18000, note: "A fair price for a solid wood table in good shape." },
   { test: /bike|bicycle/, cents: 12000, note: "A common resale price for a used bike that still rides well." },
@@ -184,6 +184,22 @@ const PRICE_RULES: { test: RegExp; cents: number; note: string }[] = [
 
 export function suggestPrice(description: string, path: GuidePath): PriceSuggestion {
   const text = description.toLowerCase();
+  if (/roof|shingle/.test(text)) {
+    const repair = /\b(small|repair|patch|leak|fix)\b/.test(text);
+    const full = /\b(replac|full|reroof|tear-?off|new roof)\b/.test(text);
+    if (repair && !full) {
+      return {
+        cents: 85000,
+        note: "A small roof repair, not a full replacement.",
+        sources: ["Similar small repairs in Price Ranger", "Not priced as a full roof"],
+      };
+    }
+    return {
+      cents: 850000,
+      note: "Most full roof jobs like this land around this price.",
+      sources: ["Similar prices in Price Ranger", "A typical range for this kind of job"],
+    };
+  }
   const match = PRICE_RULES.find((rule) => rule.test.test(text));
   const fallback =
     path === "job" ? 35000 : path === "check" ? 2500 : 4000;

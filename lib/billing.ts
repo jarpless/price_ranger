@@ -13,7 +13,7 @@ export async function createPlusCheckout(input: {
 }): Promise<string> {
   const key = stripeTestKey();
   if (!key) {
-    throw new Error("Stripe test mode is not configured. Set STRIPE_SECRET_KEY to a key that starts with sk_test_.");
+    throw new Error("Payments are coming soon.");
   }
   const body = new URLSearchParams();
   body.set("mode", "subscription");

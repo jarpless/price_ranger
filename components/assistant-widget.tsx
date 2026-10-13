@@ -75,6 +75,8 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
     if (pathname === "/ask") setOpen(true);
   }, [pathname]);
 
+  if (pathname.startsWith("/p/")) return null;
+
   function stop() {
     stopRef.current = true;
     setPending(null);
@@ -219,7 +221,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
           <p className="font-serif text-lg leading-none">Price Ranger</p>
           <p className="text-[11px] uppercase tracking-wide text-muted">Assistant</p>
         </div>
-        <button type="button" className="ml-auto text-sm font-semibold text-muted" onClick={() => setOpen(false)}>
+        <button type="button" className="ml-auto inline-flex h-12 items-center whitespace-nowrap px-3 text-base font-semibold text-ink" onClick={() => setOpen(false)}>
           Close
         </button>
       </div>
@@ -229,7 +231,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
             key={item}
             type="button"
             onClick={() => setMode(item)}
-            className={`h-10 rounded-xl text-sm font-semibold ${mode === item ? "bg-pine text-cream" : "bg-cream text-muted"}`}
+            className={`h-12 rounded-xl text-base font-semibold ${mode === item ? "bg-pine text-cream" : "bg-cream text-muted"}`}
           >
             {item === "ask" ? "Ask" : "Agent"}
           </button>
@@ -248,7 +250,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
             {pathname.startsWith("/guide") || pathname.startsWith("/welcome") || pathname === "/new" ? (
               <button
                 type="button"
-                className="h-12 w-full rounded-2xl bg-pine text-sm font-semibold text-cream"
+                className="h-12 w-full whitespace-nowrap rounded-2xl border border-line text-base font-semibold text-ink"
                 onClick={() => void send("Walk me through this step")}
               >
                 Walk me through this
@@ -316,7 +318,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
             Stop
           </button>
         ) : (
-          <button className="h-12 rounded-2xl bg-pine px-4 text-sm font-semibold text-cream">Send</button>
+          <button className="h-12 whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">{mode === "ask" ? "Ask" : "Run"}</button>
         )}
       </form>
     </div>
@@ -325,7 +327,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
   return (
     <>
       {open ? (
-        <div className="fixed inset-x-0 bottom-0 z-50 h-[min(88dvh,720px)] rounded-t-2xl border border-line bg-paper shadow-sheet lg:inset-y-0 lg:left-auto lg:right-0 lg:h-dvh lg:w-[400px] lg:rounded-none">
+        <div className="fixed inset-x-0 bottom-0 z-50 h-[42dvh] rounded-t-2xl border border-line bg-paper shadow-sheet lg:inset-y-0 lg:left-auto lg:right-0 lg:h-dvh lg:w-[400px] lg:rounded-none">
           {panel}
         </div>
       ) : (

@@ -27,6 +27,13 @@ export default async function SentPage({
           ? `If ${email} can receive mail, a sign-in link and a 6-digit code are on the way. They expire in 15 minutes.`
           : "A sign-in link and a 6-digit code are on the way. They expire in 15 minutes."}
       </p>
+      <p className="mt-3 text-body leading-6">If this inbox cannot receive mail, your draft is still on this device.</p>
+      <Link
+        href="/"
+        className="mt-4 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line text-base font-semibold text-pine"
+      >
+        Back to your draft
+      </Link>
       <form action={verifyEmailCode} className="mt-6 space-y-3">
         <Notice code={error} />
         <input type="hidden" name="email" value={email || ""} />

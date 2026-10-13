@@ -1,3 +1,4 @@
+import { PendingLink as Link } from "@/components/pending-link";
 import { redirect } from "next/navigation";
 
 import { chooseIndustry } from "@/app/auth-actions";
@@ -22,7 +23,12 @@ export default async function StartPage({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-5 py-8 lg:justify-center lg:py-12">
-      <Logo tone="ink" width={48} height={48} className="h-12 w-12" />
+      <Link href="/" className="inline-flex h-12 w-12 items-center justify-center" aria-label="Back">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none">
+          <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </Link>
+      <Logo tone="ink" width={48} height={48} className="mt-4 h-12 w-12" />
       <h1 className="mt-6 font-serif text-4xl leading-tight lg:text-5xl">What are you pricing?</h1>
       <p className="mt-3 max-w-xl text-base leading-relaxed text-muted">
         This picks a few starter prices and the words on the screen. You can still add anything you sell.

@@ -1,6 +1,6 @@
 import { PendingLink as Link } from "@/components/pending-link";
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
 import { requireUser } from "@/lib/auth";
@@ -15,7 +15,6 @@ export const metadata = { title: "Price sheet" };
 export default async function SheetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
-  if (user.guest) redirect(`/login?reason=save&next=/quotes/${id}/sheet`);
   const data = await getData();
   const quote = await data.getQuote(user.id, id);
   if (!quote) notFound();

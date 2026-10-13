@@ -6,7 +6,8 @@ import { describeTool, isToolName, toolNeedsConfirm } from "@/lib/assistant/tool
 import { redactText, restoreText } from "@/lib/redact";
 import type { SessionUser } from "@/lib/types";
 import { feedbackAssistantText } from "@/lib/feedback/mine";
-import { guideAnswer } from "@/lib/guide/help";
+import { explainPrice, guideAnswer } from "@/lib/guide/help";
+import { getGuideQuote } from "@/lib/guide/store";
 import { assistantAllowance, blockedAssistantMessage, recordAssistantUse } from "@/lib/usage";
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
@@ -57,6 +58,15 @@ export async function POST(request: Request) {
         configured: llmProvider() != null,
         text: await feedbackAssistantText(user.id),
       });
+    }
+    const guidePath = pathname.split("?")[0] || "";
+    if (guidePath.startsWith("/guide/")) {
+      const quoteId = guidePath.split("/")[2] || "";
+      const row = quoteId ? await getGuideQuote(user.id, quoteId) : null;
+      const explained = explainPrice(latest?.content || "", row);
+      if (explained) {
+        return Response.json({ type: "message", configured: llmProvider() != null, text: explained });
+      }
     }
     const guided = guideAnswer(pathname, latest?.content || "");
     if (guided) {
