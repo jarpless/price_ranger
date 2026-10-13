@@ -21,7 +21,7 @@ export default async function PresentPage({ params }: { params: Promise<{ id: st
         <p className="mt-3 text-sm leading-relaxed text-cream/80">
           Open the quote and tap Present to save a customer copy.
         </p>
-        <Link href={`/quotes/${id}`} className="mt-6 font-semibold text-gold">
+        <Link href={`/quotes/${id}`} className="mt-6 font-semibold text-cream">
           Back to quote
         </Link>
       </main>

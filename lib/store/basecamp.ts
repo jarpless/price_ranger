@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { dataBackend } from "../env";
+import { isMissingSchema } from "../guide/schema";
 import { createClient } from "../supabase/server";
 
 export type FeedbackKind = "bug" | "feature";
@@ -173,7 +174,10 @@ export async function getPreferences(userId: string): Promise<{ feedbackEnabled:
     .select("feedback_enabled")
     .eq("id", userId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return { feedbackEnabled: false };
+    throw new Error(error.message);
+  }
   const row = data as { feedback_enabled?: boolean } | null;
   return { feedbackEnabled: Boolean(row?.feedback_enabled) };
 }
@@ -307,21 +311,30 @@ export async function attachGithubIssue(
   if (error) throw new Error(error.message);
 }
 
-export async function listFeedback(userId: string): Promise<FeedbackReport[]> {
+async function feedbackQuery(userId: string | null): Promise<FeedbackReport[]> {
   if (dataBackend() !== "supabase") {
     const file = await readLocal();
     return file.feedback
-      .filter((item) => item.userId === userId)
+      .filter((item) => (userId ? item.userId === userId : true))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
   const client = await supabase();
-  const { data, error } = await client
-    .from("feedback")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  let query = client.from("feedback").select("*").order("created_at", { ascending: false });
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw new Error(error.message);
+  }
   return ((data as Record<string, unknown>[]) ?? []).map(asReport);
+}
+
+export async function listFeedback(userId: string): Promise<FeedbackReport[]> {
+  return feedbackQuery(userId);
+}
+
+export async function listAllFeedback(): Promise<FeedbackReport[]> {
+  return feedbackQuery(null);
 }
 
 export async function getFeedback(userId: string, id: string): Promise<FeedbackReport | null> {
@@ -329,36 +342,43 @@ export async function getFeedback(userId: string, id: string): Promise<FeedbackR
   return rows.find((item) => item.id === id) ?? null;
 }
 
+export async function getFeedbackById(id: string): Promise<FeedbackReport | null> {
+  const rows = await listAllFeedback();
+  return rows.find((item) => item.id === id) ?? null;
+}
+
 export async function updateFeedback(
   userId: string,
   id: string,
   input: { status: FeedbackStatus; shippedIn: string | null },
-): Promise<boolean> {
+  scope: "own" | "any" = "own",
+): Promise<FeedbackReport | null> {
   if (dataBackend() !== "supabase") {
     return withLock(async () => {
       const file = await readLocal();
-      const report = file.feedback.find((item) => item.id === id && item.userId === userId);
-      if (!report) return false;
+      const report = file.feedback.find((item) => item.id === id && (scope === "any" || item.userId === userId));
+      if (!report) return null;
       report.status = input.status;
       report.shippedIn = input.status === "shipped" ? input.shippedIn : null;
       report.updatedAt = nowIso();
       await writeLocal(file);
-      return true;
+      return report;
     });
   }
   const client = await supabase();
-  const { data, error } = await client
+  let query = client
     .from("feedback")
     .update({
       status: input.status,
       shipped_in: input.status === "shipped" ? input.shippedIn : null,
       updated_at: nowIso(),
     })
-    .eq("id", id)
-    .eq("user_id", userId)
-    .select("id");
+    .eq("id", id);
+  if (scope !== "any") query = query.eq("user_id", userId);
+  const { data, error } = await query.select("*");
   if (error) throw new Error(error.message);
-  return ((data as unknown[]) ?? []).length > 0;
+  const row = ((data as Record<string, unknown>[]) ?? [])[0];
+  return row ? asReport(row) : null;
 }
 
 export async function readFeedbackPng(userId: string, id: string): Promise<Uint8Array | null> {
@@ -456,7 +476,10 @@ export async function recordUsage(event: UsageEvent): Promise<void> {
     cost_usd: event.costUsd,
     created_at: event.createdAt,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return;
+    throw new Error(error.message);
+  }
 }
 
 export async function listUsage(userId: string, allAccounts: boolean): Promise<UsageEvent[]> {
@@ -471,7 +494,10 @@ export async function listUsage(userId: string, allAccounts: boolean): Promise<U
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw new Error(error.message);
+  }
   return ((data as Record<string, unknown>[]) ?? []).slice(0, 100).map((row) => ({
     id: String(row.id),
     userId: String(row.user_id),

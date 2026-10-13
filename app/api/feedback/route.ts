@@ -1,37 +1,62 @@
 import { getSessionUser } from "@/lib/auth";
 import { buildStamp } from "@/lib/build-info";
-import { openFeedbackIssue } from "@/lib/github-feedback";
-import { isOwnerEmail } from "@/lib/owner";
-import {
-  attachGithubIssue,
-  createFeedback,
-  feedbackScreenshotUrl,
-  getPreferences,
-  type FeedbackKind,
-} from "@/lib/store/basecamp";
+import { intakeFeedback } from "@/lib/feedback/intake";
+import type { TicketSource } from "@/lib/feedback/desk";
+import { listTicketMetas } from "@/lib/feedback/desk";
+import { listFeedback } from "@/lib/store/basecamp";
 
 export const dynamic = "force-dynamic";
 
+function sourceOf(value: string): TicketSource {
+  if (value === "mobile" || value === "shake") return value;
+  return "desktop";
+}
+
+async function readPng(entry: FormDataEntryValue | null): Promise<Uint8Array | null> {
+  if (!(entry instanceof File) || entry.size === 0) return null;
+  if (entry.size > 4_000_000) throw new Error("That image is too large.");
+  return new Uint8Array(await entry.arrayBuffer());
+}
+
+export async function GET() {
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: "Sign in first." }, { status: 401 });
+  const [reports, metas] = await Promise.all([listFeedback(user.id), listTicketMetas()]);
+  const metaById = new Map(metas.map((meta) => [meta.id, meta]));
+  const tickets = reports.map((report) => {
+    const meta = metaById.get(report.id);
+    return {
+      id: report.id,
+      summary: meta?.summary || report.body.slice(0, 120),
+      kind: report.kind,
+      status: report.status,
+      createdAt: report.createdAt,
+      href: `/feedback/${report.id}`,
+    };
+  });
+  return Response.json({ tickets });
+}
+
 export async function POST(request: Request) {
   const user = await getSessionUser();
-  if (!user || !isOwnerEmail(user.email)) {
-    return Response.json({ error: "Feedback is limited to the owner." }, { status: 403 });
-  }
-  const preferences = await getPreferences(user.id);
-  if (!preferences.feedbackEnabled) {
-    return Response.json({ error: "Turn on feedback in Settings first." }, { status: 403 });
-  }
+  if (!user) return Response.json({ error: "Sign in first." }, { status: 401 });
 
   const form = await request.formData();
-  const kind: FeedbackKind = form.get("kind") === "feature" ? "feature" : "bug";
   const body = String(form.get("body") || "").replace(/\s+/g, " ").trim().slice(0, 2000);
-  if (body.length < 4) return Response.json({ error: "Describe what is wrong or what you expected." }, { status: 400 });
-
-  const file = form.get("screenshot");
   let png: Uint8Array | null = null;
-  if (file instanceof File && file.size > 0) {
-    if (file.size > 4_000_000) return Response.json({ error: "That screenshot is too large." }, { status: 413 });
-    png = new Uint8Array(await file.arrayBuffer());
+  const extras: Uint8Array[] = [];
+  try {
+    png = await readPng(form.get("screenshot"));
+    for (const entry of form.getAll("images")) {
+      const extra = await readPng(entry);
+      if (extra) extras.push(extra);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "That image is too large.";
+    return Response.json({ error: message }, { status: 413 });
+  }
+  if (body.length < 4 && !png) {
+    return Response.json({ error: "Add a note or a screenshot." }, { status: 400 });
   }
 
   let consoleErrors: string[] = [];
@@ -43,9 +68,11 @@ export async function POST(request: Request) {
   }
 
   const stamp = buildStamp();
-  const report = await createFeedback({
+  const result = await intakeFeedback({
     userId: user.id,
-    kind,
+    email: user.email,
+    plan: user.plan,
+    industry: user.industry,
     body,
     route: String(form.get("route") || "/").slice(0, 200),
     versionLabel: stamp.label,
@@ -55,19 +82,17 @@ export async function POST(request: Request) {
     userAgent: String(form.get("userAgent") || "").slice(0, 300),
     consoleErrors,
     png,
+    extras,
+    deviceId: String(form.get("deviceId") || "").slice(0, 80),
+    source: sourceOf(String(form.get("source") || "")),
   });
 
-  let githubIssueUrl: string | null = null;
-  let githubError: string | null = null;
-  if (process.env.GITHUB_FEEDBACK_TOKEN) {
-    try {
-      const shot = await feedbackScreenshotUrl(user.id, report.id);
-      githubIssueUrl = await openFeedbackIssue(report, shot);
-      if (githubIssueUrl) await attachGithubIssue(user.id, report.id, githubIssueUrl);
-    } catch (error) {
-      githubError = error instanceof Error ? error.message : "GitHub issue was not created.";
-    }
-  }
-
-  return Response.json({ id: report.id, githubIssueUrl, githubError });
+  return Response.json({
+    id: result.report.id,
+    summary: result.summary,
+    href: `/feedback/${result.report.id}`,
+    githubIssueUrl: result.githubIssueUrl,
+    githubError: result.githubError,
+    email: result.email,
+  });
 }

@@ -17,8 +17,8 @@ const variants = {
 };
 
 const sizes = {
-  md: "h-12 w-full text-base",
-  sm: "h-10 w-auto px-3 text-sm",
+  md: "h-12 w-full whitespace-nowrap text-base lg:w-auto lg:min-w-48 lg:px-6",
+  sm: "h-10 w-auto whitespace-nowrap px-3 text-sm",
 };
 
 export function SubmitButton({
@@ -54,6 +54,7 @@ export function Button({
   return (
     <SubmitButton
       {...props}
+      data-haptic={variant === "primary" ? "" : undefined}
       className={`inline-flex items-center justify-center rounded-2xl px-4 font-semibold ${variants[variant]} ${sizes[size]} ${className}`}
     />
   );
@@ -121,7 +122,7 @@ export function BackLink({ href, children }: { href: string; children: ReactNode
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-3xl border border-line bg-paper p-4 ${className}`}>
+    <section className={`rounded-2xl border border-line bg-paper p-4 shadow-card ${className}`}>
       {children}
     </section>
   );

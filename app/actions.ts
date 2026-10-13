@@ -11,6 +11,7 @@ import { parseDollarsToCents, parseQuantity } from "@/lib/money";
 import { buildPresentation } from "@/lib/project";
 import { autoSummary } from "@/lib/summary";
 import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, PENDING_EMAIL_COOKIE } from "@/lib/session";
+import { pricingAccess } from "@/lib/guide/access";
 import { getData } from "@/lib/store";
 import { isUnit } from "@/lib/units";
 
@@ -60,6 +61,8 @@ export async function signOut() {
 
 export async function createQuote(formData: FormData) {
   const user = await requireUser();
+  const access = await pricingAccess(user);
+  if (!access.ok) redirect("/upgrade");
   const customerName = clip(formData.get("customerName"), 80);
   const title = clip(formData.get("title"), 80);
   if (!customerName || !title) redirect("/quotes/new?error=missing");

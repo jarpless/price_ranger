@@ -20,8 +20,18 @@ export const metadata: Metadata = {
     default: "Price Ranger",
     template: "%s · Price Ranger",
   },
-  description: "A simple app for pricing work, a sale, or a service and presenting a few options.",
+  description: "Price an item, a job, or a guess, then send it.",
   applicationName: "Price Ranger",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Price Ranger",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/images/logo-mark.png",
+    apple: "/images/logo-mark.png",
+  },
 };
 
 export const viewport: Viewport = {

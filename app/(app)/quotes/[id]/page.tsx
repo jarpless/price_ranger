@@ -41,7 +41,7 @@ export default async function QuotePage({
   return (
     <div className="space-y-4">
       <div className="hidden lg:block">
-        <BackLink href="/">{words.quotes}</BackLink>
+        <BackLink href="/quotes">{words.quotes}</BackLink>
         <h1 className="mb-4 font-serif text-4xl">{quote.customerName}</h1>
         {drifted ? (
           <p className="mb-4 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
@@ -56,7 +56,7 @@ export default async function QuotePage({
         />
       </div>
       <div className="space-y-4 lg:hidden">
-      <BackLink href="/">{words.quotes}</BackLink>
+      <BackLink href="/quotes">{words.quotes}</BackLink>
       <h1 className="font-serif text-4xl">{quote.customerName}</h1>
       <form action={updateQuote} className="space-y-3">
         <input type="hidden" name="quoteId" value={quote.id} />

@@ -8,19 +8,13 @@ import { parsePriceCsv } from "@/lib/csv";
 import { isOwnerEmail } from "@/lib/owner";
 import { parseDollarsToCents, parseQuantity } from "@/lib/money";
 import { getData } from "@/lib/store";
-import { setFeedbackEnabled, updateFeedback, type FeedbackStatus } from "@/lib/store/basecamp";
+import { addHistory, metaFor } from "@/lib/feedback/desk";
+import { sendSupportEmail, statusEmail } from "@/lib/feedback/mail";
+import { getFeedbackById, updateFeedback, type FeedbackStatus } from "@/lib/store/basecamp";
 import { isUnit } from "@/lib/units";
 
 function refresh() {
   revalidatePath("/", "layout");
-}
-
-export async function toggleFeedbackMode(enabled: boolean) {
-  const user = await requireUser();
-  if (!isOwnerEmail(user.email)) return { ok: false as const, error: "Owner only." };
-  await setFeedbackEnabled(user.id, enabled, user.email);
-  refresh();
-  return { ok: true as const };
 }
 
 export async function saveFeedbackStatus(id: string, formData: FormData) {
@@ -30,9 +24,26 @@ export async function saveFeedbackStatus(id: string, formData: FormData) {
   const shippedIn = String(formData.get("shippedIn") || "");
   const allowed: FeedbackStatus[] = ["new", "planned", "in_progress", "shipped"];
   if (!allowed.includes(status)) return;
-  await updateFeedback(user.id, id, {
-    status,
-    shippedIn: status === "shipped" ? shippedIn.slice(0, 40) : null,
+  const before = await getFeedbackById(id);
+  if (!before) return;
+  const shipped = status === "shipped" ? shippedIn.slice(0, 40) : null;
+  const saved = await updateFeedback(user.id, id, { status, shippedIn: shipped }, "any");
+  if (!saved || before.status === status) {
+    refresh();
+    return;
+  }
+  await addHistory({
+    feedbackId: id,
+    actorId: user.id,
+    fromStatus: before.status,
+    toStatus: status,
+    note: shipped ? `Shipped in ${shipped}.` : "",
+  });
+  const meta = await metaFor(id);
+  await sendSupportEmail({
+    to: meta?.email || "",
+    subject: `Your note is now ${status.replace("_", " ")}`,
+    text: statusEmail({ summary: meta?.summary || before.body, status, shippedIn: shipped }),
   });
   refresh();
 }

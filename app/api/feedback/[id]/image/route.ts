@@ -1,14 +1,19 @@
 import { getSessionUser } from "@/lib/auth";
+import { readExtraImage } from "@/lib/feedback/desk";
 import { isOwnerEmail } from "@/lib/owner";
-import { readFeedbackPng } from "@/lib/store/basecamp";
+import { getFeedbackById, readFeedbackPng } from "@/lib/store/basecamp";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
-  if (!user || !isOwnerEmail(user.email)) return new Response("Not found", { status: 404 });
+  if (!user) return new Response("Not found", { status: 404 });
   const { id } = await context.params;
-  const bytes = await readFeedbackPng(user.id, id);
+  const report = await getFeedbackById(id);
+  if (!report) return new Response("Not found", { status: 404 });
+  if (report.userId !== user.id && !isOwnerEmail(user.email)) return new Response("Not found", { status: 404 });
+  const extra = new URL(request.url).searchParams.get("image");
+  const bytes = extra ? await readExtraImage(id, extra) : await readFeedbackPng(report.userId, id);
   if (!bytes) return new Response("Not found", { status: 404 });
   return new Response(Buffer.from(bytes), {
     headers: {
