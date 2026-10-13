@@ -209,19 +209,7 @@ begin
   ]
   loop
     execute format(
-      'alter table public.%I add column if not exists updated_at timestamptz',
-      target
-    );
-    execute format(
-      'update public.%I set updated_at = now() where updated_at is null',
-      target
-    );
-    execute format(
-      'alter table public.%I alter column updated_at set default now()',
-      target
-    );
-    execute format(
-      'alter table public.%I alter column updated_at set not null',
+      'alter table public.%I add column if not exists updated_at timestamptz not null default now()',
       target
     );
     execute format(

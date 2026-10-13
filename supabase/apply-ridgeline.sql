@@ -19,10 +19,11 @@
 --
 -- Additive and safe to run again. No DROP TABLE, DELETE, or TRUNCATE.
 -- New columns are added with IF NOT EXISTS. Existing quote, profile, and
--- line-item values are not rewritten. A new updated_at is stamped only where
--- that column is null, so it can be NOT NULL. Policies and triggers are
--- replaced with the same definitions. Lock wait is capped at 5 seconds so a
--- busy table fails the script instead of stalling the app.
+-- line-item values are not rewritten. A missing updated_at is added as
+-- timestamptz not null default now(), which fills only that new column.
+-- Policies and triggers are replaced with the same definitions. Lock wait
+-- is capped at 5 seconds so a busy table fails the script instead of
+-- stalling the app.
 
 begin;
 
@@ -298,19 +299,7 @@ begin
   ]
   loop
     execute format(
-      'alter table public.%I add column if not exists updated_at timestamptz',
-      target
-    );
-    execute format(
-      'update public.%I set updated_at = now() where updated_at is null',
-      target
-    );
-    execute format(
-      'alter table public.%I alter column updated_at set default now()',
-      target
-    );
-    execute format(
-      'alter table public.%I alter column updated_at set not null',
+      'alter table public.%I add column if not exists updated_at timestamptz not null default now()',
       target
     );
     execute format(
