@@ -1,10 +1,10 @@
 /** Single source of truth for the shipping version and ranger codename. */
-export const APP_VERSION = "2.2.0";
+export const APP_VERSION = "2.2.1";
 
 export const APP_CODENAME = "Ridgeline";
 
 /** Shown on every screen. */
-export const VERSION_LABEL = "v2.2 Ridgeline";
+export const VERSION_LABEL = "v2.2.1 Ridgeline";
 
 export interface Release {
   version: string;
@@ -40,8 +40,15 @@ export const RELEASES: Release[] = [
     version: "2.2.0",
     label: "v2.2 Ridgeline",
     codename: "Ridgeline",
+    state: "shipped",
+    summary: "A guided price path, a returning home, and a test-mode upgrade.",
+  },
+  {
+    version: "2.2.1",
+    label: "v2.2.1 Ridgeline",
+    codename: "Ridgeline",
     state: "current",
-    summary: "A guided price path, a returning home, and a test-mode upgrade. Draft until Jamie approves the merge.",
+    summary: "Photos name the item, quote math stays visible, and a buyer can open the link or the PDF without an account.",
   },
   {
     version: "2.3.0",

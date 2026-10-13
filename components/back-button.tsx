@@ -2,14 +2,14 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { vibrate } from "./feel";
+import { backTarget, isRootPath } from "@/lib/nav";
 
-const ROOTS = new Set(["/", "/menu", "/welcome"]);
+import { vibrate } from "./feel";
 
 export function BackButton({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const router = useRouter();
-  if (ROOTS.has(pathname)) return null;
+  if (isRootPath(pathname)) return null;
 
   return (
     <button
@@ -17,7 +17,7 @@ export function BackButton({ className = "" }: { className?: string }) {
       aria-label="Back"
       onClick={() => {
         vibrate();
-        router.back();
+        router.push(backTarget(pathname));
       }}
       className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-current ${className}`}
     >

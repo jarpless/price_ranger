@@ -470,3 +470,15 @@ function mapEvents(rows: Record<string, unknown>[] | null): FunnelEvent[] {
 export function funnelHasServiceRole(): boolean {
   return dataBackend() !== "supabase" || Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
+
+/** Local guide rows. Supabase rows leave with the auth user through ON DELETE CASCADE. */
+export async function deleteGuideAccount(userId: string): Promise<void> {
+  if (dataBackend() === "supabase" && !degraded()) return;
+  await withLock(async () => {
+    const file = await loadMutable();
+    file.users = file.users.filter((item) => item.userId !== userId);
+    file.quotes = file.quotes.filter((item) => item.userId !== userId);
+    file.events = file.events.filter((item) => item.userId !== userId);
+    await storeMutable(file);
+  });
+}

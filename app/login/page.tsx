@@ -39,8 +39,13 @@ export default async function LoginPage({
         A simple way to price work, a sale, or a service and show a few clear choices.
       </p>
       {reason === "save" ? (
-        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
-          Create an account to save and share this. The draft on this device comes with you.
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
+          Your draft stays on this device if the email never arrives. You can go back and keep pricing.
+        </p>
+      ) : null}
+      {notice === "deleted" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
+          That account was deleted.
         </p>
       ) : null}
       {notice === "busy" ? (
@@ -71,7 +76,7 @@ export default async function LoginPage({
           ))}
         </div>
       ) : null}
-      {passkey ? <PasskeyButton /> : null}
+      {passkey && reason !== "save" ? <PasskeyButton /> : null}
 
       <form action={sendMagicLink} className="mt-8 space-y-4">
         <TextField
@@ -89,7 +94,7 @@ export default async function LoginPage({
         You can also enter the 6-digit code from that email.
       </p>
 
-      <details className="mt-6 rounded-3xl border border-line bg-paper p-4">
+      <details open={reason === "save"} className="mt-6 rounded-3xl border border-line bg-paper p-4">
         <summary className="cursor-pointer text-sm font-semibold text-pine">Use a password instead</summary>
         <form action={signInWithPassword} className="mt-4 space-y-3">
           <TextField label="Email" name="email" type="email" autoComplete="username" required />

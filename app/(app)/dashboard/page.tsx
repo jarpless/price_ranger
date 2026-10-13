@@ -2,6 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 
 import { requireUser } from "@/lib/auth";
 import { listGuideQuotes } from "@/lib/guide/store";
+import { formatUsd } from "@/lib/money";
 
 export const metadata = { title: "Dashboard" };
 
@@ -10,11 +11,12 @@ export default async function DashboardPage() {
   const quotes = await listGuideQuotes(user.id);
   const drafts = quotes.filter((quote) => !quote.finishedAt).length;
   const sent = quotes.filter((quote) => quote.sharedAt && !quote.outcome).length;
-  const sold = quotes.filter((quote) => quote.outcome === "sold").length;
+  const soldQuotes = quotes.filter((quote) => quote.outcome === "sold");
+  const soldCents = soldQuotes.reduce((sum, quote) => sum + (quote.priceCents || 0), 0);
   const cards = [
-    { label: "In progress", value: drafts },
-    { label: "Sent", value: sent },
-    { label: "Sold", value: sold },
+    { label: "In progress", value: String(drafts) },
+    { label: "Sent", value: String(sent) },
+    { label: "Sold", value: formatUsd(soldCents) },
   ];
 
   return (
@@ -26,6 +28,7 @@ export default async function DashboardPage() {
           <li key={card.label} className="rounded-2xl border border-line bg-paper p-5 shadow-card">
             <p className="text-caption font-semibold text-muted">{card.label}</p>
             <p className="font-serif text-price tabular-nums">{card.value}</p>
+            {card.label === "Sold" ? <p className="mt-1 text-caption text-muted">{soldQuotes.length} sold</p> : null}
           </li>
         ))}
       </ul>

@@ -133,10 +133,12 @@ export async function chooseIndustry(formData: FormData) {
   }
   const data = await getData();
   const library = await data.listLibrary(user.id);
-  if (library.length === 0) {
+  const names = new Set(library.map((item) => item.name));
+  const missing = VOCABULARIES[industry].starters.filter((item) => !names.has(item.name));
+  if (missing.length > 0) {
     await data.importLibraryRows(
       user.id,
-      VOCABULARIES[industry].starters.map((item) => ({
+      missing.map((item) => ({
         name: item.name,
         unit: item.unit,
         unitPriceCents: item.unitPriceCents,

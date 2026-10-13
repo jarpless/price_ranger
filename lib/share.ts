@@ -1,10 +1,9 @@
 import { dataBackend } from "./env";
-import { formatUsd, lineTotalCents } from "./money";
-import { groupCents } from "./project";
+import { adjustmentFromSources, lineSettlement, settledTotal, type Adjustment } from "./guide/pricing";
+import { formatUsd } from "./money";
 import { publishLocalSheet, readLocalSheet } from "./store/local";
 import { createClient } from "./supabase/server";
 import type { ItemGroup, QuoteRecord } from "./types";
-import { unitWord } from "./units";
 
 export interface SheetLine {
   name: string;
@@ -21,28 +20,43 @@ export interface SheetOption {
 export interface SharedSheet {
   title: string;
   subtitle: string;
+  photo?: string | null;
+  note?: string;
   options: SheetOption[];
 }
 
-export function buildSheet(quote: QuoteRecord, groups: ItemGroup[]): SharedSheet {
+export interface SheetExtras {
+  photo?: string | null;
+  note?: string;
+  sources?: string[];
+  adjustment?: Adjustment;
+}
+
+export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: SheetExtras = {}): SharedSheet {
+  const adjustment = extras.adjustment ?? adjustmentFromSources(extras.sources ?? []);
   const byId = new Map(groups.map((group) => [group.id, group]));
   const options = quote.tiers.map((tier) => {
     const included = tier.groupIds
       .map((id) => byId.get(id))
       .filter((group): group is ItemGroup => Boolean(group));
-    const lines = included.flatMap((group) =>
+    const money = included.flatMap((group) =>
       group.items.map((item) => ({
         name: item.name,
-        detail: `${item.quantity} ${unitWord(item.unit, item.quantity)}`,
-        price: formatUsd(lineTotalCents(item.quantity, item.unitPriceCents)),
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
       })),
     );
-    const total = included.reduce((sum, group) => sum + groupCents(group), 0);
-    return { name: tier.name, lines, total: formatUsd(total) };
+    const lines = money.map((item) => {
+      const settled = lineSettlement(item, adjustment);
+      return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
+    });
+    return { name: tier.name, lines, total: formatUsd(settledTotal(money, adjustment)) };
   });
   return {
     title: quote.title,
     subtitle: quote.customerName,
+    photo: extras.photo ?? null,
+    note: extras.note,
     options,
   };
 }

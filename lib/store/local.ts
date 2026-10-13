@@ -391,6 +391,23 @@ export async function getLocalUser(userId: string): Promise<DbUser | null> {
   return db.users.find((user) => user.id === userId) ?? null;
 }
 
+export async function deleteLocalAccount(userId: string): Promise<void> {
+  await update((db) => {
+    const groupIds = new Set(db.groups.filter((group) => group.userId === userId).map((group) => group.id));
+    const quoteIds = new Set(db.quotes.filter((quote) => quote.userId === userId).map((quote) => quote.id));
+    const tierIds = new Set(db.tiers.filter((tier) => quoteIds.has(tier.quoteId)).map((tier) => tier.id));
+    db.users = db.users.filter((user) => user.id !== userId);
+    db.library = db.library.filter((item) => item.userId !== userId);
+    db.groups = db.groups.filter((group) => group.userId !== userId);
+    db.groupItems = db.groupItems.filter((item) => !groupIds.has(item.groupId));
+    db.quotes = db.quotes.filter((quote) => quote.userId !== userId);
+    db.tiers = db.tiers.filter((tier) => !quoteIds.has(tier.quoteId));
+    db.tierGroups = db.tierGroups.filter((link) => !tierIds.has(link.tierId));
+    db.connections = db.connections.filter((item) => item.userId !== userId);
+    db.shares = db.shares.filter((item) => item.userId !== userId);
+  });
+}
+
 export const localStore = {
   async listQuotes(userId: string): Promise<QuoteListItem[]> {
     const db = await read();

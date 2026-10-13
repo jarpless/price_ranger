@@ -110,6 +110,21 @@ export function QuoteBuilder({
                   <p className="text-muted">
                     {formatUsd(item.unitPriceCents)} / {unitWord(item.unit, 2) || "each"}
                   </p>
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex h-12 items-center whitespace-nowrap rounded-2xl border border-line px-4 text-base font-semibold"
+                    onClick={() => {
+                      const groupId = selected?.id || groups[0]?.id;
+                      if (!groupId) return;
+                      startAdd(async () => {
+                        await dropPriceOnGroup(groupId, item.id);
+                        setSelectedId(groupId);
+                        router.refresh();
+                      });
+                    }}
+                  >
+                    Add
+                  </button>
                 </div>
               ))
             )}
@@ -161,7 +176,7 @@ export function QuoteBuilder({
               <button
                 disabled={adding}
                 aria-busy={adding}
-                className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream disabled:opacity-60"
+                className="h-12 whitespace-nowrap rounded-xl border border-line px-3 text-base font-semibold disabled:opacity-60"
               >
                 {adding ? "Adding…" : "Add"}
               </button>
@@ -220,7 +235,7 @@ export function QuoteBuilder({
                       <button
                         disabled={savingLine}
                         aria-busy={savingLine}
-                        className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream disabled:opacity-60"
+                        className="h-12 whitespace-nowrap rounded-xl border border-line px-3 text-base font-semibold disabled:opacity-60"
                       >
                         {savingLine ? "Saving…" : "Save"}
                       </button>
@@ -231,7 +246,7 @@ export function QuoteBuilder({
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-muted">
-              Create a group, then drag prices onto it.
+              Create a group, then tap Add on a price. You can also drag one over.
             </div>
           )}
         </section>

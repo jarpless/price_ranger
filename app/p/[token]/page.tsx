@@ -13,26 +13,38 @@ export default async function PublicSheetPage({ params }: { params: Promise<{ to
 
   return (
     <main className="mx-auto min-h-dvh max-w-3xl px-5 py-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">Price sheet</p>
-      <h1 className="mt-1 font-serif text-4xl">{sheet.title}</h1>
-      <p className="mt-1 text-lg text-muted">{sheet.subtitle}</p>
+      <p className="text-caption font-semibold text-muted">Price sheet</p>
+      <h1 className="mt-2 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{sheet.title}</h1>
+      <p className="mt-2 text-body text-muted">{sheet.subtitle}</p>
+      {sheet.photo ? (
+        // The buyer opens this without an account. The picture is part of the sheet they were sent.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={sheet.photo} alt={sheet.title} className="mt-6 max-h-72 w-full rounded-2xl border border-line object-contain bg-paper" />
+      ) : null}
+      {sheet.note ? <p className="mt-4 text-body leading-6">{sheet.note}</p> : null}
       {sheet.options.map((option) => (
         <section key={option.name} className="mt-8">
-          <h2 className="font-serif text-2xl">{option.name}</h2>
-          <ul className="mt-3 divide-y divide-line border-y border-line">
+          <h2 className="font-serif text-title">{option.name}</h2>
+          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-paper px-4">
             {option.lines.map((line) => (
-              <li key={`${option.name}-${line.name}`} className="flex items-baseline justify-between gap-4 py-3">
+              <li key={`${option.name}-${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-4 py-3">
                 <div>
-                  <p className="font-semibold">{line.name}</p>
-                  <p className="text-sm text-muted">{line.detail}</p>
+                  <p className="text-base font-semibold">{line.name}</p>
+                  <p className="text-caption text-muted">{line.detail}</p>
                 </div>
-                <p className="font-serif text-xl">{line.price}</p>
+                <p className="font-serif text-title tabular-nums">{line.price}</p>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-right font-serif text-3xl">{option.total}</p>
+          <p className="mt-4 text-right font-serif text-price text-pine tabular-nums">{option.total}</p>
         </section>
       ))}
+      <a
+        href={`/p/${token}/pdf`}
+        className="mt-8 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine text-base font-semibold text-cream lg:w-auto lg:min-w-48 lg:px-6"
+      >
+        Download PDF
+      </a>
     </main>
   );
 }

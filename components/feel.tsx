@@ -1,6 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+
+import { backTarget, isRootPath } from "@/lib/nav";
 import { useEffect } from "react";
 
 export function vibrate() {
@@ -12,6 +14,7 @@ export function vibrate() {
 /** Swipe-back from the left edge, a short haptic on primary presses, and the install worker. */
 export function Feel() {
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -47,9 +50,9 @@ export function Feel() {
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
       if (dx < 72 || Math.abs(dy) > 48) return;
-      if (window.history.length <= 1) return;
+      if (isRootPath(pathname)) return;
       vibrate();
-      router.back();
+      router.push(backTarget(pathname));
     }
 
     document.addEventListener("click", onClick);
@@ -60,7 +63,7 @@ export function Feel() {
       document.removeEventListener("touchstart", onStart);
       document.removeEventListener("touchend", onEnd);
     };
-  }, [router]);
+  }, [pathname, router]);
 
   return null;
 }

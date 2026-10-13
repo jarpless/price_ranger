@@ -15,7 +15,7 @@ export default async function NewPricePage({
   const { error } = await searchParams;
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
-  if (!guide.tosAcceptedAt) redirect("/welcome");
+  if (!guide.tosAcceptedAt) redirect("/welcome?next=/new");
   const access = await pricingAccess(user);
   if (!access.ok) redirect("/upgrade");
 
@@ -24,7 +24,15 @@ export default async function NewPricePage({
       <div>
         <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">New price</h1>
         <p className="mt-2 text-body text-muted">Item is already selected. A photo prices itself.</p>
-        {error ? (
+        {error === "photo" ? (
+          <div className="mt-4 space-y-3">
+            <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
+              What is this? Add one line so we can price it.
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/new/photo" alt="The photo you added" className="max-h-64 w-full rounded-2xl border border-line object-contain bg-paper" />
+          </div>
+        ) : error ? (
           <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
             Add a few words, or a photo.
           </p>

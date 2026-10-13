@@ -18,7 +18,7 @@ export function PathSwitch({ defaultValue = "item" }: { defaultValue?: string })
               defaultChecked={option.value === defaultValue}
               className="peer sr-only"
             />
-            <span className="flex h-10 items-center justify-center whitespace-nowrap rounded-xl text-sm font-semibold text-muted peer-checked:bg-paper peer-checked:text-ink peer-checked:shadow-card">
+            <span className="flex h-12 items-center justify-center whitespace-nowrap rounded-xl text-base font-semibold text-muted peer-checked:bg-paper peer-checked:text-ink peer-checked:shadow-card">
               {option.label}
             </span>
           </label>
