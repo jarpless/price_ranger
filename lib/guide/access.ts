@@ -1,6 +1,7 @@
 import type { SessionUser } from "../types";
 import { getData } from "../store";
 import { accessLimits, type Variant } from "./flow";
+import { isMissingSchema } from "./schema";
 import { ensureGuideUser, listGuideQuotes, recordFunnel, type GuideUser } from "./store";
 
 export interface PricingAccess {
@@ -18,8 +19,13 @@ export async function pricingAccess(user: SessionUser): Promise<PricingAccess> {
   const paid = user.plan !== "free";
   const quotes = await listGuideQuotes(user.id);
   const sampleIds = new Set(quotes.filter((quote) => quote.sample).map((quote) => quote.quoteId));
-  const all = await (await getData()).listQuotes(user.id);
-  const used = all.filter((quote) => !sampleIds.has(quote.id)).length;
+  let used = 0;
+  try {
+    const all = await (await getData()).listQuotes(user.id);
+    used = all.filter((quote) => !sampleIds.has(quote.id)).length;
+  } catch (error) {
+    if (!isMissingSchema(error)) throw error;
+  }
   if (paid) {
     return { guide, limits, used, ok: true, reason: "ok", paid };
   }

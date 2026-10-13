@@ -15,6 +15,7 @@ import {
   type GuideStep,
   type Variant,
 } from "./flow";
+import { isMissingSchema } from "./schema";
 
 export interface GuideUser {
   userId: string;
@@ -61,8 +62,48 @@ interface GuideFile {
 }
 
 const filePath = path.join(process.cwd(), "data", "guide.json");
+const MISSING_RETRY_MS = 30_000;
 
 let chain: Promise<unknown> = Promise.resolve();
+let memoryDb: GuideFile | null = null;
+let missingUntil = 0;
+
+/** False for a short while after Supabase says the guide tables or columns are not there. */
+export function guideStorageReady(): boolean {
+  if (dataBackend() !== "supabase") return true;
+  return Date.now() >= missingUntil;
+}
+
+function degraded(): boolean {
+  return dataBackend() === "supabase" && Date.now() < missingUntil;
+}
+
+function rememberMissing(error: { message?: string; code?: string }): boolean {
+  if (!isMissingSchema(error)) return false;
+  if (Date.now() >= missingUntil) {
+    console.error(`Guide schema is not available: ${error.message ?? "missing table or column"}`);
+  }
+  missingUntil = Date.now() + MISSING_RETRY_MS;
+  return true;
+}
+
+function readMemory(): GuideFile {
+  memoryDb ??= emptyFile();
+  return memoryDb;
+}
+
+async function loadMutable(): Promise<GuideFile> {
+  if (degraded()) return readMemory();
+  return readFileDb();
+}
+
+async function storeMutable(file: GuideFile): Promise<void> {
+  if (degraded()) {
+    memoryDb = file;
+    return;
+  }
+  await writeFileDb(file);
+}
 
 function withLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = chain.then(fn, fn);
@@ -192,47 +233,59 @@ function quoteToRow(quote: GuideQuote): Record<string, unknown> {
 }
 
 export async function ensureGuideUser(userId: string): Promise<GuideUser> {
-  if (dataBackend() !== "supabase") {
+  if (dataBackend() !== "supabase" || degraded()) {
     return withLock(async () => {
-      const file = await readFileDb();
+      const file = await loadMutable();
       let user = file.users.find((item) => item.userId === userId);
       if (!user) {
         user = { ...blankUser(userId), signedUpAt: nowIso() };
         file.users.push(user);
-        await writeFileDb(file);
+        await storeMutable(file);
       }
       return user;
     });
   }
   const supabase = await createClient();
   const existing = await supabase.from("guide_users").select("*").eq("user_id", userId).maybeSingle();
-  if (existing.error) throw new Error(existing.error.message);
+  if (existing.error) {
+    if (rememberMissing(existing.error)) return ensureGuideUser(userId);
+    throw new Error(existing.error.message);
+  }
   if (existing.data) return mapUser(existing.data as Record<string, unknown>);
   const created = { ...blankUser(userId), signedUpAt: nowIso() };
   const inserted = await supabase.from("guide_users").insert(userToRow(created));
-  if (inserted.error) throw new Error(inserted.error.message);
+  if (inserted.error) {
+    if (rememberMissing(inserted.error)) return ensureGuideUser(userId);
+    throw new Error(inserted.error.message);
+  }
   return created;
 }
 
 export async function saveGuideUser(user: GuideUser): Promise<void> {
-  if (dataBackend() !== "supabase") {
+  if (dataBackend() !== "supabase" || degraded()) {
     await withLock(async () => {
-      const file = await readFileDb();
+      const file = await loadMutable();
       const index = file.users.findIndex((item) => item.userId === user.userId);
       if (index === -1) file.users.push(user);
       else file.users[index] = user;
-      await writeFileDb(file);
+      await storeMutable(file);
     });
     return;
   }
   const supabase = await createClient();
   const { error } = await supabase.from("guide_users").upsert(userToRow(user));
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (rememberMissing(error)) {
+      await saveGuideUser(user);
+      return;
+    }
+    throw new Error(error.message);
+  }
 }
 
 export async function listGuideQuotes(userId: string): Promise<GuideQuote[]> {
-  if (dataBackend() !== "supabase") {
-    const file = await readFileDb();
+  if (dataBackend() !== "supabase" || degraded()) {
+    const file = await loadMutable();
     return file.quotes
       .filter((quote) => quote.userId === userId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -243,7 +296,10 @@ export async function listGuideQuotes(userId: string): Promise<GuideQuote[]> {
     .select("*")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (rememberMissing(error)) return listGuideQuotes(userId);
+    throw new Error(error.message);
+  }
   return ((data as Record<string, unknown>[]) ?? []).flatMap((row) => {
     const quote = mapQuote(row);
     return quote ? [quote] : [];
@@ -257,19 +313,25 @@ export async function getGuideQuote(userId: string, quoteId: string): Promise<Gu
 
 export async function saveGuideQuote(quote: GuideQuote): Promise<void> {
   const next = { ...quote, updatedAt: nowIso() };
-  if (dataBackend() !== "supabase") {
+  if (dataBackend() !== "supabase" || degraded()) {
     await withLock(async () => {
-      const file = await readFileDb();
+      const file = await loadMutable();
       const index = file.quotes.findIndex((item) => item.quoteId === next.quoteId);
       if (index === -1) file.quotes.push(next);
       else file.quotes[index] = next;
-      await writeFileDb(file);
+      await storeMutable(file);
     });
     return;
   }
   const supabase = await createClient();
   const { error } = await supabase.from("guide_quotes").upsert(quoteToRow(next));
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (rememberMissing(error)) {
+      await saveGuideQuote(quote);
+      return;
+    }
+    throw new Error(error.message);
+  }
 }
 
 function alreadyRecorded(events: FunnelEvent[], userId: string | null, name: FunnelEventName, day: string): boolean {
@@ -287,9 +349,9 @@ export async function recordFunnel(
   props: Record<string, string> = {},
 ): Promise<void> {
   const createdAt = nowIso();
-  if (dataBackend() !== "supabase") {
+  if (dataBackend() !== "supabase" || degraded()) {
     await withLock(async () => {
-      const file = await readFileDb();
+      const file = await loadMutable();
       if (alreadyRecorded(file.events, userId, name, createdAt.slice(0, 10))) return;
       file.events.push({
         id: crypto.randomUUID(),
@@ -298,7 +360,7 @@ export async function recordFunnel(
         props,
         createdAt,
       });
-      await writeFileDb(file);
+      await storeMutable(file);
     });
     return;
   }
@@ -309,7 +371,13 @@ export async function recordFunnel(
       .select("id, created_at")
       .eq("user_id", userId)
       .eq("name", name);
-    if (existing.error) throw new Error(existing.error.message);
+    if (existing.error) {
+      if (rememberMissing(existing.error)) {
+        await recordFunnel(userId, name, props);
+        return;
+      }
+      throw new Error(existing.error.message);
+    }
     const rows = (existing.data as { created_at?: string }[]) ?? [];
     if (recordOnce(name) && rows.length > 0) return;
     if (name === "upgrade_viewed" && rows.some((row) => String(row.created_at ?? "").slice(0, 10) === createdAt.slice(0, 10))) {
@@ -323,12 +391,18 @@ export async function recordFunnel(
     props,
     created_at: createdAt,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (rememberMissing(error)) {
+      await recordFunnel(userId, name, props);
+      return;
+    }
+    throw new Error(error.message);
+  }
 }
 
 export async function listFunnelEvents(): Promise<FunnelEvent[]> {
-  if (dataBackend() !== "supabase") {
-    const file = await readFileDb();
+  if (dataBackend() !== "supabase" || degraded()) {
+    const file = await loadMutable();
     return [...file.events].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -343,7 +417,10 @@ export async function listFunnelEvents(): Promise<FunnelEvent[]> {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (rememberMissing(error)) return listFunnelEvents();
+      throw new Error(error.message);
+    }
     return mapEvents(data as Record<string, unknown>[]);
   }
   const supabase = await createClient();
@@ -352,7 +429,10 @@ export async function listFunnelEvents(): Promise<FunnelEvent[]> {
     .select("*")
     .order("created_at", { ascending: false })
     .limit(500);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (rememberMissing(error)) return listFunnelEvents();
+    throw new Error(error.message);
+  }
   return mapEvents(data as Record<string, unknown>[]);
 }
 

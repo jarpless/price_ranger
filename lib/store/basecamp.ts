@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { dataBackend } from "../env";
+import { isMissingSchema } from "../guide/schema";
 import { createClient } from "../supabase/server";
 
 export type FeedbackKind = "bug" | "feature";
@@ -173,7 +174,10 @@ export async function getPreferences(userId: string): Promise<{ feedbackEnabled:
     .select("feedback_enabled")
     .eq("id", userId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return { feedbackEnabled: false };
+    throw new Error(error.message);
+  }
   const row = data as { feedback_enabled?: boolean } | null;
   return { feedbackEnabled: Boolean(row?.feedback_enabled) };
 }
@@ -456,7 +460,10 @@ export async function recordUsage(event: UsageEvent): Promise<void> {
     cost_usd: event.costUsd,
     created_at: event.createdAt,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return;
+    throw new Error(error.message);
+  }
 }
 
 export async function listUsage(userId: string, allAccounts: boolean): Promise<UsageEvent[]> {
@@ -471,7 +478,10 @@ export async function listUsage(userId: string, allAccounts: boolean): Promise<U
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw new Error(error.message);
+  }
   return ((data as Record<string, unknown>[]) ?? []).slice(0, 100).map((row) => ({
     id: String(row.id),
     userId: String(row.user_id),

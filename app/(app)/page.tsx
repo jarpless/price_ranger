@@ -2,6 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { redirect } from "next/navigation";
 
 import { startSample } from "@/app/guide-actions";
+import { GuideSetupNotice } from "@/components/guide-setup-notice";
 import { PrimaryDock } from "@/components/primary-dock";
 import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
@@ -33,7 +34,9 @@ export default async function HomePage() {
     const draft = quotes.find((quote) => !quote.finishedAt);
     const copy = onboardingCopy(guide.variant);
     return (
-      <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:py-16">
+      <div>
+        <GuideSetupNotice />
+        <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:py-16">
         <div>
         <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{copy.welcomeTitle}</h1>
         <p className="mt-3 max-w-xl text-body leading-6 text-muted">{copy.welcomeBody}</p>
@@ -72,6 +75,7 @@ export default async function HomePage() {
             <p className="mt-1 text-base font-semibold">Send the link</p>
           </li>
         </ol>
+        </div>
       </div>
     );
   }
@@ -82,6 +86,7 @@ export default async function HomePage() {
 
   return (
     <div>
+      <GuideSetupNotice />
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-10">
         <div>
           <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Your prices</h1>

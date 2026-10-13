@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { GuideSetupNotice } from "@/components/guide-setup-notice";
 import { WelcomeSlides } from "@/components/welcome-slides";
 import { requireUser } from "@/lib/auth";
 import { onboardingCopy } from "@/lib/guide/flow";
@@ -18,5 +19,10 @@ export default async function WelcomePage({
   await recordFunnel(user.id, "landing", { variant: guide.variant });
   await recordFunnel(user.id, "signup", { variant: guide.variant });
   if (guide.tosAcceptedAt) redirect("/");
-  return <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} />;
+  return (
+    <>
+      <GuideSetupNotice />
+      <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} />
+    </>
+  );
 }

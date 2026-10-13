@@ -14,6 +14,7 @@ import {
   TAP_AUDIT,
   variantForUser,
 } from "./guide/flow";
+import { isMissingSchema } from "./guide/schema";
 
 test("experiment group stays on the same account", () => {
   const first = variantForUser("user-one");
@@ -48,6 +49,15 @@ test("guided steps move in order and prices stay plain", () => {
   assert.equal(applyDiscount(18000, 10), 16200);
   assert.equal(applyFee(16200, 500), 16700);
   assert.equal(suggestPrice("something unusual", "check").cents, 2500);
+});
+
+test("a missing guide table is recognized and other errors are not", () => {
+  assert.equal(isMissingSchema({ code: "PGRST205", message: "Could not find the table 'public.guide_users' in the schema cache" }), true);
+  assert.equal(isMissingSchema({ code: "42P01", message: 'relation "guide_users" does not exist' }), true);
+  assert.equal(isMissingSchema({ code: "42703", message: 'column "feedback_enabled" does not exist' }), true);
+  assert.equal(isMissingSchema({ message: "Could not find the 'cost_cents' column of 'group_items' in the schema cache" }), true);
+  assert.equal(isMissingSchema({ code: "42501", message: "new row violates row-level security policy" }), false);
+  assert.equal(isMissingSchema(null), false);
 });
 
 test("a photo reaches a shareable price in three taps", () => {

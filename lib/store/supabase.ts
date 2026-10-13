@@ -1,4 +1,5 @@
 import { connectorBySlug } from "../connectors";
+import { isMissingSchema } from "../guide/schema";
 import { filterCatalog } from "../search";
 import { toQuoteListItem } from "../project";
 import { createClient } from "../supabase/server";
@@ -43,13 +44,19 @@ type Query = PromiseLike<QueryResult> & {
 
 async function many(query: Query): Promise<Record<string, unknown>[]> {
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    throw new Error(error.message);
+  }
   return (data ?? []) as Record<string, unknown>[];
 }
 
 async function one(query: Query): Promise<Record<string, unknown> | null> {
   const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingSchema(error)) return null;
+    throw new Error(error.message);
+  }
   return (data as Record<string, unknown> | null) ?? null;
 }
 
