@@ -43,7 +43,7 @@ export function Shell({
             This draft stays on this device. Create an account when you want to save or share it.
           </p>
         ) : null}
-        <main className="flex-1 px-4 pb-28 pt-5 lg:px-8 lg:pb-16 lg:pt-8">{children}</main>
+        <main className="flex-1 px-4 pb-28 pt-5 lg:px-8 lg:pb-10 lg:pt-8">{children}</main>
       </div>
       <BottomNav quotesLabel={quotesLabel} />
     </div>

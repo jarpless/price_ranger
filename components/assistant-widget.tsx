@@ -148,7 +148,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          pathname,
+          pathname: `${pathname}${document.querySelector("[data-guide-step]") ? `?step=${document.querySelector("[data-guide-step]")?.getAttribute("data-guide-step")}` : ""}`,
           turns: extraTurns || turnsRef.current,
         }),
       });
@@ -192,8 +192,8 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
     if (mode === "agent") await saveTour();
   }
 
-  async function send() {
-    const text = draft.trim();
+  async function send(preset?: string) {
+    const text = (preset || draft).trim();
     if (!text || running) return;
     setDraft("");
     setTourHref("");
@@ -233,11 +233,22 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
       {note ? <p className="px-4 text-xs leading-relaxed text-muted">{note}</p> : null}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {lines.length === 0 ? (
-          <p className="text-sm leading-relaxed text-muted">
-            {mode === "ask"
-              ? "Ask about your quotes, prices, and groups. Answers link back to the records."
-              : "Agent mode walks the screen while it works. Press Stop any time. Deletes wait for you to confirm."}
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed text-muted">
+              {mode === "ask"
+                ? "Ask about your quotes, prices, and groups. On a pricing step, ask to be walked through it."
+                : "Agent mode walks the screen while it works. Press Stop any time. Deletes wait for you to confirm."}
+            </p>
+            {pathname.startsWith("/guide") || pathname.startsWith("/welcome") || pathname === "/new" ? (
+              <button
+                type="button"
+                className="h-12 w-full rounded-2xl bg-pine text-sm font-semibold text-cream"
+                onClick={() => void send("Walk me through this step")}
+              >
+                Walk me through this
+              </button>
+            ) : null}
+          </div>
         ) : (
           lines.map((line, index) => (
             <p

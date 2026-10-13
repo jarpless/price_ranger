@@ -19,7 +19,7 @@ export function Hotkeys() {
       if (typingTarget(event.target)) return;
       if (event.key === "n" || event.key === "N") {
         event.preventDefault();
-        router.push("/quotes/new");
+        router.push("/new");
         return;
       }
       if (event.key === "/") {

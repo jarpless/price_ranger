@@ -15,7 +15,6 @@ import {
   adoptLocalGuest,
   consumeEmailCode,
   createLocalPasswordAccount,
-  getLocalUser,
   setLocalIndustry,
   verifyLocalPassword,
 } from "@/lib/store/local";
@@ -29,10 +28,9 @@ async function finishLocalSignIn(userId: string) {
     await adoptLocalGuest(current.id, userId);
     await reassignBasecamp(current.id, userId);
   }
-  const fresh = await getLocalUser(userId);
   await setLocalSession(userId, "user");
   revalidatePath("/", "layout");
-  redirect(isIndustryId(fresh?.industry) ? "/" : "/start");
+  redirect("/");
 }
 
 function providerId(value: string): OAuthProvider | null {

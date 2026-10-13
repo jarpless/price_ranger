@@ -14,7 +14,7 @@ export default async function NewQuotePage({
   const words = vocabulary((await requireUser()).industry);
   return (
     <div>
-      <BackLink href="/">{words.quotes}</BackLink>
+      <BackLink href="/quotes">{words.quotes}</BackLink>
       <h1 className="font-serif text-4xl">New {words.quote.toLowerCase()}</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">
         Start with the {words.customer.toLowerCase()} and the {words.job.toLowerCase()}. You can add options next.

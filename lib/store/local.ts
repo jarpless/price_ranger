@@ -294,6 +294,19 @@ export async function setLocalIndustry(userId: string, industry: string): Promis
   });
 }
 
+export async function setLocalPlan(
+  userId: string,
+  plan: string,
+  passExpiresAt: string | null,
+): Promise<void> {
+  await update((db) => {
+    const user = db.users.find((item) => item.id === userId);
+    if (!user) return;
+    user.plan = plan;
+    user.passExpiresAt = passExpiresAt;
+  });
+}
+
 export async function createLocalPasswordAccount(
   email: string,
   password: string,

@@ -1,12 +1,14 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
+import { requestDeletion, setDoNotSell } from "@/app/guide-actions";
 import { SettingsForm } from "@/components/settings-form";
 import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { buildStamp, stampText } from "@/lib/build-info";
 import { llmProvider } from "@/lib/assistant/llm";
 import { isOwnerEmail } from "@/lib/owner";
+import { ensureGuideUser } from "@/lib/guide/store";
 import { getPreferences } from "@/lib/store/basecamp";
 import { PLANS } from "@/lib/plans";
 import { assistantAllowance } from "@/lib/usage";
@@ -24,6 +26,7 @@ export default async function SettingsPage() {
   const provider = llmProvider();
   const allowance = await assistantAllowance(user);
   const plan = PLANS[user.plan];
+  const guide = await ensureGuideUser(user.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -70,6 +73,31 @@ export default async function SettingsPage() {
       ) : (
         <p className="text-sm text-muted">Feedback tools are on the owner account.</p>
       )}
+      <section className="rounded-3xl border border-line bg-paper p-5">
+        <h2 className="font-serif text-2xl">Privacy</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Anonymized, de-identified pricing and outcome data is part of the terms you accept. This control is for personal information.
+        </p>
+        <p className="mt-2 text-sm">
+          <Link href="/terms" className="font-semibold text-pine">Terms</Link>
+          {" · "}
+          <Link href="/privacy" className="font-semibold text-pine">Privacy Policy</Link>
+        </p>
+        {guide.deletionRequestedAt ? (
+          <p className="mt-3 text-sm">Deletion request received {guide.deletionRequestedAt.slice(0, 10)}.</p>
+        ) : (
+          <form action={requestDeletion} className="mt-3">
+            <SubmitButton className="text-sm font-semibold text-pine">Request deletion of my personal information</SubmitButton>
+          </form>
+        )}
+        <form action={setDoNotSell} className="mt-4 space-y-3">
+          <label className="flex items-start gap-2 text-sm leading-relaxed">
+            <input type="checkbox" name="doNotSell" defaultChecked={guide.ccpaDoNotSell} className="mt-1 h-5 w-5" />
+            Opt out of the sale or sharing of my personal information
+          </label>
+          <SubmitButton className="text-sm font-semibold text-pine">Save privacy choice</SubmitButton>
+        </form>
+      </section>
       <form action={signOut}>
         <SubmitButton pendingLabel="Signing out…" className="text-sm font-semibold text-pine">
           Sign out

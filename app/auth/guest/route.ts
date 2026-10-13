@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const next = safeNext(url.searchParams.get("next"));
   const existing = await getSessionUser();
-  if (existing) redirect(existing.industry ? next : "/start");
+  if (existing) redirect(next);
 
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
@@ -19,11 +19,11 @@ export async function GET(request: Request) {
       const detail = encodeURIComponent(guestErrorDetail(error.message));
       redirect(`/login?error=guest&detail=${detail}`);
     }
-    redirect("/start");
+    redirect(next);
   }
   if (dataBackend() !== "local") redirect("/setup");
 
   const user = await createGuestUser();
   await setLocalSession(user.id, "guest");
-  redirect("/start");
+  redirect(next);
 }

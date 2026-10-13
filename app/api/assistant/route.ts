@@ -5,6 +5,7 @@ import { planLocally } from "@/lib/assistant/plan";
 import { describeTool, isToolName, toolNeedsConfirm } from "@/lib/assistant/tools";
 import { redactText, restoreText } from "@/lib/redact";
 import type { SessionUser } from "@/lib/types";
+import { guideAnswer } from "@/lib/guide/help";
 import { assistantAllowance, blockedAssistantMessage, recordAssistantUse } from "@/lib/usage";
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
 
   const pathname = String(body.pathname || "/").slice(0, 200);
   const turns = turnsFrom(body.turns);
+  if (body.mode === "ask") {
+    const latest = [...turns].reverse().find((turn) => turn.role === "user");
+    const guided = guideAnswer(pathname, latest?.content || "");
+    if (guided) {
+      return Response.json({ type: "message", configured: llmProvider() != null, text: guided });
+    }
+  }
   const slice = await loadAccount(user.id, user.email);
   const configured = llmProvider() != null;
   if (configured) {
