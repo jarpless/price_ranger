@@ -12,10 +12,25 @@
   --color-danger: #8d3b32;
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+  /* One type ramp. Sizes sit on an 8pt grid except the 13px caption (iOS footnote). */
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-title: 1.5rem;
+  --text-title--line-height: 2rem;
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+  --text-price: 2.5rem;
+  --text-price--line-height: 3rem;
+  --shadow-card: 0 1px 2px rgba(28, 25, 21, 0.06);
+  --shadow-dock: 0 -8px 24px rgba(28, 25, 21, 0.06);
+  --shadow-sheet: 0 16px 40px rgba(28, 25, 21, 0.16);
 }
 
 html {
   background: var(--color-cream);
+  overflow-x: clip;
 }
 
 body {
@@ -66,7 +81,7 @@ summary {
 button:active:not(:disabled),
 a:active,
 summary:active {
-  filter: brightness(0.94);
+  opacity: 0.72;
 }
 
 button:focus-visible,
@@ -74,28 +89,46 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #c6a15b;
+  outline: 2px solid #1e4636;
   outline-offset: 2px;
 }
 
-@keyframes ranger-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(198, 161, 91, 0.55);
+@keyframes page-in {
+  from {
+    opacity: 0;
+    margin-left: 12px;
   }
-  70% {
-    box-shadow: 0 0 0 14px rgba(198, 161, 91, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(198, 161, 91, 0);
+  to {
+    opacity: 1;
+    margin-left: 0;
   }
 }
 
-.ranger-pulse {
-  animation: ranger-pulse 2.4s ease-out infinite;
+.page-in {
+  animation: page-in 180ms ease;
+}
+
+.ask-fab {
+  position: fixed;
+  left: 1rem;
+  z-index: 40;
+  bottom: calc(4.75rem + env(safe-area-inset-bottom));
+}
+
+body[data-dock="1"] .ask-fab {
+  bottom: calc(9rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 64rem) {
+  .ask-fab {
+    left: auto;
+    right: 2rem;
+    bottom: 2rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ranger-pulse {
+  .page-in {
     animation: none;
   }
 }

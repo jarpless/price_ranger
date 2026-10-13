@@ -8,8 +8,10 @@ import {
   nextStep,
   onboardingCopy,
   recordOnce,
+  stepCopy,
   stepIndex,
   suggestPrice,
+  TAP_AUDIT,
   variantForUser,
 } from "./guide/flow";
 
@@ -46,6 +48,14 @@ test("guided steps move in order and prices stay plain", () => {
   assert.equal(applyDiscount(18000, 10), 16200);
   assert.equal(applyFee(16200, 500), 16700);
   assert.equal(suggestPrice("something unusual", "check").cents, 2500);
+});
+
+test("a photo reaches a shareable price in three taps", () => {
+  assert.equal(TAP_AUDIT.photoToShareablePrice.after, 3);
+  assert.equal(TAP_AUDIT.photoToShareablePrice.before, 7);
+  assert.equal(stepCopy("review", "item").primary, "Send");
+  assert.equal(stepCopy("describe", "item").primary, "See price");
+  assert.equal(stepCopy("sold", "job").primary, "Yes, got it");
 });
 
 test("onboarding copy differs by group and first-time events record once", () => {

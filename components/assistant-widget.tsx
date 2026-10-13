@@ -2,7 +2,7 @@
 
 import { PendingLink as Link } from "@/components/pending-link";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { BuildStamp } from "@/lib/build-info";
 
@@ -69,6 +69,10 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
   const turnsRef = useRef<Turn[]>([]);
   const playedRef = useRef<{ caption: string; href: string; spotlight: string }[]>([]);
   const promptRef = useRef("");
+
+  useEffect(() => {
+    if (pathname === "/ask") setOpen(true);
+  }, [pathname]);
 
   function stop() {
     stopRef.current = true;
@@ -319,20 +323,18 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
   return (
     <>
       {open ? (
-        <div className="fixed inset-x-0 bottom-0 z-50 h-[min(88dvh,720px)] rounded-t-3xl border border-line shadow-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:h-dvh lg:w-[400px] lg:rounded-none">
+        <div className="fixed inset-x-0 bottom-0 z-50 h-[min(88dvh,720px)] rounded-t-2xl border border-line bg-paper shadow-sheet lg:inset-y-0 lg:left-auto lg:right-0 lg:h-dvh lg:w-[400px] lg:rounded-none">
           {panel}
         </div>
       ) : (
         <button
           type="button"
           aria-label="Ask Price Ranger"
+          data-haptic=""
           onClick={() => setOpen(true)}
-          className="ranger-pulse fixed bottom-24 right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-pine shadow-lg lg:bottom-6 lg:right-6"
+          className="ask-fab flex h-12 w-12 items-center justify-center rounded-full bg-pine shadow-card"
         >
-          <Logo tone="light" width={48} height={48} className="h-12 w-12" />
-          <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-xs font-bold text-pine-deep">
-            ✦
-          </span>
+          <Logo tone="light" width={28} height={28} className="h-7 w-7" />
         </button>
       )}
       {spotlight && (running || pending) ? (

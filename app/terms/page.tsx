@@ -8,7 +8,7 @@ export default function TermsPage() {
   return (
     <main className="mx-auto max-w-2xl px-5 py-10">
       <p className="text-sm font-semibold uppercase tracking-wide text-danger">DRAFT – pending legal review</p>
-      <h1 className="mt-2 font-serif text-5xl">Terms of Service</h1>
+      <h1 className="mt-2 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">Terms of Service</h1>
       <p className="mt-2 text-sm text-muted">Version {TOS_VERSION}</p>
       <div className="mt-6 space-y-4 text-lg leading-relaxed">
         <p>

@@ -30,7 +30,7 @@ export default async function FunnelPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <h1 className="font-serif text-5xl">Funnel</h1>
+      <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Funnel</h1>
       <p className="mt-3 text-lg text-muted">
         {dataBackend() === "supabase" && !full
           ? "Showing this account only. Set SUPABASE_SERVICE_ROLE_KEY to read every account."

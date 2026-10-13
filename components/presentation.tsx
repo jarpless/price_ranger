@@ -38,7 +38,7 @@ export function Presentation({ quoteId, snapshot }: { quoteId: string; snapshot:
       <header className="flex items-center gap-3 px-4 pb-2 pt-4 lg:px-8">
         <Logo tone="light" width={40} height={40} className="h-10 w-10" />
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Price Ranger</p>
+          <p className="text-caption font-semibold uppercase tracking-[0.14em] text-cream/70">Price Ranger</p>
           <h1 className="truncate font-serif text-lg lg:text-2xl">{greeting}</h1>
         </div>
         <Link href={`/quotes/${quoteId}`} className="ml-auto shrink-0 text-sm font-semibold">

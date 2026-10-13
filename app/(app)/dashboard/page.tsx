@@ -19,14 +19,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <p className="text-sm font-semibold uppercase tracking-wide text-muted">Secondary</p>
-      <h1 className="mt-1 font-serif text-5xl">Dashboard</h1>
-      <p className="mt-3 text-lg text-muted">A quiet summary. Pricing still starts from Home.</p>
+      <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Dashboard</h1>
+      <p className="mt-2 text-body text-muted">A quiet summary. Pricing still starts from Home.</p>
       <ul className="mt-6 grid gap-3 sm:grid-cols-3">
         {cards.map((card) => (
-          <li key={card.label} className="rounded-3xl border border-line bg-paper p-5">
-            <p className="text-sm font-semibold text-muted">{card.label}</p>
-            <p className="font-serif text-5xl">{card.value}</p>
+          <li key={card.label} className="rounded-2xl border border-line bg-paper p-5 shadow-card">
+            <p className="text-caption font-semibold text-muted">{card.label}</p>
+            <p className="font-serif text-price tabular-nums">{card.value}</p>
           </li>
         ))}
       </ul>

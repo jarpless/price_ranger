@@ -1,4 +1,5 @@
 import { startCheckout } from "@/app/guide-actions";
+import { PrimaryDock } from "@/components/primary-dock";
 import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { stripeTestKey } from "@/lib/billing";
@@ -20,21 +21,23 @@ export default async function UpgradePage({
   const ready = Boolean(stripeTestKey());
 
   return (
-    <div className="mx-auto w-full max-w-lg lg:max-w-xl">
-      <h1 className="font-serif text-5xl leading-tight">Keep your prices</h1>
-      <p className="mt-4 text-lg leading-relaxed">{planStatusLine(access)}</p>
-      <p className="mt-3 text-lg leading-relaxed text-muted">
-        Plus keeps the prices you already saved and lets you keep pricing new ones.
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-10">
+      <div>
+      <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">Keep your prices</h1>
+      <p className="mt-3 text-body leading-6">{planStatusLine(access)}</p>
+      <p className="mt-3 max-w-xl text-body leading-6 text-muted">
+        Plus keeps the prices you already saved and lets you price new ones.
       </p>
-      {canceled ? <p className="mt-4 text-base">Checkout was canceled. Your prices are still here.</p> : null}
-      {error ? <p className="mt-4 text-base text-danger">{error}</p> : null}
-      <section className="mt-6 rounded-3xl border border-line bg-paper p-5">
-        <p className="font-serif text-3xl">{PLANS.plus.name}</p>
-        <p className="mt-1 text-lg">{PLANS.plus.priceLabel}</p>
+      {canceled ? <p className="mt-4 text-body">Checkout was canceled. Your prices are still here.</p> : null}
+      {error ? <p className="mt-4 text-body text-danger">{error}</p> : null}
+      </div>
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-5 shadow-card lg:mt-0">
+        <p className="font-serif text-title">{PLANS.plus.name}</p>
+        <p className="mt-1 text-body">{PLANS.plus.priceLabel}</p>
         <form action={startCheckout} className="mt-4">
-          <Button type="submit" className="h-14 text-lg">
-            Upgrade to keep access
-          </Button>
+          <PrimaryDock>
+            <Button type="submit">Upgrade</Button>
+          </PrimaryDock>
         </form>
         {ready ? (
           <p className="mt-3 text-sm leading-relaxed text-muted">Checkout stays in Stripe test mode. No live charges.</p>

@@ -100,44 +100,61 @@ export interface StepCopy {
 
 const STEP_COPY: Record<GuideStep, StepCopy> = {
   describe: {
-    title: "Add a photo or a few words",
-    now: "Tell us what you are pricing.",
-    next: "We'll suggest your price.",
-    primary: "See your price",
+    title: "Add a photo",
+    now: "A photo or a few words is enough.",
+    next: "We'll suggest a price.",
+    primary: "See price",
   },
   review: {
     title: "Your price",
     now: "This is the price we suggest.",
-    next: "You can change it, or send it as it is.",
-    primary: "Continue",
+    next: "Send it, or change it first.",
+    primary: "Send",
   },
   adjust: {
-    title: "Change anything?",
-    now: "This step is optional.",
-    next: "Next you'll send it.",
-    primary: "Looks good",
+    title: "Change it",
+    now: "Optional. The price updates as you go.",
+    next: "Send it when it looks right.",
+    primary: "Send",
   },
   share: {
     title: "Send it",
     now: "Send a link the other person can open.",
     next: "Then tell us if it sold.",
-    primary: "Send it",
+    primary: "Send",
   },
   sold: {
     title: "Did it sell?",
     now: "A quick note so you remember the outcome.",
     next: "You're done with this one.",
-    primary: "Yes, it sold",
+    primary: "Yes, sold",
   },
 };
+
+/**
+ * In-app taps for someone who already accepted the terms.
+ * The system photo picker and the typing itself are not taps.
+ * Photo before: New price, choose a path, Add photo, See your price, Continue, Looks good, Send it.
+ * Photo after: New price, Add photo (the form submits itself), Send.
+ * Typed after: New price, See price, Send.
+ * Sample before: Try a sample, Continue, Looks good, Send it.
+ * Sample after: Try a sample, Send.
+ * Intro stays four taps because the terms checkbox is required.
+ */
+export const TAP_AUDIT = {
+  photoToShareablePrice: { before: 7, after: 3 },
+  typedToShareablePrice: { before: 7, after: 3 },
+  sampleToShareablePrice: { before: 4, after: 2 },
+  introAgreement: { before: 4, after: 4 },
+} as const;
 
 export function stepCopy(step: GuideStep, path: GuidePath): StepCopy {
   const copy = STEP_COPY[step];
   if (step === "sold" && path === "job") {
-    return { ...copy, title: "Did you get the job?", primary: "Yes, I got it" };
+    return { ...copy, title: "Did you get it?", primary: "Yes, got it" };
   }
   if (step === "sold" && path === "check") {
-    return { ...copy, title: "Did you use this price?", primary: "Yes, I used it" };
+    return { ...copy, title: "Did you use it?", primary: "Yes, used it" };
   }
   return copy;
 }

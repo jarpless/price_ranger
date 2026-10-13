@@ -20,29 +20,31 @@ export default async function MenuPage() {
     { href: "/quotes/new", label: "Detailed quote" },
     { href: "/settings", label: "Settings" },
     { href: "/upgrade", label: "Upgrade" },
+    { href: "/install", label: "Get the app on your phone" },
+    { href: "/shortcuts", label: "Shortcuts" },
   ];
   if (owner) links.push({ href: "/admin/funnel", label: "Funnel" });
 
   return (
-    <div className="mx-auto w-full max-w-lg lg:max-w-xl">
-      <h1 className="font-serif text-5xl">Menu</h1>
-      <p className="mt-3 text-lg text-muted">Everything else lives here.</p>
-      <ul className="mt-6 space-y-2">
+    <div className="mx-auto max-w-[40rem]">
+      <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Menu</h1>
+      <p className="mt-2 text-body text-muted">Everything else lives here.</p>
+      <ul className="mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-card">
         {links.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} className="flex h-14 items-center rounded-2xl border border-line bg-paper px-4 text-lg font-semibold">
+          <li key={link.href} className="border-b border-line last:border-b-0">
+            <Link href={link.href} className="flex h-12 items-center whitespace-nowrap px-4 text-base font-semibold">
               {link.label}
             </Link>
           </li>
         ))}
       </ul>
       {user.guest ? (
-        <Link href="/login?reason=save" className="mt-4 flex h-14 items-center justify-center rounded-2xl text-lg font-semibold text-pine">
-          Save your account
+        <Link href="/login?reason=save" className="mt-4 flex h-12 items-center justify-center whitespace-nowrap text-base font-semibold text-pine">
+          Save account
         </Link>
       ) : (
         <form action={signOut} className="mt-4">
-          <SubmitButton className="h-14 w-full text-lg font-semibold text-pine">Sign out</SubmitButton>
+          <SubmitButton className="h-12 whitespace-nowrap text-base font-semibold text-pine">Sign out</SubmitButton>
         </form>
       )}
     </div>

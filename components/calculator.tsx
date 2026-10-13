@@ -22,7 +22,7 @@ export function Calculator() {
           value={price}
           onChange={(event) => setPrice(event.target.value)}
           inputMode="decimal"
-          className="mt-2 h-14 w-full rounded-2xl border border-line bg-paper px-4 text-lg outline-none focus:border-pine"
+          className="mt-2 h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base outline-none focus:border-pine"
         />
       </label>
       <label className="block text-base font-semibold">
@@ -31,7 +31,7 @@ export function Calculator() {
           value={discount}
           onChange={(event) => setDiscount(event.target.value)}
           inputMode="numeric"
-          className="mt-2 h-14 w-full rounded-2xl border border-line bg-paper px-4 text-lg outline-none focus:border-pine"
+          className="mt-2 h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base outline-none focus:border-pine"
         />
       </label>
       <label className="block text-base font-semibold">
@@ -40,12 +40,12 @@ export function Calculator() {
           value={fee}
           onChange={(event) => setFee(event.target.value)}
           inputMode="decimal"
-          className="mt-2 h-14 w-full rounded-2xl border border-line bg-paper px-4 text-lg outline-none focus:border-pine"
+          className="mt-2 h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base outline-none focus:border-pine"
         />
       </label>
       <p className="rounded-3xl bg-paper p-5">
         <span className="text-sm font-semibold uppercase tracking-wide text-muted">Your price</span>
-        <span className="mt-1 block font-serif text-5xl text-pine">{formatUsd(total)}</span>
+        <span className="mt-1 block font-serif text-price text-pine tabular-nums">{formatUsd(total)}</span>
       </p>
     </form>
   );

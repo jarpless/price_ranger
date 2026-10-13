@@ -6,7 +6,7 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-2xl px-5 py-10">
       <p className="text-sm font-semibold uppercase tracking-wide text-danger">DRAFT – pending legal review</p>
-      <h1 className="mt-2 font-serif text-5xl">Privacy Policy</h1>
+      <h1 className="mt-2 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">Privacy Policy</h1>
       <div className="mt-6 space-y-4 text-lg leading-relaxed">
         <p>
           We store the account, prices, and outcomes you save so you can come back to them. We do not sell your name,

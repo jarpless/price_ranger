@@ -7,9 +7,8 @@ export const metadata = { title: "Calculators" };
 export default function CalculatorsPage() {
   return (
     <div className="mx-auto w-full max-w-lg lg:max-w-xl">
-      <p className="text-sm font-semibold uppercase tracking-wide text-muted">Secondary</p>
-      <h1 className="mt-1 font-serif text-5xl">Calculators</h1>
-      <p className="mt-3 text-lg leading-relaxed text-muted">
+      <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Calculators</h1>
+      <p className="mt-2 text-body leading-6 text-muted">
         Try a discount or a fee here. It does not change a saved price.
       </p>
       <div className="mt-6">

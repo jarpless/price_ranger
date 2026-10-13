@@ -31,8 +31,8 @@ export function guideAnswer(pathname: string, message: string): string | null {
     `Next: ${copy.next}`,
     `When you're ready, tap “${copy.primary}”.`,
   ];
-  if (step === "adjust") {
-    lines.push("Discounts, fees, extra lines, and where the price came from are under Add more. You can skip them.");
+  if (step === "review" || step === "adjust") {
+    lines.push("Discounts, fees, extra lines, and sources are under Change it. You can send without opening it.");
   }
   if (step === "share") {
     lines.push("After you send it, you'll see a reminder to mark it sold.");

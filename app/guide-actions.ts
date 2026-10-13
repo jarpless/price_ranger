@@ -102,6 +102,54 @@ export async function choosePath(formData: FormData) {
   redirect(`/guide/${quoteId}`);
 }
 
+export async function startAndPrice(formData: FormData) {
+  const user = await requireUser();
+  await blockNewPrice(user);
+  const path = clip(formData.get("path"), 20);
+  if (!isGuidePath(path)) redirect("/new");
+  const description = clip(formData.get("description"), 280);
+  const photo = formData.get("photo");
+  const photoName = photo instanceof File && photo.size > 0 ? photo.name.slice(0, 120) : null;
+  if (!description && !photoName) redirect("/new?error=missing");
+  const text = description || photoName || "Item";
+  const suggestion = suggestPrice(text, path);
+  const guide = await ensureGuideUser(user.id);
+  await recordFunnel(user.id, "path_chosen", { path, variant: guide.variant });
+  const customer = path === "job" ? "Customer" : path === "check" ? "Price check" : "Buyer";
+  const data = await getData();
+  const quoteId = await data.createQuote(user.id, { title: text.slice(0, 80), customerName: customer });
+  const groupId = await data.createGroup(user.id, text.slice(0, 80));
+  const itemId = await data.createCustomItem(user.id, {
+    name: text.slice(0, 80),
+    unit: "each",
+    unitPriceCents: suggestion.cents,
+  });
+  await data.addGroupItem(user.id, groupId, itemId);
+  const quote = await data.getQuote(user.id, quoteId);
+  const tierId = quote?.tiers[0]?.id;
+  if (tierId) await data.toggleTierGroup(user.id, tierId, groupId);
+  await saveGuideQuote({
+    quoteId,
+    userId: user.id,
+    path,
+    step: "review",
+    description: text,
+    priceCents: suggestion.cents,
+    note: suggestion.note,
+    sources: suggestion.sources,
+    photoName,
+    sharedAt: null,
+    shareToken: null,
+    outcome: null,
+    sample: false,
+    finishedAt: null,
+    updatedAt: new Date().toISOString(),
+  });
+  await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
+  refresh();
+  redirect(`/guide/${quoteId}`);
+}
+
 export async function startSample() {
   const user = await requireUser();
   const existing = (await listGuideQuotes(user.id)).find((quote) => quote.sample);
@@ -156,11 +204,13 @@ export async function saveDescription(formData: FormData) {
   const quoteId = clip(formData.get("quoteId"), 80);
   const row = await requireGuide(user.id, quoteId);
   const description = clip(formData.get("description"), 280);
+  const pathValue = clip(formData.get("path"), 20);
+  const path = isGuidePath(pathValue) ? pathValue : row.path;
   const photo = formData.get("photo");
   const photoName = photo instanceof File && photo.size > 0 ? photo.name.slice(0, 120) : row.photoName;
   if (!description && !photoName) redirect(`/guide/${quoteId}?error=missing`);
   const text = description || photoName || "Item";
-  const suggestion = suggestPrice(text, row.path);
+  const suggestion = suggestPrice(text, path);
   const data = await getData();
   const quote = await data.getQuote(user.id, quoteId);
   const groups = await data.listGroups(user.id);
@@ -185,6 +235,7 @@ export async function saveDescription(formData: FormData) {
   const guide = await ensureGuideUser(user.id);
   await saveGuideQuote({
     ...row,
+    path,
     description: text,
     photoName,
     priceCents: suggestion.cents,
