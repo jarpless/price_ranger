@@ -1,6 +1,6 @@
 import { sendMagicLink } from "@/app/actions";
 import { createPasswordAccount, signInWithPassword, startOAuth } from "@/app/auth-actions";
-import { Logo } from "@/components/logo";
+import { LogoLockup } from "@/components/logo";
 import { PasskeyButton } from "@/components/passkey-button";
 import { PendingLink } from "@/components/pending-link";
 import { Button, Notice, TextField } from "@/components/ui";
@@ -23,15 +23,7 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-5 py-10 lg:max-w-xl">
-      <Logo
-        variant="full"
-        tone="ink"
-        alt="Price Ranger"
-        width={512}
-        height={512}
-        priority
-        className="mx-auto mb-6 h-auto w-44"
-      />
+      <LogoLockup />
       <h1 className="text-center font-serif text-3xl leading-tight lg:text-4xl">
         Price it. Show the options.
       </h1>

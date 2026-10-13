@@ -76,5 +76,8 @@ export function priceError(code: string | undefined): string | null {
   if (code === "fee") return "Enter a fee like 75.";
   if (code === "line") return "Add a name and an amount, like Delivery and 15.";
   if (code === "photo") return "What is this? Add one line so we can price it.";
+  if (code === "heic") return "That photo is a HEIC file. Add one line, or send a JPEG.";
+  if (code === "large") return "That photo is too large. Try a smaller JPEG, or add one line.";
+  if (code === "unread") return "We couldn't read that photo. Add one line, or try a smaller JPEG.";
   return "Add a few words, or a photo.";
 }

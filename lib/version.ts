@@ -1,10 +1,10 @@
 /** Single source of truth for the shipping version and ranger codename. */
-export const APP_VERSION = "2.2.1";
+export const APP_VERSION = "2.2.2";
 
 export const APP_CODENAME = "Ridgeline";
 
 /** Shown on every screen. */
-export const VERSION_LABEL = "v2.2.1 Ridgeline";
+export const VERSION_LABEL = "v2.2.2 Ridgeline";
 
 export interface Release {
   version: string;
@@ -47,8 +47,15 @@ export const RELEASES: Release[] = [
     version: "2.2.1",
     label: "v2.2.1 Ridgeline",
     codename: "Ridgeline",
-    state: "current",
+    state: "shipped",
     summary: "Photos name the item, quote math stays visible, and a buyer can open the link or the PDF without an account.",
+  },
+  {
+    version: "2.2.2",
+    label: "v2.2.2 Ridgeline",
+    codename: "Ridgeline",
+    state: "current",
+    summary: "A photo that fails says so, the buyer total matches the seller, and the sign-in mark sits on a light plate.",
   },
   {
     version: "2.3.0",

@@ -11,9 +11,9 @@ import { clip } from "@/lib/form";
 import { pricingAccess } from "@/lib/guide/access";
 import { TOS_VERSION } from "@/lib/guide/config";
 import { isGuidePath, suggestPrice } from "@/lib/guide/flow";
-import { photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
+import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
 import { adjustmentFromSources, looksLikeFilename, settledTotal, withAdjustment, type Adjustment } from "@/lib/guide/pricing";
-import { identifyPhoto } from "@/lib/guide/vision";
+import { identifyPhoto, type PhotoIdentity } from "@/lib/guide/vision";
 import {
   ensureGuideUser,
   getGuideQuote,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/guide/store";
 import { parseDollarsToCents } from "@/lib/money";
 import { PLAN_PRICES_CENTS } from "@/lib/plans";
-import { buildSheet, publishSheet } from "@/lib/share";
+import { buyerSheet, publishSheet } from "@/lib/share";
 import { getData } from "@/lib/store";
 import { addLocalPaidCents, setLocalPlan } from "@/lib/store/local";
 import type { SessionUser } from "@/lib/types";
@@ -51,12 +51,41 @@ async function settledPrice(userId: string, quoteId: string, adjustment: Adjustm
   return settledTotal(await quoteLines(userId, quoteId), adjustment);
 }
 
+function isRedirect(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "digest" in error && String((error as { digest?: unknown }).digest).includes("NEXT_REDIRECT");
+}
+
 async function photoFromForm(userId: string, formData: FormData): Promise<{ bytes: Uint8Array; mime: string } | null> {
   const photo = formData.get("photo");
   if (photo instanceof File && photo.size > 32) {
-    return { bytes: new Uint8Array(await photo.arrayBuffer()), mime: photo.type || "image/jpeg" };
+    const bytes = new Uint8Array(await photo.arrayBuffer());
+    return { bytes, mime: mimeFor(bytes, photo.type) };
   }
   return readPendingPhoto(userId);
+}
+
+async function namePhoto(
+  userId: string,
+  photo: { bytes: Uint8Array; mime: string },
+  failTo: string,
+): Promise<PhotoIdentity> {
+  const issue = inspectPhoto(photo.bytes, photo.mime);
+  if (issue) {
+    await savePendingPhoto(userId, photo.bytes, photo.mime).catch(() => undefined);
+    redirect(`${failTo}?error=${issue === "unreadable" ? "unread" : issue}`);
+  }
+  let identified: PhotoIdentity | null = null;
+  try {
+    identified = await identifyPhoto(photo.bytes, photo.mime);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    identified = null;
+  }
+  if (!identified || looksLikeFilename(identified.title)) {
+    await savePendingPhoto(userId, photo.bytes, photo.mime).catch(() => undefined);
+    redirect(`${failTo}?error=photo`);
+  }
+  return identified;
 }
 
 async function blockNewPrice(user: SessionUser) {
@@ -133,11 +162,7 @@ export async function startAndPrice(formData: FormData) {
   let text = description;
   let visionNote = "";
   if (!text && photo) {
-    const identified = await identifyPhoto(photo.bytes, photo.mime);
-    if (!identified || looksLikeFilename(identified.title)) {
-      await savePendingPhoto(user.id, photo.bytes, photo.mime);
-      redirect("/new?error=photo");
-    }
+    const identified = await namePhoto(user.id, photo, "/new");
     text = identified.title;
     visionNote = identified.note;
   }
@@ -176,7 +201,7 @@ export async function startAndPrice(formData: FormData) {
     finishedAt: null,
     updatedAt: new Date().toISOString(),
   });
-  if (photo) await saveQuotePhoto(user.id, quoteId, photo.bytes, photo.mime);
+  if (photo) await saveQuotePhoto(user.id, quoteId, photo.bytes, photo.mime).catch(() => undefined);
   await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
   refresh();
   redirect(`/guide/${quoteId}`);
@@ -243,11 +268,7 @@ export async function saveDescription(formData: FormData) {
   let text = description;
   let visionNote = "";
   if (!text && uploaded) {
-    const identified = await identifyPhoto(uploaded.bytes, uploaded.mime);
-    if (!identified || looksLikeFilename(identified.title)) {
-      await savePendingPhoto(user.id, uploaded.bytes, uploaded.mime);
-      redirect(`/guide/${quoteId}?error=photo`);
-    }
+    const identified = await namePhoto(user.id, uploaded, `/guide/${quoteId}`);
     text = identified.title;
     visionNote = identified.note;
   }
@@ -286,7 +307,7 @@ export async function saveDescription(formData: FormData) {
     sources: suggestion.sources,
     step: "review",
   });
-  if (uploaded) await saveQuotePhoto(user.id, quoteId, uploaded.bytes, uploaded.mime);
+  if (uploaded) await saveQuotePhoto(user.id, quoteId, uploaded.bytes, uploaded.mime).catch(() => undefined);
   await recordFunnel(user.id, "first_price_generated", { path: row.path, variant: guide.variant });
   refresh();
   redirect(`/guide/${quoteId}`);
@@ -350,7 +371,7 @@ export async function sendQuote(formData: FormData) {
   const token = await publishSheet(
     user.id,
     quoteId,
-    buildSheet(quote, groups, {
+    buyerSheet(quote, groups, {
       sources: row.sources,
       note: row.note,
       photo: photo ? photoDataUrl(photo) : null,

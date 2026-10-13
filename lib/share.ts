@@ -61,6 +61,19 @@ export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: Shee
   };
 }
 
+/** The sheet a buyer, a printout, and a PDF all share. The discount lives in the guide sources. */
+export function buyerSheet(
+  quote: QuoteRecord,
+  groups: ItemGroup[],
+  guide: { sources?: string[] | null; note?: string | null; photo?: string | null } = {},
+): SharedSheet {
+  return buildSheet(quote, groups, {
+    sources: guide.sources ?? [],
+    note: guide.note || undefined,
+    photo: guide.photo ?? null,
+  });
+}
+
 function isSheet(value: unknown): value is SharedSheet {
   if (!value || typeof value !== "object") return false;
   const row = value as SharedSheet;

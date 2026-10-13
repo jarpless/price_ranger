@@ -5,7 +5,9 @@ import QRCode from "qrcode";
 
 import { requireUser } from "@/lib/auth";
 import { siteOriginFromHeaders } from "@/lib/env";
-import { buildSheet, publishSheet } from "@/lib/share";
+import { photoDataUrl, readQuotePhoto } from "@/lib/guide/photos";
+import { getGuideQuote } from "@/lib/guide/store";
+import { buyerSheet, publishSheet } from "@/lib/share";
 import { getData } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +21,13 @@ export default async function SheetPage({ params }: { params: Promise<{ id: stri
   const quote = await data.getQuote(user.id, id);
   if (!quote) notFound();
   const groups = await data.listGroups(user.id);
-  const sheet = buildSheet(quote, groups);
+  const guide = await getGuideQuote(user.id, id);
+  const photo = guide?.photoName ? await readQuotePhoto(user.id, id) : null;
+  const sheet = buyerSheet(quote, groups, {
+    sources: guide?.sources,
+    note: guide?.note,
+    photo: photo ? photoDataUrl(photo) : null,
+  });
   const token = await publishSheet(user.id, id, sheet);
   const origin = siteOriginFromHeaders(await headers());
   const publicUrl = token ? `${origin}/p/${token}` : "";
