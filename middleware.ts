@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { dataBackend } from "./lib/env";
+import { GUEST_SENT_PARAM, unsignedDestination } from "./lib/guest-gate";
 import { KIND_COOKIE, readSessionValue, SESSION_COOKIE, sessionSecret } from "./lib/session";
 import { readFreshSupabaseSession, type CookieSessionUser } from "./lib/supabase/cookie-session";
 import { refreshSupabaseSession } from "./lib/supabase/middleware";
@@ -26,6 +27,24 @@ function guestEntry(request: NextRequest) {
   const url = new URL("/auth/guest", request.url);
   url.searchParams.set("next", next);
   return url;
+}
+
+function unsignedRedirect(request: NextRequest) {
+  const where = unsignedDestination({
+    userAgent: request.headers.get("user-agent"),
+    guestSent: request.nextUrl.searchParams.get(GUEST_SENT_PARAM) === "1",
+  });
+  if (where === "guest") return NextResponse.redirect(guestEntry(request));
+  const url = new URL("/login", request.url);
+  if (where === "cookies") url.searchParams.set("notice", "cookies");
+  return NextResponse.redirect(url);
+}
+
+function stripGuestSent(request: NextRequest) {
+  if (request.nextUrl.searchParams.get(GUEST_SENT_PARAM) !== "1") return null;
+  const clean = request.nextUrl.clone();
+  clean.searchParams.delete(GUEST_SENT_PARAM);
+  return NextResponse.redirect(clean);
 }
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -75,8 +94,12 @@ export async function middleware(request: NextRequest) {
     const { response, user } = await supabaseGate(request);
     const account = user as { email?: string | null; is_anonymous?: boolean } | null;
     const guest = Boolean(account?.is_anonymous) || Boolean(account && !account.email);
+    if (user) {
+      const stripped = stripGuestSent(request);
+      if (stripped) return copyCookies(response, stripped);
+    }
     if (!user && !isPublic(pathname)) {
-      return copyCookies(response, NextResponse.redirect(guestEntry(request)));
+      return copyCookies(response, unsignedRedirect(request));
     }
     if (user && isLogin(pathname) && !guest) {
       return copyCookies(response, NextResponse.redirect(new URL("/", request.url)));
@@ -89,8 +112,12 @@ export async function middleware(request: NextRequest) {
     sessionSecret(),
   );
   const guest = request.cookies.get(KIND_COOKIE)?.value === "guest";
+  if (userId) {
+    const stripped = stripGuestSent(request);
+    if (stripped) return stripped;
+  }
   if (!userId && !isPublic(pathname)) {
-    return NextResponse.redirect(guestEntry(request));
+    return unsignedRedirect(request);
   }
   if (userId && isLogin(pathname) && !guest) {
     return NextResponse.redirect(new URL("/", request.url));
