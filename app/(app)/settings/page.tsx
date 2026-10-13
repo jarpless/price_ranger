@@ -2,14 +2,12 @@ import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
 import { requestDeletion, setDoNotSell } from "@/app/guide-actions";
-import { SettingsForm } from "@/components/settings-form";
 import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { buildStamp, stampText } from "@/lib/build-info";
 import { llmProvider } from "@/lib/assistant/llm";
 import { isOwnerEmail } from "@/lib/owner";
 import { ensureGuideUser } from "@/lib/guide/store";
-import { getPreferences } from "@/lib/store/basecamp";
 import { PLANS } from "@/lib/plans";
 import { assistantAllowance } from "@/lib/usage";
 import { passkeyConfigured } from "@/lib/auth-providers";
@@ -22,7 +20,6 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const owner = isOwnerEmail(user.email);
   const stamp = buildStamp();
-  const feedbackEnabled = owner ? (await getPreferences(user.id)).feedbackEnabled : false;
   const provider = llmProvider();
   const allowance = await assistantAllowance(user);
   const plan = PLANS[user.plan];
@@ -68,11 +65,15 @@ export default async function SettingsPage() {
         </Link>
       </section>
       {passkeyConfigured() && !user.guest ? <PasskeyOffer /> : null}
-      {owner ? (
-        <SettingsForm feedbackEnabled={feedbackEnabled} />
-      ) : (
-        <p className="text-sm text-muted">Feedback tools are on the owner account.</p>
-      )}
+      <section className="rounded-3xl border border-line bg-paper p-5">
+        <h2 className="font-serif text-title">Feedback</h2>
+        <p className="mt-2 text-body leading-6 text-muted">
+          On a computer, the Feedback button lets you drag any region. On a phone, use Send feedback or shake the phone. Both attach a screenshot.
+        </p>
+        <Link href="/feedback" className="mt-3 inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">
+          My feedback
+        </Link>
+      </section>
       <section className="rounded-3xl border border-line bg-paper p-5">
         <h2 className="font-serif text-2xl">Privacy</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -104,9 +105,9 @@ export default async function SettingsPage() {
         </SubmitButton>
       </form>
       {owner ? (
-        <p className="text-sm">
-          <Link href="/feedback" className="font-semibold text-pine">
-            Open the feedback inbox
+        <p className="text-body">
+          <Link href="/admin/feedback" className="font-semibold text-pine">
+            Feedback backlog
           </Link>
         </p>
       ) : null}

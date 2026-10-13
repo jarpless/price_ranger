@@ -18,12 +18,17 @@ export default async function MenuPage() {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/calculators", label: "Calculators" },
     { href: "/quotes/new", label: "Detailed quote" },
+    { href: "/feedback/new", label: "Send feedback" },
+    { href: "/feedback", label: "My feedback" },
     { href: "/settings", label: "Settings" },
     { href: "/upgrade", label: "Upgrade" },
     { href: "/install", label: "Get the app on your phone" },
     { href: "/shortcuts", label: "Shortcuts" },
   ];
-  if (owner) links.push({ href: "/admin/funnel", label: "Funnel" });
+  if (owner) {
+    links.push({ href: "/admin/feedback", label: "Feedback backlog" });
+    links.push({ href: "/admin/funnel", label: "Funnel" });
+  }
 
   return (
     <div className="mx-auto max-w-[40rem]">

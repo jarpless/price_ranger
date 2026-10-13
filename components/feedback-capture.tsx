@@ -1,104 +1,45 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { BuildStamp } from "@/lib/build-info";
+import { captureShot, type DragBox } from "./capture-shot";
+import { FeedbackComposer } from "./feedback-composer";
 
-import { readConsoleErrors } from "./console-buffer";
-
-interface DragBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export function FeedbackCapture({ stamp }: { stamp: BuildStamp }) {
+export function FeedbackCapture() {
   const pathname = usePathname();
+  const [desktop, setDesktop] = useState(false);
   const [armed, setArmed] = useState(false);
   const [drag, setDrag] = useState<DragBox | null>(null);
   const origin = useRef<{ x: number; y: number } | null>(null);
-  const [preview, setPreview] = useState<string>("");
-  const [blob, setBlob] = useState<Blob | null>(null);
-  const [kind, setKind] = useState<"bug" | "feature">("bug");
-  const [body, setBody] = useState("");
+  const [shot, setShot] = useState<{ preview: string; blob: Blob } | null>(null);
   const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
 
-  async function capture(box: DragBox) {
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setDesktop(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  async function finish(box: DragBox) {
     setArmed(false);
     setDrag(null);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(document.body, {
-        pixelRatio: 1,
-        cacheBust: true,
-        filter: (node) => !(node instanceof HTMLElement && node.dataset.feedbackChrome === "true"),
-      });
-      const image = new Image();
-      image.src = dataUrl;
-      await image.decode();
-      const scaleX = image.width / window.innerWidth;
-      const scaleY = image.height / window.innerHeight;
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(box.w * scaleX));
-      canvas.height = Math.max(1, Math.round(box.h * scaleY));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Could not crop the screenshot.");
-      context.drawImage(
-        image,
-        box.x * scaleX,
-        box.y * scaleY,
-        box.w * scaleX,
-        box.h * scaleY,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
-      );
-      const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!png) throw new Error("Could not save the screenshot.");
-      setBlob(png);
-      setPreview(canvas.toDataURL("image/png"));
+      setShot(await captureShot(box));
+      setStatus("");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not capture that area.");
     }
   }
 
-  async function submit() {
-    if (!blob) return;
-    setBusy(true);
-    setStatus("");
-    const form = new FormData();
-    form.set("kind", kind);
-    form.set("body", body);
-    form.set("route", pathname);
-    form.set("viewport", `${window.innerWidth}x${window.innerHeight}`);
-    form.set("userAgent", navigator.userAgent);
-    form.set("consoleErrors", JSON.stringify(readConsoleErrors()));
-    form.set("screenshot", blob, "region.png");
-    const response = await fetch("/api/feedback", { method: "POST", body: form });
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      githubIssueUrl?: string | null;
-      githubError?: string | null;
-    };
-    setBusy(false);
-    if (!response.ok) {
-      setStatus(payload.error || "Could not save that note.");
-      return;
-    }
-    setStatus(payload.githubIssueUrl ? `Saved. GitHub issue: ${payload.githubIssueUrl}` : payload.githubError || "Saved to the inbox.");
-    setBody("");
-    setPreview("");
-    setBlob(null);
-  }
+  if (!desktop && !shot) return null;
 
   return (
     <>
-      {!armed && !preview ? (
+      {desktop && !armed && !shot ? (
         <button
           type="button"
           data-feedback-chrome="true"
@@ -106,7 +47,7 @@ export function FeedbackCapture({ stamp }: { stamp: BuildStamp }) {
             setStatus("");
             setArmed(true);
           }}
-          className="fixed bottom-24 left-4 z-40 h-11 rounded-full border border-line bg-paper px-4 text-sm font-semibold text-pine shadow-md hover:border-pine lg:bottom-6 lg:left-64"
+          className="fixed bottom-6 left-4 z-40 hidden h-12 items-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-pine shadow-card lg:left-64 lg:inline-flex"
         >
           Feedback
         </button>
@@ -138,71 +79,29 @@ export function FeedbackCapture({ stamp }: { stamp: BuildStamp }) {
               setDrag(null);
               return;
             }
-            void capture(box);
+            void finish(box);
           }}
         >
           <div className="absolute inset-0 bg-pine-deep/25" />
           {drag ? (
-            <div
-              className="absolute border-2 border-gold bg-gold/10"
-              style={{ left: drag.x, top: drag.y, width: drag.w, height: drag.h }}
-            />
+            <div className="absolute border-2 border-pine bg-pine/10" style={{ left: drag.x, top: drag.y, width: drag.w, height: drag.h }} />
           ) : null}
-          <p className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-paper px-3 py-1 text-sm font-semibold text-ink">
-            Drag a region. {stamp.label}
+          <p className="absolute left-1/2 top-4 -translate-x-1/2 whitespace-nowrap rounded-2xl bg-paper px-4 py-2 text-body font-semibold">
+            Drag a region
           </p>
         </div>
       ) : null}
-      {preview ? (
-        <form
-          data-feedback-chrome="true"
-          className="fixed inset-x-4 bottom-24 z-[90] mx-auto max-w-md space-y-3 rounded-3xl border border-line bg-paper p-4 shadow-2xl lg:bottom-6 lg:left-64 lg:right-auto"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="Selected region" className="max-h-40 w-full rounded-2xl object-contain" />
-          <p className="text-xs text-muted">
-            {pathname} · {stamp.label} · {stamp.sha} · {stamp.env}
-          </p>
-          <label className="block text-sm font-medium">
-            What is wrong, or what did you expect?
-            <textarea
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              required
-              className="mt-1 min-h-24 w-full rounded-2xl border border-line px-3 py-2"
-            />
-          </label>
-          <div className="flex gap-3 text-sm font-semibold">
-            <label className="flex items-center gap-2">
-              <input type="radio" checked={kind === "bug"} onChange={() => setKind("bug")} /> Bug
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" checked={kind === "feature"} onChange={() => setKind("feature")} /> Feature
-            </label>
-          </div>
-          <div className="flex gap-2">
-            <button disabled={busy} className="h-11 flex-1 rounded-2xl bg-pine text-sm font-semibold text-cream disabled:opacity-50">
-              {busy ? "Saving" : "Save feedback"}
-            </button>
-            <button
-              type="button"
-              className="h-11 rounded-2xl px-3 text-sm font-semibold text-muted"
-              onClick={() => {
-                setPreview("");
-                setBlob(null);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+      {shot ? (
+        <FeedbackComposer
+          preview={shot.preview}
+          blob={shot.blob}
+          source="desktop"
+          route={pathname}
+          onClose={() => setShot(null)}
+        />
       ) : null}
       {status ? (
-        <p data-feedback-chrome="true" className="fixed bottom-40 left-4 z-40 max-w-xs rounded-2xl bg-paper px-3 py-2 text-sm shadow lg:bottom-20 lg:left-64">
+        <p data-feedback-chrome="true" className="fixed bottom-24 left-4 z-40 hidden max-w-xs rounded-2xl bg-paper px-4 py-3 text-body shadow-card lg:left-64 lg:block">
           {status}
         </p>
       ) : null}

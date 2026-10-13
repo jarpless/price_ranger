@@ -1,94 +1,46 @@
 import { PendingLink as Link } from "@/components/pending-link";
-import { notFound } from "next/navigation";
 
-import { saveFeedbackStatus } from "@/app/basecamp-actions";
-import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { statusLabel, myTickets } from "@/lib/feedback/mine";
 import { isOwnerEmail } from "@/lib/owner";
-import { listFeedback, type FeedbackStatus } from "@/lib/store/basecamp";
-import { VERSION_LABEL } from "@/lib/version";
 
-export const metadata = { title: "Feedback" };
+export const metadata = { title: "My feedback" };
 
-const STATUSES: FeedbackStatus[] = ["new", "planned", "in_progress", "shipped"];
-
-export default async function FeedbackPage() {
+export default async function MyFeedbackPage() {
   const user = await requireUser();
-  if (!isOwnerEmail(user.email)) notFound();
-  const reports = await listFeedback(user.id);
+  const tickets = await myTickets(user.id);
+  const owner = isOwnerEmail(user.email);
 
   return (
-    <div className="space-y-4">
-      <h1 className="font-serif text-4xl">Feedback</h1>
-      <p className="max-w-3xl text-sm leading-relaxed text-muted">
-        New notes wait here. Move one to planned, in progress, or shipped. When it ships, record the version, such as {VERSION_LABEL}.
-      </p>
-      {reports.length === 0 ? (
-        <p className="rounded-3xl border border-dashed border-line bg-paper px-4 py-8 text-sm text-muted">
-          Nothing yet. Turn on feedback in Settings, then drag a region.
+    <div className="mx-auto max-w-[40rem]">
+      <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">My feedback</h1>
+      <p className="mt-2 text-body text-muted">Notes you sent, and where each one stands.</p>
+      {tickets.length === 0 ? (
+        <p className="mt-6 rounded-2xl border border-dashed border-line bg-paper px-4 py-8 text-body text-muted">
+          Nothing yet. On a computer, drag a region with the Feedback button. On a phone, use Send feedback or shake the phone.
         </p>
       ) : (
-        <ul className="space-y-4">
-          {reports.map((report) => (
-            <li key={report.id} className="rounded-3xl border border-line bg-paper p-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                <span>{report.kind}</span>
-                <span>{report.versionLabel}</span>
-                <span>{report.env}</span>
-                <span>{report.viewport}</span>
-              </div>
-              <p className="mt-2 text-base leading-relaxed">{report.body}</p>
-              <p className="mt-1 text-sm text-muted">{report.route}</p>
-              {report.screenshotPath ? (
-                <Link href={`/api/feedback/${report.id}/image`} className="mt-3 inline-block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/feedback/${report.id}/image`}
-                    alt="Feedback region"
-                    className="max-h-48 rounded-2xl border border-line"
-                  />
-                </Link>
-              ) : null}
-              {report.githubIssueUrl ? (
-                <p className="mt-2 text-sm">
-                  <a href={report.githubIssueUrl} className="font-semibold text-pine">
-                    GitHub issue
-                  </a>
-                </p>
-              ) : null}
-              {report.consoleErrors.length > 0 ? (
-                <pre className="mt-3 overflow-x-auto rounded-2xl bg-cream p-3 text-xs text-muted">
-                  {report.consoleErrors.join("\n")}
-                </pre>
-              ) : null}
-              <form action={saveFeedbackStatus.bind(null, report.id)} className="mt-4 flex flex-wrap items-end gap-2">
-                <label className="text-sm font-medium">
-                  Status
-                  <select name="status" defaultValue={report.status} className="mt-1 block h-10 rounded-xl border border-line bg-paper px-2">
-                    {STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {status.replace("_", " ")}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm font-medium">
-                  Shipped in
-                  <input
-                    name="shippedIn"
-                    defaultValue={report.shippedIn || ""}
-                    placeholder={VERSION_LABEL}
-                    className="mt-1 block h-10 rounded-xl border border-line px-2"
-                  />
-                </label>
-                <SubmitButton pendingLabel="Saving…" className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream">
-                  Save
-                </SubmitButton>
-              </form>
+        <ul className="mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-card">
+          {tickets.map((ticket) => (
+            <li key={ticket.report.id} className="border-b border-line last:border-b-0">
+              <Link href={`/feedback/${ticket.report.id}`} className="block px-4 py-3">
+                <span className="block text-base font-semibold">{ticket.summary}</span>
+                <span className="mt-1 block text-caption text-muted">
+                  {statusLabel(ticket.report.status)} · {ticket.report.kind === "bug" ? "Bug" : "Idea"}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
       )}
+      <Link href="/feedback/new" className="mt-4 inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">
+        Send feedback
+      </Link>
+      {owner ? (
+        <Link href="/admin/feedback" className="mt-2 block text-base font-semibold text-pine">
+          Admin backlog
+        </Link>
+      ) : null}
     </div>
   );
 }

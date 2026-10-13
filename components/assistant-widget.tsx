@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BuildStamp } from "@/lib/build-info";
 
 import { Logo } from "./logo";
+import { MyFeedbackList } from "./my-feedback-list";
 import { Spotlight } from "./spotlight";
 
 interface ChatLine {
@@ -243,6 +244,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
                 ? "Ask about your quotes, prices, and groups. On a pricing step, ask to be walked through it."
                 : "Agent mode walks the screen while it works. Press Stop any time. Deletes wait for you to confirm."}
             </p>
+            <MyFeedbackList />
             {pathname.startsWith("/guide") || pathname.startsWith("/welcome") || pathname === "/new" ? (
               <button
                 type="button"

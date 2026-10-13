@@ -343,6 +343,20 @@ function alreadyRecorded(events: FunnelEvent[], userId: string | null, name: Fun
   });
 }
 
+export async function termsAccepted(userId: string): Promise<boolean> {
+  if (dataBackend() !== "supabase" || degraded()) {
+    const file = await loadMutable();
+    return Boolean(file.users.find((user) => user.userId === userId)?.tosAcceptedAt);
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("guide_users").select("tos_accepted_at").eq("user_id", userId).maybeSingle();
+  if (error) {
+    if (rememberMissing(error)) return false;
+    throw new Error(error.message);
+  }
+  return Boolean((data as { tos_accepted_at?: string | null } | null)?.tos_accepted_at);
+}
+
 export async function recordFunnel(
   userId: string | null,
   name: FunnelEventName,

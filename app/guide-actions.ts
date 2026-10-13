@@ -21,10 +21,11 @@ import {
   type GuideQuote as StoredGuideQuote,
 } from "@/lib/guide/store";
 import { parseDollarsToCents } from "@/lib/money";
+import { PLAN_PRICES_CENTS } from "@/lib/plans";
 import { liveTierTotals } from "@/lib/project";
 import { buildSheet, publishSheet } from "@/lib/share";
 import { getData } from "@/lib/store";
-import { setLocalPlan } from "@/lib/store/local";
+import { addLocalPaidCents, setLocalPlan } from "@/lib/store/local";
 import type { SessionUser } from "@/lib/types";
 
 function refresh() {
@@ -384,13 +385,20 @@ export async function finishCheckout(sessionId: string) {
   if (!paid) return false;
   if (dataBackend() === "local") {
     await setLocalPlan(user.id, "plus", null);
+    await addLocalPaidCents(user.id, PLAN_PRICES_CENTS.plusMonth);
   } else if (dataBackend() === "supabase") {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!key || !url) return false;
     const { createClient } = await import("@supabase/supabase-js");
     const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { error } = await service.from("profiles").update({ plan: "plus" }).eq("id", user.id);
+    const current = await service.from("profiles").select("paid_cents").eq("id", user.id).maybeSingle();
+    const paid = Number((current.data as { paid_cents?: number } | null)?.paid_cents ?? 0);
+    let { error } = await service.from("profiles").update({ plan: "plus", paid_cents: paid + PLAN_PRICES_CENTS.plusMonth }).eq("id", user.id);
+    if (error && /paid_cents|schema cache|does not exist/i.test(error.message)) {
+      const retry = await service.from("profiles").update({ plan: "plus" }).eq("id", user.id);
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
   }
   const guide = await ensureGuideUser(user.id);

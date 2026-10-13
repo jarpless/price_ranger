@@ -29,6 +29,7 @@ interface DbUser {
   industry?: string | null;
   plan?: string | null;
   passExpiresAt?: string | null;
+  paidCents?: number;
   passwordHash?: string;
   passwordSalt?: string;
 }
@@ -304,6 +305,15 @@ export async function setLocalPlan(
     if (!user) return;
     user.plan = plan;
     user.passExpiresAt = passExpiresAt;
+  });
+}
+
+export async function addLocalPaidCents(userId: string, cents: number): Promise<void> {
+  if (cents <= 0) return;
+  await update((db) => {
+    const user = db.users.find((item) => item.id === userId);
+    if (!user) return;
+    user.paidCents = (user.paidCents || 0) + cents;
   });
 }
 
