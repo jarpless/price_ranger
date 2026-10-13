@@ -1,46 +1,100 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import { dataBackend } from "../env";
 import { createClient } from "../supabase/server";
 
-const root = path.join(process.cwd(), "data", "guide-photos");
+/**
+ * Vercel can run the app from a read-only directory. A throw from that write became
+ * the production HTTP 500 on photo upload. Disk is best-effort; /tmp is the fallback;
+ * Supabase storage is the copy that survives the next instance.
+ */
+const MAX_PHOTO_BYTES = 3_500_000;
 
 export interface PhotoBytes {
   bytes: Uint8Array;
   mime: string;
 }
 
+export type PhotoIssue = "heic" | "large" | "unreadable";
+
+function roots(): string[] {
+  const primary = process.env.GUIDE_PHOTO_DIR || path.join(process.cwd(), "data", "guide-photos");
+  const tmp = path.join(os.tmpdir(), "price-ranger-photos");
+  return primary === tmp ? [primary] : [primary, tmp];
+}
+
+function brand(bytes: Uint8Array): string {
+  if (bytes.length < 16) return "";
+  return Buffer.from(bytes.slice(4, 16)).toString("ascii").toLowerCase();
+}
+
+export function sniffKind(bytes: Uint8Array, mime = ""): "jpeg" | "png" | "gif" | "webp" | "heic" | "unknown" {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) return "png";
+  if (bytes[0] === 0x47 && bytes[1] === 0x49) return "gif";
+  if (bytes.length > 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return "webp";
+  const tag = brand(bytes);
+  if (tag.includes("ftyp") && /heic|heif|heix|mif1|msf1|hevc/.test(tag)) return "heic";
+  if (/heic|heif/i.test(mime)) return "heic";
+  return "unknown";
+}
+
+export function mimeFor(bytes: Uint8Array, hinted = ""): string {
+  const kind = sniffKind(bytes, hinted);
+  if (kind === "jpeg") return "image/jpeg";
+  if (kind === "png") return "image/png";
+  if (kind === "gif") return "image/gif";
+  if (kind === "webp") return "image/webp";
+  if (kind === "heic") return "image/heic";
+  return hinted.startsWith("image/") ? hinted : "application/octet-stream";
+}
+
+/** Why a photo cannot be priced. Null means the bytes are a normal image we can send to vision. */
+export function inspectPhoto(bytes: Uint8Array, mime = ""): PhotoIssue | null {
+  const kind = sniffKind(bytes, mime);
+  if (kind === "heic") return "heic";
+  if (bytes.length > MAX_PHOTO_BYTES) return "large";
+  if (kind === "unknown") return "unreadable";
+  return null;
+}
+
 function sniff(bytes: Uint8Array): string {
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
-  if (bytes[0] === 0x89 && bytes[1] === 0x50) return "image/png";
-  if (bytes[0] === 0x47 && bytes[1] === 0x49) return "image/gif";
-  if (bytes.length > 12 && bytes[0] === 0x52 && bytes[1] === 0x49) return "image/webp";
-  return "image/jpeg";
+  return mimeFor(bytes);
 }
 
 function safeId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
 }
 
-function diskPath(userId: string, name: string): string {
-  return path.join(root, safeId(userId), name);
-}
-
-async function writeDisk(userId: string, name: string, bytes: Uint8Array): Promise<void> {
-  const file = diskPath(userId, name);
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, bytes);
+async function writeDisk(userId: string, name: string, bytes: Uint8Array): Promise<boolean> {
+  const id = safeId(userId);
+  for (const root of roots()) {
+    try {
+      const file = path.join(root, id, name);
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, bytes);
+      return true;
+    } catch {
+      // The app directory is read-only on Vercel. Try the next root.
+    }
+  }
+  return false;
 }
 
 async function readDisk(userId: string, name: string): Promise<PhotoBytes | null> {
-  try {
-    const bytes = new Uint8Array(await readFile(diskPath(userId, name)));
-    if (bytes.length < 32) return null;
-    return { bytes, mime: sniff(bytes) };
-  } catch {
-    return null;
+  const id = safeId(userId);
+  for (const root of roots()) {
+    try {
+      const bytes = new Uint8Array(await readFile(path.join(root, id, name)));
+      if (bytes.length < 32) continue;
+      return { bytes, mime: sniff(bytes) };
+    } catch {
+      // Missing on this root.
+    }
   }
+  return null;
 }
 
 function storagePath(userId: string, name: string): string {
@@ -49,11 +103,15 @@ function storagePath(userId: string, name: string): string {
 
 async function writeStorage(userId: string, name: string, bytes: Uint8Array, mime: string): Promise<void> {
   if (dataBackend() !== "supabase") return;
-  const supabase = await createClient();
-  await supabase.storage.from("feedback").upload(storagePath(userId, name), Buffer.from(bytes), {
-    upsert: true,
-    contentType: mime,
-  });
+  try {
+    const supabase = await createClient();
+    await supabase.storage.from("feedback").upload(storagePath(userId, name), Buffer.from(bytes), {
+      upsert: true,
+      contentType: mime,
+    });
+  } catch {
+    // Storage is a backup. A failed upload must not become a 500.
+  }
 }
 
 async function readStorage(userId: string, name: string): Promise<PhotoBytes | null> {
@@ -72,7 +130,7 @@ async function readStorage(userId: string, name: string): Promise<PhotoBytes | n
 
 export async function savePendingPhoto(userId: string, bytes: Uint8Array, mime: string): Promise<void> {
   await writeDisk(userId, "pending", bytes);
-  await writeStorage(userId, "pending", bytes, mime).catch(() => undefined);
+  await writeStorage(userId, "pending", bytes, mime);
 }
 
 export async function readPendingPhoto(userId: string): Promise<PhotoBytes | null> {
@@ -82,8 +140,8 @@ export async function readPendingPhoto(userId: string): Promise<PhotoBytes | nul
 export async function saveQuotePhoto(userId: string, quoteId: string, bytes: Uint8Array, mime: string): Promise<void> {
   const name = safeId(quoteId);
   await writeDisk(userId, name, bytes);
-  await writeStorage(userId, name, bytes, mime).catch(() => undefined);
-  await writeDisk(userId, "pending", new Uint8Array()).catch(() => undefined);
+  await writeStorage(userId, name, bytes, mime);
+  await writeDisk(userId, "pending", new Uint8Array());
 }
 
 export async function readQuotePhoto(userId: string, quoteId: string): Promise<PhotoBytes | null> {
@@ -92,5 +150,6 @@ export async function readQuotePhoto(userId: string, quoteId: string): Promise<P
 
 export function photoDataUrl(photo: PhotoBytes, maxBytes = 1_500_000): string | null {
   if (photo.bytes.length > maxBytes) return null;
+  if (!photo.mime.startsWith("image/")) return null;
   return `data:${photo.mime};base64,${Buffer.from(photo.bytes).toString("base64")}`;
 }

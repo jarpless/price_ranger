@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CaptureForm } from "@/components/capture-form";
 import { requireUser } from "@/lib/auth";
 import { pricingAccess } from "@/lib/guide/access";
+import { priceError } from "@/lib/guide/pricing";
 import { ensureGuideUser } from "@/lib/guide/store";
 
 export const metadata = { title: "New price" };
@@ -24,18 +25,16 @@ export default async function NewPricePage({
       <div>
         <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">New price</h1>
         <p className="mt-2 text-body text-muted">Item is already selected. A photo prices itself.</p>
-        {error === "photo" ? (
+        {error === "photo" || error === "heic" || error === "large" || error === "unread" ? (
           <div className="mt-4 space-y-3">
-            <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
-              What is this? Add one line so we can price it.
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/new/photo" alt="The photo you added" className="max-h-64 w-full rounded-2xl border border-line object-contain bg-paper" />
+            <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
+            {error === "photo" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/new/photo" alt="The photo you added" className="max-h-64 w-full rounded-2xl border border-line object-contain bg-paper" />
+            ) : null}
           </div>
         ) : error ? (
-          <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
-            Add a few words, or a photo.
-          </p>
+          <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
         ) : null}
         <div className="mt-6">
           <CaptureForm />

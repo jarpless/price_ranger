@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { readFileSync } from "node:fs";
+
 import { buildPricePdf, jpegSize } from "./guide/pdf";
+import { inspectPhoto, savePendingPhoto } from "./guide/photos";
 import {
   accessLimits,
   applyDiscount,
@@ -25,6 +28,8 @@ import {
 } from "./guide/pricing";
 import { isMissingSchema } from "./guide/schema";
 import { explainPrice } from "./guide/help";
+import { buyerSheet } from "./share";
+import type { ItemGroup, QuoteRecord } from "./types";
 
 test("experiment group stays on the same account", () => {
   const first = variantForUser("user-one");
@@ -117,6 +122,71 @@ test("a filename is not a title and a price question stays plain", () => {
   });
   assert.match(answer || "", /\$45/);
   assert.doesNotMatch(answer || "", /price record|quote quote/);
+});
+
+test("the buyer sheet keeps the seller discount", () => {
+  const sources = withAdjustment(["Similar small repairs"], { percent: 10, includeFees: false });
+  const quote = {
+    id: "quote-1",
+    title: "Small roof repair",
+    customerName: "Customer",
+    tiers: [{ id: "tier-1", quoteId: "quote-1", name: "Price", note: "", sortOrder: 0, recommended: true, groupIds: ["group-1"] }],
+  } as QuoteRecord;
+  const groups = [
+    {
+      id: "group-1",
+      items: [
+        { name: "Small roof repair", quantity: 1, unitPriceCents: 85000 },
+        { name: "Dumpster haul", quantity: 1, unitPriceCents: 45000 },
+        { name: "Fee", quantity: 1, unitPriceCents: 7500 },
+      ],
+    },
+  ] as ItemGroup[];
+  const sheet = buyerSheet(quote, groups, { sources });
+  assert.equal(settledTotal(
+    groups[0].items.map((item) => ({ name: item.name, quantity: item.quantity, unitPriceCents: item.unitPriceCents })),
+    adjustmentFromSources(sources),
+  ), 129000);
+  assert.equal(sheet.options[0].total, "$1,290");
+  assert.equal(sheet.options[0].lines[0].detail, "$850 − 10% = $765");
+  assert.equal(sheet.options[0].lines[0].price, "$765");
+  assert.equal(sheet.options[0].lines[1].detail, "1 × $450");
+  assert.equal(sheet.options[0].lines[2].price, "$75");
+  const pdf = buildPricePdf({
+    title: sheet.title,
+    subtitle: sheet.subtitle,
+    lines: sheet.options[0].lines,
+    total: sheet.options[0].total,
+  });
+  assert.match(Buffer.from(pdf).toString("latin1"), /Total \$1,290/);
+});
+
+test("a photo that cannot be read does not throw, and HEIC is not treated as JPEG", async () => {
+  const heic = new Uint8Array(32);
+  heic.set([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+  assert.equal(inspectPhoto(heic, "image/jpeg"), "heic");
+  const jpeg = new Uint8Array(64);
+  jpeg[0] = 0xff;
+  jpeg[1] = 0xd8;
+  assert.equal(inspectPhoto(jpeg, "image/jpeg"), null);
+  const huge = new Uint8Array(3_500_001);
+  huge[0] = 0xff;
+  huge[1] = 0xd8;
+  assert.equal(inspectPhoto(huge, "image/jpeg"), "large");
+  const previous = process.env.GUIDE_PHOTO_DIR;
+  process.env.GUIDE_PHOTO_DIR = "/dev/null/price-ranger-readonly";
+  await assert.doesNotReject(savePendingPhoto("user-photo", jpeg, "image/jpeg"));
+  if (previous === undefined) delete process.env.GUIDE_PHOTO_DIR;
+  else process.env.GUIDE_PHOTO_DIR = previous;
+});
+
+test("account delete reads the service role key on the server only", () => {
+  const source = readFileSync(new URL("./account/delete.ts", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../app/api/account/delete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(source, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(route, /deleteSignedInAccount/);
+  assert.doesNotMatch(route, /SUPABASE_SERVICE_ROLE_KEY\s*=/);
 });
 
 test("a price sheet becomes a real PDF", () => {

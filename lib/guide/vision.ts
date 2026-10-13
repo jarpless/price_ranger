@@ -97,6 +97,7 @@ async function identifyWithAnthropic(bytes: Uint8Array, mime: string): Promise<P
  */
 export async function identifyPhoto(bytes: Uint8Array, mime: string): Promise<PhotoIdentity | null> {
   if (bytes.length < 32) return null;
+  if (/heic|heif/i.test(mime)) return null;
   if (stubAllowed()) {
     return {
       title: "KitchenAid stand mixer",
