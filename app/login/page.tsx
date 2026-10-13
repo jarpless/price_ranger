@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; reason?: string; next?: string; detail?: string }>;
+  searchParams: Promise<{ error?: string; reason?: string; next?: string; detail?: string; notice?: string }>;
 }) {
-  const { error, reason, detail } = await searchParams;
+  const { error, reason, detail, notice } = await searchParams;
   const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const providers = enabledOAuthButtons();
@@ -43,7 +43,17 @@ export default async function LoginPage({
           Create an account to save and share this. The draft on this device comes with you.
         </p>
       ) : null}
-      {authDetail || error ? (
+      {notice === "busy" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
+          We&apos;re getting a lot of new visits right now. Sign in with email, or try again in a minute.
+        </p>
+      ) : null}
+      {notice === "cookies" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
+          This browser isn&apos;t keeping a sign-in. You can use email, or turn cookies on and open the app again.
+        </p>
+      ) : null}
+      {notice !== "busy" && notice !== "cookies" && (authDetail || error) ? (
         <div className="mt-6">
           <Notice code={error} detail={authDetail} />
         </div>
@@ -99,6 +109,7 @@ export default async function LoginPage({
 
       <PendingLink
         href="/auth/guest"
+        prefetch={false}
         className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl text-base font-semibold text-pine"
       >
         Continue without an account
