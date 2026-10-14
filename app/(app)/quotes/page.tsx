@@ -25,7 +25,7 @@ export default async function QuotesPage({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="page-stack">
       <h1 className="font-serif text-4xl">{words.quotes}</h1>
       <form method="get" className="flex gap-2">
         <input
@@ -53,7 +53,7 @@ export default async function QuotesPage({
           </p>
         </div>
       ) : (
-        <ul className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-3">
+        <ul className="card-grid card-grid-3">
           {quotes.map((quote) => {
             const guide = guideById.get(quote.id);
             const status = guide?.outcome === "sold"
@@ -68,13 +68,13 @@ export default async function QuotesPage({
             const amount = guide?.priceCents != null ? formatUsd(guide.priceCents) : priceSpan(quote.totals);
             return (
             <li key={quote.id}>
-              <Link href={`/quotes/${quote.id}`} className="lift block h-full rounded-3xl border border-line bg-paper p-4">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="font-serif text-2xl">{quote.customerName}</h2>
-                  <span className="text-caption font-semibold text-muted">{status}</span>
+              <Link href={`/quotes/${quote.id}`} className="surface lift flex h-full flex-col">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="min-w-0 truncate font-serif text-title">{quote.customerName}</h2>
+                  <span className={status === "Sold" ? "pill pill-sold" : "pill"}>{status}</span>
                 </div>
                 <p className="mt-1 text-body text-muted">{quote.title}</p>
-                <p className="mt-3 font-serif text-price text-pine">{amount}</p>
+                <p className="list-price mt-4">{amount}</p>
               </Link>
             </li>
             );

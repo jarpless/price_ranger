@@ -42,9 +42,9 @@ export default async function SettingsPage({
   const nearLimit = allowance.remaining <= 2;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="page-stack mx-auto w-full max-w-3xl">
       <h1 className="font-serif text-display">Settings</h1>
-      <section className="rounded-3xl border border-line bg-paper p-5">
+      <section className="surface">
         <div className="flex items-center gap-1">
           <h2 className="font-serif text-title">Plan</h2>
           <InfoTip id="plans" />
@@ -68,7 +68,7 @@ export default async function SettingsPage({
         {billing === "unavailable" ? <p className="mt-3 text-body text-danger">Billing isn't available from this server yet.</p> : null}
       </section>
       {passkeyConfigured() && !user.guest ? <PasskeyOffer /> : null}
-      <section className="rounded-3xl border border-line bg-paper p-5">
+      <section className="surface">
         <h2 className="font-serif text-title">Privacy</h2>
         <p className="mt-2 text-body leading-6 text-muted">
           Anonymized prices are part of the terms you accept. This control is for personal information.

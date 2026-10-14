@@ -79,12 +79,12 @@ export function MarketCard({
         {extras.length > 1 ? (
           <ul className="mt-4 border-t border-line pt-2">
             {extras.map((line) => (
-              <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3 py-1 lg:h-10 lg:items-center lg:py-0">
-                <span className="min-w-0">
-                  <span className="block truncate text-base font-semibold lg:text-sm">{line.name}</span>
-                  {line.detail ? <span className="text-caption text-muted lg:hidden">{line.detail}</span> : null}
+              <li key={`${line.name}-${line.detail}`} className="line-row">
+                <span className="list-copy">
+                  <span className="list-title">{line.name}</span>
+                  {line.detail ? <span className="text-caption text-muted">{line.detail}</span> : null}
                 </span>
-                <span className="shrink-0 text-right font-serif text-title tabular-nums lg:text-base">{line.price}</span>
+                <span className="list-price">{line.price}</span>
               </li>
             ))}
           </ul>
@@ -184,9 +184,9 @@ export function MarketCard({
             <p className="text-base font-semibold">Comparables</p>
             <InfoTip id="comparables" />
           </div>
-          <ul className="mt-2 space-y-2">
+          <ul className="page-stack mt-4">
             {live.comparables.slice(0, 4).map((comp) => (
-              <li key={`${comp.title}-${comp.soldAt}`} className="flex gap-3 rounded-2xl border border-line bg-paper p-3">
+              <li key={`${comp.title}-${comp.soldAt}`} className="surface flex items-center gap-3">
                 {/* Curated sold-search thumbnail, not a product photo. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={comp.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-cream object-cover" />
@@ -199,7 +199,7 @@ export function MarketCard({
                     See similar sold listings on {comp.source}
                   </a>
                 </div>
-                <p className="shrink-0 font-serif text-title tabular-nums">{formatUsd(comp.priceCents)}</p>
+                <p className="list-price">{formatUsd(comp.priceCents)}</p>
               </li>
             ))}
           </ul>

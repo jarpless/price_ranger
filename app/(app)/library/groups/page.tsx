@@ -39,17 +39,17 @@ export default async function GroupsPage() {
           Price Ranger writes the description for you.
         </p>
       ) : (
-        <ul data-spotlight="group-list" className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+        <ul data-spotlight="group-list" className="card-grid">
           {groups.map((group) => (
             <li key={group.id}>
               <Link
                 href={`/library/groups/${group.id}`}
                 data-spotlight={`group-${group.id}`}
-                className="lift block h-full rounded-3xl border border-line bg-paper p-4"
+                className="lift surface flex h-full flex-col"
               >
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="font-serif text-2xl">{group.name}</h2>
-                  <span className="font-serif text-xl">{formatUsd(groupCents(group))}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="min-w-0 truncate font-serif text-title">{group.name}</h2>
+                  <span className="list-price">{formatUsd(groupCents(group))}</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-muted">{customerSummary(group)}</p>
               </Link>

@@ -33,19 +33,19 @@ export default async function BillingPage({
   const details = await readBillingDetails(profile.customerId);
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="page-stack max-w-3xl">
       <Link href="/settings" className="text-base font-semibold text-pine">
         Settings
       </Link>
       <h1 className="font-serif text-display">Billing</h1>
-      <section className="rounded-3xl border border-line bg-paper p-5">
+      <section className="surface">
         <p className="text-caption font-semibold text-muted">Current plan</p>
         <p className="mt-1 font-serif text-title">{plan.name}</p>
         <p className="mt-1 text-body text-muted">{priceLine(user.plan, profile.interval)}</p>
         {renews && profile.interval !== "once" && user.plan !== "pass" ? <p className="mt-2 text-body">Renews {renews}.</p> : null}
         {user.plan === "pass" || profile.interval === "once" ? <p className="mt-2 text-body">This pass does not renew.</p> : null}
       </section>
-      <section className="rounded-3xl border border-line bg-paper p-5">
+      <section className="surface">
         <h2 className="font-serif text-title">Payment method</h2>
         {details.card ? (
           <p className="mt-2 text-body capitalize">{details.card.brand} ···· {details.card.last4}</p>
@@ -53,18 +53,21 @@ export default async function BillingPage({
           <p className="mt-2 text-body leading-6 text-muted">No card is on file for this account.</p>
         )}
       </section>
-      <section className="rounded-3xl border border-line bg-paper p-5">
+      <section className="surface">
         <h2 className="font-serif text-title">Invoices</h2>
         {details.invoices.length > 0 ? (
           <ul className="mt-3 divide-y divide-line">
             {details.invoices.map((invoice) => (
-              <li key={invoice.id} className="flex items-baseline justify-between gap-3 py-3">
-                <span>
-                  <span className="block text-base font-semibold">{invoice.number}</span>
-                  <span className="text-caption capitalize text-muted">{invoice.date} · {invoice.status}</span>
+              <li key={invoice.id} className="line-row">
+                <span className="list-copy">
+                  <span className="list-title">{invoice.number}</span>
+                  <span className="list-meta">
+                    <span className="pill">{invoice.date}</span>
+                    <span className="pill">{invoice.status}</span>
+                  </span>
                 </span>
                 <span className="shrink-0 text-right">
-                  <span className="block font-serif text-title tabular-nums">{formatUsd(invoice.amountCents)}</span>
+                  <span className="list-price">{formatUsd(invoice.amountCents)}</span>
                   {invoice.url ? (
                     <a href={invoice.url} className="text-caption font-semibold text-pine" target="_blank" rel="noreferrer">
                       View

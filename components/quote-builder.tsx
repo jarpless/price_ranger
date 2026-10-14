@@ -78,7 +78,7 @@ export function QuoteBuilder({
         </SubmitButton>
       </form>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[16rem_minmax(0,1fr)_18rem] gap-3">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_18rem]">
         <section data-spotlight="quote-items" className="flex min-h-0 flex-col rounded-2xl border border-line bg-paper">
           <div className="border-b border-line p-2">
             <input
@@ -102,7 +102,7 @@ export function QuoteBuilder({
                     event.dataTransfer.setData("application/x-pr-price", item.id);
                     event.dataTransfer.effectAllowed = "copy";
                   }}
-                  className="flex h-10 cursor-grab items-center gap-2 border-b border-line px-2 text-sm active:cursor-grabbing"
+                  className="flex min-h-16 cursor-grab items-center gap-3 border-b border-line px-5 text-sm active:cursor-grabbing"
                 >
                   <span className="min-w-0 flex-1 truncate font-semibold">{item.name}</span>
                   <span className="shrink-0 text-right text-muted tabular-nums">{formatUsd(item.unitPriceCents)}</span>
@@ -142,7 +142,7 @@ export function QuoteBuilder({
                 }}
                 onDragLeave={() => setOver((current) => (current === group.id ? null : current))}
                 onDrop={(event) => void onDropPrice(group.id, event)}
-                className={`flex h-10 w-full cursor-grab items-center justify-between gap-2 border-b border-line px-2 text-left text-sm ${selected?.id === group.id ? "bg-cream" : ""} ${over === group.id ? "ring-2 ring-gold" : ""}`}
+                className={`flex min-h-16 w-full cursor-grab items-center justify-between gap-3 border-b border-line px-5 text-left text-sm ${selected?.id === group.id ? "bg-cream" : ""} ${over === group.id ? "ring-2 ring-gold" : ""}`}
               >
                 <span className="min-w-0 truncate font-semibold">{group.name}</span>
                 <span className="shrink-0 text-right tabular-nums text-muted">{formatUsd(groupCents(group))}</span>

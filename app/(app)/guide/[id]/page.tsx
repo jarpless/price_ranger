@@ -99,7 +99,7 @@ export default async function GuidePage({
       ) : null}
 
       {showPrice ? (
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-6">
+        <div className="content-split">
           <MarketCard
             quoteId={row.quoteId}
             description={row.description}
@@ -127,14 +127,14 @@ export default async function GuidePage({
         <div className="mt-6 space-y-4">
           <p className="font-serif text-price text-pine tabular-nums">{price}</p>
           {lines.length > 0 ? (
-            <ul className="rounded-2xl border border-line bg-paper p-4 shadow-card">
+            <ul className="surface">
               {lines.map((line) => (
-                <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3 py-2 lg:h-10 lg:items-center lg:py-0">
-                  <span className="min-w-0">
-                    <span className="block truncate text-base font-semibold lg:text-sm">{line.name}</span>
-                    <span className="text-caption text-muted lg:hidden">{line.detail}</span>
+                <li key={`${line.name}-${line.detail}`} className="line-row">
+                  <span className="list-copy">
+                    <span className="list-title">{line.name}</span>
+                    <span className="text-caption text-muted">{line.detail}</span>
                   </span>
-                  <span className="shrink-0 text-right font-serif text-title tabular-nums lg:text-base">{line.price}</span>
+                  <span className="list-price">{line.price}</span>
                 </li>
               ))}
             </ul>

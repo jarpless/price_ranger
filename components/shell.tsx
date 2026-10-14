@@ -51,7 +51,7 @@ export function Shell({
             )}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[36rem] flex-1 px-4 pb-40 pt-6 lg:mx-0 lg:max-w-none lg:px-6 lg:pb-6 lg:pt-4">
+        <main className="app-main">
           <div className="mb-1 hidden lg:block">
             <BackButton className="text-pine" />
           </div>

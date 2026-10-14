@@ -23,7 +23,7 @@ export default async function CatalogsPage({
   const addedName = slug ? connectorBySlug(slug)?.name : null;
 
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <h1 className="font-serif text-4xl">Catalog</h1>
       <p className="max-w-3xl text-sm leading-relaxed text-muted">
         Sample product names you can price yourself. Connecting a catalog copies those samples into Prices. The shared list stays read-only. Your price is the column you edit.
@@ -38,7 +38,7 @@ export default async function CatalogsPage({
       {notice === "unavailable" ? (
         <p className="rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm">That catalog is not available to import.</p>
       ) : null}
-      <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <ul className="card-grid card-grid-3">
         {CONNECTORS.map((connector) => {
           const countForConnector = skusForConnector(connector.slug).length;
           const isConnected = connected.has(connector.slug);
@@ -48,7 +48,7 @@ export default async function CatalogsPage({
               <Card className="lift h-full space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="font-serif text-2xl">{connector.name}</h2>
-                  <span className="rounded-full bg-cream px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                  <span className="pill">
                     {unavailable ? "No public access" : isConnected ? "In your prices" : "Sample"}
                   </span>
                 </div>

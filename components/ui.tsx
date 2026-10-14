@@ -122,7 +122,7 @@ export function BackLink({ href, children }: { href: string; children: ReactNode
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-line bg-paper p-4 shadow-card ${className}`}>
+    <section className={`surface ${className}`}>
       {children}
     </section>
   );

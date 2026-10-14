@@ -25,14 +25,16 @@ export default async function MenuPage() {
       <HideMenuOnDesktop />
       <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Menu</h1>
       <p className="mt-2 text-body text-muted">Prices, plans, and your account.</p>
-      <ul className="mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-card">
+      <ul className="list-card mt-4">
         {LINKS.map((link) => {
           const Icon = link.icon;
           return (
-            <li key={link.href} className="border-b border-line last:border-b-0">
-              <Link href={link.href} data-spotlight={link.href === "/upgrade" ? "nav-plans" : undefined} className="flex h-12 items-center gap-3 whitespace-nowrap px-4 text-base font-semibold">
-                <Icon className="h-5 w-5 text-pine" />
-                {link.label}
+            <li key={link.href}>
+              <Link href={link.href} data-spotlight={link.href === "/upgrade" ? "nav-plans" : undefined} className="list-row">
+                <span className="flex min-w-0 items-center gap-3">
+                  <Icon className="h-5 w-5 shrink-0 text-pine" />
+                  <span className="list-title">{link.label}</span>
+                </span>
               </Link>
             </li>
           );

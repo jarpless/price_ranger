@@ -23,9 +23,9 @@ export default async function DashboardPage() {
     <div className="mx-auto w-full max-w-3xl">
       <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Dashboard</h1>
       <p className="mt-2 text-body text-muted">A quiet summary. Pricing still starts from Home.</p>
-      <ul className="mt-6 grid gap-3 sm:grid-cols-3">
+      <ul className="card-grid card-grid-3 mt-4">
         {cards.map((card) => (
-          <li key={card.label} className="rounded-2xl border border-line bg-paper p-5 shadow-card">
+          <li key={card.label} className="surface">
             <p className="text-caption font-semibold text-muted">{card.label}</p>
             <p className="font-serif text-price tabular-nums">{card.value}</p>
             {card.label === "Sold" ? <p className="mt-1 text-caption text-muted">{soldQuotes.length} sold</p> : null}

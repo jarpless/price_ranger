@@ -28,6 +28,34 @@
   --shadow-sheet: 0 16px 40px rgba(28, 25, 21, 0.16);
 }
 
+/* 4px scale. 8px is the rhythm. Components use these names, not one-off pixels. */
+:root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-18: 4.5rem;
+  --gutter: var(--space-5);
+  --row-min: var(--space-18);
+  --row-pad-y: var(--space-4);
+  --row-pad-x: var(--space-5);
+  --stack: var(--space-4);
+  --card-gap: var(--space-4);
+  --title-gap: var(--space-1);
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --gutter: var(--space-6);
+  }
+}
+
 html {
   background: var(--color-cream);
   max-width: 100%;
@@ -146,7 +174,7 @@ iframe[src*="vercel.live"] {
   width: 100%;
   max-width: 90rem;
   margin-inline: auto;
-  padding-inline: 1.5rem;
+  padding-inline: var(--space-6);
 }
 
 .page-frame-pad {
@@ -155,7 +183,7 @@ iframe[src*="vercel.live"] {
 
 @media (min-width: 64rem) {
   .page-frame {
-    padding-inline: 3rem;
+    padding-inline: var(--space-12);
   }
 
   .page-frame-pad {
@@ -165,7 +193,7 @@ iframe[src*="vercel.live"] {
 
 @media (min-width: 80rem) {
   .page-frame {
-    padding-inline: 4rem;
+    padding-inline: var(--space-16);
   }
 }
 
@@ -173,13 +201,205 @@ iframe[src*="vercel.live"] {
   width: auto;
   max-width: none;
   min-height: 100%;
-  margin-inline: -1rem;
+  margin-inline: calc(var(--gutter) * -1);
+}
+
+.app-main {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 36rem;
+  min-width: 0;
+  margin-inline: auto;
+  flex: 1;
+  padding: var(--space-6) var(--gutter) 10rem;
+  container-type: inline-size;
+  container-name: app;
 }
 
 @media (min-width: 64rem) {
-  .shell-main .page-frame {
-    margin-inline: -1.5rem;
+  .app-main {
+    max-width: none;
+    margin-inline: 0;
+    padding-block: var(--space-6);
+    padding-inline: var(--gutter);
   }
+}
+
+.primary-dock {
+  position: fixed;
+  z-index: 30;
+  inset-inline: 0;
+  bottom: calc(4rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-line);
+  background: var(--color-paper);
+  padding: var(--space-2) var(--gutter);
+  box-shadow: var(--shadow-dock);
+}
+
+.primary-dock-inner {
+  width: 100%;
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 64rem) {
+  .primary-dock {
+    position: static;
+    z-index: auto;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .primary-dock-inner {
+    max-width: none;
+    margin-inline: 0;
+  }
+}
+
+.page-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--stack);
+}
+
+.card-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--card-gap);
+}
+
+@container app (min-width: 40rem) {
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container app (min-width: 52rem) {
+  .card-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.content-aside {
+  display: none;
+}
+
+.content-split {
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  gap: var(--card-gap);
+}
+
+@container app (min-width: 56rem) {
+  .content-split {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .content-aside {
+    display: block;
+  }
+}
+
+.surface {
+  min-width: 0;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+}
+
+.list-card {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-card);
+}
+
+.list-card > li + li {
+  border-top: 1px solid var(--color-line);
+}
+
+.list-row,
+.line-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--row-min);
+  padding-block: var(--row-pad-y);
+}
+
+.list-row {
+  padding-inline: var(--row-pad-x);
+}
+
+.list-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--title-gap);
+}
+
+.list-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.list-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--title-gap);
+}
+
+.list-price {
+  flex: none;
+  align-self: center;
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0, "tnum" 1;
+  letter-spacing: 0;
+  color: var(--color-pine);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 1rem;
+  padding-inline: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-cream);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pill-sold {
+  background: #e4efe8;
+  color: var(--color-pine);
+}
+
+.scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .landing-ground {

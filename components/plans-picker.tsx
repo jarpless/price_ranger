@@ -51,7 +51,7 @@ export function PlansPicker({ current, ready, quoteLimit = 3 }: { current: PlanI
           </Chip>
         </div>
       </div>
-      <ul className="grid gap-3 lg:grid-cols-2">
+      <ul className="card-grid">
         <PlanCard
           name={PLANS.free.name}
           price={PLANS.free.priceLabel}
@@ -99,10 +99,10 @@ function PlanCard({
   action?: ReactNode;
 }) {
   return (
-    <li className={`rounded-2xl border bg-paper p-5 shadow-card ${current ? "border-pine" : "border-line"}`}>
+    <li className={`surface ${current ? "border-pine" : ""}`}>
       <div className="flex items-baseline justify-between gap-3">
         <p className="font-serif text-title">{name}</p>
-        {current ? <span className="whitespace-nowrap text-caption font-semibold text-pine">Current plan</span> : null}
+        {current ? <span className="pill pill-sold">Current</span> : null}
       </div>
       <p className="mt-1 whitespace-nowrap font-serif text-price text-pine tabular-nums">{price}</p>
       <ul className="mt-3 space-y-1 text-body leading-6 text-muted">

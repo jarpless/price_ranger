@@ -36,7 +36,7 @@ export default async function UsagePage() {
           No model calls yet.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-line bg-paper">
+        <div className="scroll-x rounded-2xl border border-line bg-paper">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-muted">
               <tr>

@@ -45,7 +45,7 @@ export function WelcomeSlides({
               </span>
             </label>
             {error ? <p className="text-body text-danger">Check the box to continue.</p> : null}
-            <PrimaryDock pad="px-6">
+            <PrimaryDock>
               <Button type="submit">Continue</Button>
             </PrimaryDock>
           </form>
