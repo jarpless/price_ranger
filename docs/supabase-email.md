@@ -6,7 +6,7 @@ Guest checkout used to call `updateUser({ email })`, which sends the **Change em
 
 ## What to paste in the Supabase dashboard
 
-Project `vexsmkplsusxlayxhpqb` → Authentication → Email Templates. Paste both templates. A message that contains only a link, with no 6-digit code, means the dashboard body is still the default template.
+Project `vexsmkplsusxlayxhpqb` → Authentication → Email Templates. Paste both templates. A message that contains only a link, with no 8-digit code, means the dashboard body is still the default template.
 
 1. **Confirm signup** — subject `{{ .Token }} is your Price Ranger code`. Body: the full file `supabase/templates/confirm-signup.html`.
 2. **Magic link** — subject `{{ .Token }} is your Price Ranger code`. Body: the full file `supabase/templates/magic-link.html`.
@@ -16,7 +16,7 @@ Both files print `{{ .Token }}` in the inbox preview and in a bordered box, and 
 Also confirm:
 
 - Authentication → Providers → Email is on.
-- Email OTP length is 6. Authentication → Email → OTP length. The boxes in the app expect 6 digits.
+- The project already sends an 8-digit code, and the sign-in screen has 8 boxes. Do not change Authentication → Email → OTP length.
 - Site URL is `https://priceranger.app` and `https://priceranger.app/auth/callback` is an allowed redirect.
 - SMTP sender is `support@priceranger.app` via Resend. Do not put the Resend API key in `NEXT_PUBLIC_` variables.
 

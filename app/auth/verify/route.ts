@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { dataBackend } from "@/lib/env";
+import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { createSessionValue, KIND_COOKIE, readSessionValue, SESSION_COOKIE, sessionSecret } from "@/lib/session";
 import { reassignBasecamp } from "@/lib/store/basecamp";
 import { adoptLocalGuest, consumeMagicLink, getLocalUser } from "@/lib/store/local";
@@ -9,7 +9,8 @@ import { isIndustryId } from "@/lib/vocabulary";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const failure = NextResponse.redirect(new URL("/signin?error=link", url.origin));
+  const origin = siteOriginFromHeaders(request.headers);
+  const failure = NextResponse.redirect(new URL("/signin?error=link", origin));
   if (dataBackend() !== "local") return failure;
 
   const cookieStore = await cookies();
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   }
   const fresh = await getLocalUser(user.id);
   const dest = isIndustryId(fresh?.industry) ? "/" : "/start";
-  const response = NextResponse.redirect(new URL(dest, url.origin));
+  const response = NextResponse.redirect(new URL(dest, origin));
   const options = {
     httpOnly: true,
     sameSite: "lax" as const,

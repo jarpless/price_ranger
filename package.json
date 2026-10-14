@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test lib/domain.test.ts lib/basecamp.test.ts lib/cookie-session.test.ts lib/guide.test.ts lib/feedback/model.test.ts lib/guest-gate.test.ts lib/auth-errors.test.ts lib/market.test.ts lib/assistant/intent.test.ts lib/assistant/screen.test.ts lib/billing-signature.test.ts lib/place-tip.test.ts lib/assistant/presence.test.ts",
+    "test": "node --import tsx --test lib/domain.test.ts lib/basecamp.test.ts lib/cookie-session.test.ts lib/guide.test.ts lib/feedback/model.test.ts lib/guest-gate.test.ts lib/auth-errors.test.ts lib/market.test.ts lib/assistant/intent.test.ts lib/assistant/screen.test.ts lib/billing-signature.test.ts lib/place-tip.test.ts lib/assistant/presence.test.ts lib/env.test.ts",
     "migration": "tsx scripts/build-migration.ts"
   },
   "dependencies": {

@@ -8,21 +8,31 @@ import { adoptGuestAccount, LINK_COOKIE } from "@/lib/account/link";
 import { getSessionUser, requireUser, safeNext, setLocalSession } from "@/lib/auth";
 import { authErrorPath, classifyAuthError, isNextRedirect } from "@/lib/auth-errors";
 import { enabledOAuthButtons, type OAuthProvider } from "@/lib/auth-providers";
+import { isCompleteEmailCode, normalizeEmailCode } from "@/lib/auth-code";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip, isEmail } from "@/lib/form";
-import { PENDING_EMAIL_COOKIE } from "@/lib/session";
+import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, PENDING_EMAIL_COOKIE } from "@/lib/session";
 import { getData } from "@/lib/store";
 import { reassignBasecamp } from "@/lib/store/basecamp";
 import {
   adoptLocalGuest,
   consumeEmailCode,
   createLocalPasswordAccount,
+  issueEmailCode,
+  issueMagicLink,
   setLocalIndustry,
   verifyLocalPassword,
 } from "@/lib/store/local";
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/lib/types";
 import { isIndustryId, VOCABULARIES } from "@/lib/vocabulary";
+
+const linkCookie = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+};
 
 async function keepEmail(email: string) {
   if (!isEmail(email)) return;
@@ -34,6 +44,19 @@ async function keepEmail(email: string) {
     maxAge: 60 * 15,
     secure: process.env.NODE_ENV === "production",
   });
+}
+
+async function rememberLocalChallenge(email: string) {
+  await keepEmail(email);
+  if (dataBackend() !== "local") return;
+  const token = await issueMagicLink(email);
+  const code = await issueEmailCode(email);
+  if (process.env.NODE_ENV === "production") return;
+  const origin = siteOriginFromHeaders(await headers());
+  const cookieStore = await cookies();
+  const devCookie = { ...linkCookie, secure: false, maxAge: 60 * 15 };
+  cookieStore.set(DEV_LINK_COOKIE, `${origin}/auth/verify?token=${encodeURIComponent(token)}`, devCookie);
+  cookieStore.set(DEV_CODE_COOKIE, code, devCookie);
 }
 
 async function finishLocalSignIn(userId: string) {
@@ -70,13 +93,6 @@ export async function startOAuth(formData: FormData) {
   redirect(result.data.url);
 }
 
-const linkCookie = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-};
-
 async function rememberGuest(guestId: string) {
   const cookieStore = await cookies();
   cookieStore.set(LINK_COOKIE, guestId, { ...linkCookie, maxAge: 60 * 60 });
@@ -105,8 +121,10 @@ export async function signInWithPassword(formData: FormData) {
       const supabase = await createClient();
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
+        const classified = classifyAuthError(error);
         await keepEmail(email);
-        redirect(authErrorPath(classifyAuthError(error)));
+        if (classified.code === "unverified") redirect("/signin/sent?notice=unverified");
+        redirect(authErrorPath(classified));
       }
       const { data } = await supabase.auth.getUser();
       if (!data.user) redirect("/signin?notice=unavailable");
@@ -119,6 +137,10 @@ export async function signInWithPassword(formData: FormData) {
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await verifyLocalPassword(email, password);
+  if (user === "unverified") {
+    await rememberLocalChallenge(email);
+    redirect("/signin/sent?notice=unverified");
+  }
   if (!user) {
     await keepEmail(email);
     redirect("/signin?error=signin");
@@ -159,15 +181,16 @@ export async function createPasswordAccount(formData: FormData) {
   const created = await createLocalPasswordAccount(email, password);
   if (created === "taken") redirect("/signin?error=taken");
   if (created === "password") redirect("/signin?error=password");
-  await finishLocalSignIn(created.id);
+  await rememberLocalChallenge(email);
+  redirect("/signin/sent");
 }
 
 export async function verifyEmailCode(formData: FormData) {
   const cookieStore = await cookies();
   const email = (cookieStore.get(PENDING_EMAIL_COOKIE)?.value || clip(formData.get("email"), 160)).toLowerCase();
-  const code = clip(formData.get("code"), 12).replace(/\s+/g, "");
-  if (!isEmail(email) || code.length < 6) {
-    redirect("/signin/sent?error=code");
+  const code = normalizeEmailCode(clip(formData.get("code"), 16));
+  if (!isEmail(email) || !isCompleteEmailCode(code)) {
+    redirect("/signin/sent?error=incomplete");
   }
   if (dataBackend() === "supabase") {
     const supabase = await createClient();

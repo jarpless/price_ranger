@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { guestErrorDetail } from "./form";
-import { readFreshSupabaseSession } from "./supabase/cookie-session";
+import { readFreshSupabaseSession, readSupabaseCookieUser } from "./supabase/cookie-session";
 
 function cookieValue(session: unknown): string {
   const json = JSON.stringify(session);
@@ -36,11 +36,10 @@ test("no auth cookie is a known logged-out session", () => {
 });
 
 test("a cookie near expiry is refreshed", () => {
-  const fresh = readFreshSupabaseSession(
-    [{ name: "sb-project-auth-token", value: cookieValue({ expires_at: future, user }) }],
-    future - 30,
-  );
+  const cookies = [{ name: "sb-project-auth-token", value: cookieValue({ expires_at: future, user }) }];
+  const fresh = readFreshSupabaseSession(cookies, future - 30);
   assert.equal(fresh.status, "refresh");
+  assert.equal(readSupabaseCookieUser(cookies)?.id, user.id);
 });
 
 test("guest sign-in surfaces the auth error", () => {

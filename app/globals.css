@@ -250,6 +250,22 @@ body[data-ask="off"] .ask-lane > .app-main {
   overflow: visible;
 }
 
+@media (min-width: 64rem) {
+  .shell-header {
+    display: none;
+  }
+
+  .ask-lane {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .ask-lane > .app-main {
+    overflow: visible;
+  }
+}
+
 .primary-dock {
   position: static;
   border: 0;

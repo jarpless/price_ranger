@@ -1,7 +1,8 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { EMAIL_CODE_LENGTH } from "../auth-code";
 import { BRANDS, PRODUCTS, SKUS, type SkuSeed } from "../catalog";
 import { connectorBySlug } from "../connectors";
 import { filterCatalog, seededCatalogHits } from "../search";
@@ -32,6 +33,7 @@ interface DbUser {
   paidCents?: number;
   passwordHash?: string;
   passwordSalt?: string;
+  emailVerified?: boolean;
 }
 
 interface MagicLink {
@@ -215,9 +217,11 @@ export async function consumeMagicLink(token: string): Promise<DbUser | null> {
         guest: false,
         plan: "free",
         industry: null,
+        emailVerified: true,
       };
       db.users.push(user);
     }
+    user.emailVerified = true;
     return user;
   });
 }
@@ -235,7 +239,8 @@ function passwordsMatch(password: string, user: DbUser): boolean {
 }
 
 export async function issueEmailCode(email: string): Promise<string> {
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const min = 10 ** (EMAIL_CODE_LENGTH - 1);
+  const code = String(min + randomInt(min * 9));
   await update((db) => {
     db.emailCodes = db.emailCodes.filter(
       (item) => item.email !== email && item.expiresAt > Date.now(),
@@ -266,9 +271,11 @@ export async function consumeEmailCode(email: string, code: string): Promise<DbU
         guest: false,
         plan: "free",
         industry: null,
+        emailVerified: true,
       };
       db.users.push(user);
     }
+    user.emailVerified = true;
     return user;
   });
 }
@@ -334,16 +341,18 @@ export async function createLocalPasswordAccount(
       industry: null,
       passwordSalt: salt,
       passwordHash: passwordDigest(password, salt),
+      emailVerified: false,
     };
     db.users.push(user);
     return user;
   });
 }
 
-export async function verifyLocalPassword(email: string, password: string): Promise<DbUser | null> {
+export async function verifyLocalPassword(email: string, password: string): Promise<DbUser | "unverified" | null> {
   const db = await read();
   const user = db.users.find((item) => item.email === email && !item.guest);
   if (!user || !passwordsMatch(password, user)) return null;
+  if (user.emailVerified === false) return "unverified";
   return user;
 }
 

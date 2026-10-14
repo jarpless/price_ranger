@@ -58,6 +58,48 @@ function tokenExpiry(accessToken: string): number | null {
   }
 }
 
+function userFromParsed(user: { id?: unknown; email?: unknown; is_anonymous?: unknown } | undefined): CookieSessionUser | null {
+  const id = typeof user?.id === "string" ? user.id : "";
+  if (!id) return null;
+  const email = typeof user?.email === "string" ? user.email : null;
+  return {
+    id,
+    email,
+    is_anonymous: user?.is_anonymous === true || !email,
+  };
+}
+
+function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expiresAt: number | null } | null {
+  const key = authCookieKey(cookies);
+  if (!key) return null;
+  const raw = combinedCookie(cookies, key);
+  if (!raw) return null;
+  try {
+    const encoded = raw.startsWith("base64-") ? raw.slice("base64-".length) : raw;
+    const parsed = JSON.parse(raw.startsWith("base64-") ? decodeBase64Url(encoded) : raw) as {
+      expires_at?: unknown;
+      access_token?: unknown;
+      user?: { id?: unknown; email?: unknown; is_anonymous?: unknown };
+    };
+    const user = userFromParsed(parsed.user);
+    if (!user) return null;
+    const expiresAt =
+      typeof parsed.expires_at === "number"
+        ? parsed.expires_at
+        : typeof parsed.access_token === "string"
+          ? tokenExpiry(parsed.access_token)
+          : null;
+    return { user, expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+/** The user stored in the auth cookie, including a token that is near expiry. */
+export function readSupabaseCookieUser(cookies: CookiePair[]): CookieSessionUser | null {
+  return parseAuthCookie(cookies)?.user ?? null;
+}
+
 /**
  * Read a still-valid Supabase auth cookie without calling Auth.
  * Returns "refresh" when the cookie is missing a usable expiry, is near expiry, or cannot be read.
@@ -67,38 +109,9 @@ export function readFreshSupabaseSession(
   cookies: CookiePair[],
   nowSeconds = Date.now() / 1000,
 ): FreshSupabaseSession {
-  const key = authCookieKey(cookies);
-  if (!key) return { status: "known", user: null };
-  const raw = combinedCookie(cookies, key);
-  if (!raw) return { status: "refresh" };
-
-  try {
-    const encoded = raw.startsWith("base64-") ? raw.slice("base64-".length) : raw;
-    const parsed = JSON.parse(raw.startsWith("base64-") ? decodeBase64Url(encoded) : raw) as {
-      expires_at?: unknown;
-      access_token?: unknown;
-      user?: { id?: unknown; email?: unknown; is_anonymous?: unknown };
-    };
-    const user = parsed.user;
-    const id = typeof user?.id === "string" ? user.id : "";
-    if (!id) return { status: "refresh" };
-    const expiresAt =
-      typeof parsed.expires_at === "number"
-        ? parsed.expires_at
-        : typeof parsed.access_token === "string"
-          ? tokenExpiry(parsed.access_token)
-          : null;
-    if (expiresAt == null || expiresAt - nowSeconds <= REFRESH_WITHIN_SECONDS) return { status: "refresh" };
-    const email = typeof user?.email === "string" ? user.email : null;
-    return {
-      status: "known",
-      user: {
-        id,
-        email,
-        is_anonymous: user?.is_anonymous === true || !email,
-      },
-    };
-  } catch {
-    return { status: "refresh" };
-  }
+  if (!authCookieKey(cookies)) return { status: "known", user: null };
+  const parsed = parseAuthCookie(cookies);
+  if (!parsed) return { status: "refresh" };
+  if (parsed.expiresAt == null || parsed.expiresAt - nowSeconds <= REFRESH_WITHIN_SECONDS) return { status: "refresh" };
+  return { status: "known", user: parsed.user };
 }

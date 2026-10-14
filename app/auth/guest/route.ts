@@ -15,6 +15,7 @@ import {
   withoutParam,
 } from "@/lib/guest-gate";
 import { createGuestUser } from "@/lib/store/local";
+import { readSupabaseCookieUser } from "@/lib/supabase/cookie-session";
 import { createClient } from "@/lib/supabase/server";
 
 const probeCookie = {
@@ -39,8 +40,10 @@ export async function GET(request: Request) {
   const existing = await getSessionUser();
   if (existing) redirect(withoutParam(next, GUEST_SENT_PARAM));
 
+  const jar = await cookies();
+  if (readSupabaseCookieUser(jar.getAll())) redirect(withoutParam(next, GUEST_SENT_PARAM));
+
   if (gate === "probe") {
-    const jar = await cookies();
     jar.set(GUEST_PROBE_COOKIE, "1", probeCookie);
     url.searchParams.set(GUEST_READY_PARAM, "1");
     redirect(`${url.pathname}${url.search}`);

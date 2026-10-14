@@ -14,6 +14,7 @@ import {
   sessionSecret,
 } from "./session";
 import { getLocalUser, issueEmailCode, issueMagicLink } from "./store/local";
+import { readFreshSupabaseSession, readSupabaseCookieUser } from "./supabase/cookie-session";
 import { createClient } from "./supabase/server";
 import type { SessionUser } from "./types";
 import { isIndustryId } from "./vocabulary";
@@ -48,41 +49,84 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Ses
     return await readSessionUser();
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Sign-in session could not be read.");
-    return null;
+    return sessionFromAuthCookie();
   }
 });
+
+async function sessionFromAuthCookie(): Promise<SessionUser | null> {
+  if (dataBackend() !== "supabase") return null;
+  const cookieStore = await cookies();
+  const user = readSupabaseCookieUser(cookieStore.getAll());
+  if (!user) return null;
+  return accountFromRow({
+    id: user.id,
+    email: user.email || "",
+    guest: user.is_anonymous,
+    industry: null,
+    plan: "free",
+  });
+}
+
+async function profileFor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<{ industry: string | null; plan: string | null; passExpiresAt: string | null }> {
+  const empty = { industry: null, plan: "free" as string | null, passExpiresAt: null as string | null };
+  const profile = await supabase
+    .from("profiles")
+    .select("industry, plan, pass_expires_at")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profile.error || !profile.data) return empty;
+  const row = profile.data as { industry?: string | null; plan?: string | null; pass_expires_at?: string | null };
+  return {
+    industry: row.industry ?? null,
+    plan: row.plan ?? "free",
+    passExpiresAt: row.pass_expires_at ?? null,
+  };
+}
 
 async function readSessionUser(): Promise<SessionUser | null> {
   const backend = dataBackend();
   if (backend === "supabase") {
+    const cookieStore = await cookies();
+    const pairs = cookieStore.getAll();
+    const fresh = readFreshSupabaseSession(pairs);
+    if (fresh.status === "known" && !fresh.user) return null;
+
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
-    if (error) return null;
-    const authUser = data.user;
-    if (!authUser?.id) return null;
-    const guest = Boolean(authUser.is_anonymous) || !authUser.email;
-    let industry: string | null = null;
-    let plan: string | null = "free";
-    let passExpiresAt: string | null = null;
-    const profile = await supabase
-      .from("profiles")
-      .select("industry, plan, pass_expires_at")
-      .eq("id", authUser.id)
-      .maybeSingle();
-    if (!profile.error && profile.data) {
-      const row = profile.data as { industry?: string | null; plan?: string | null; pass_expires_at?: string | null };
-      industry = row.industry ?? null;
-      plan = row.plan ?? "free";
-      passExpiresAt = row.pass_expires_at ?? null;
+    let id = "";
+    let email = "";
+    let guest = false;
+
+    // A fresh cookie is enough. Calling Auth here rotates the refresh token, and that
+    // write is dropped on the welcome Continue redirect, which then looks signed out.
+    if (fresh.status === "known" && fresh.user) {
+      id = fresh.user.id;
+      email = fresh.user.email || "";
+      guest = fresh.user.is_anonymous;
+    } else {
+      const { data, error } = await supabase.auth.getUser();
+      const cookieUser = readSupabaseCookieUser(pairs);
+      if (!error && data.user?.id) {
+        id = data.user.id;
+        email = data.user.email || "";
+        guest = Boolean(data.user.is_anonymous) || !data.user.email;
+      } else if (cookieUser) {
+        id = cookieUser.id;
+        email = cookieUser.email || "";
+        guest = cookieUser.is_anonymous;
+      } else {
+        return null;
+      }
     }
-    return accountFromRow({
-      id: authUser.id,
-      email: authUser.email || "",
-      guest,
-      industry,
-      plan,
-      passExpiresAt,
-    });
+
+    const profile = await profileFor(supabase, id).catch(() => ({
+      industry: null,
+      plan: "free" as string | null,
+      passExpiresAt: null as string | null,
+    }));
+    return accountFromRow({ id, email, guest, ...profile });
   }
   if (backend !== "local") return null;
 

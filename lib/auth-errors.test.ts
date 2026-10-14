@@ -27,7 +27,9 @@ test("an invalid email stays specific", () => {
 });
 
 test("other known auth codes stay specific", () => {
-  assert.equal(classifyAuthError({ code: "email_not_confirmed", message: "Email not confirmed" }).code, "unverified");
+  const unverified = classifyAuthError({ code: "email_not_confirmed", message: "Email not confirmed" });
+  assert.equal(unverified.code, "unverified");
+  assert.match(unverified.message, /8-digit/);
   assert.equal(classifyAuthError({ code: "otp_expired", message: "Token has expired" }).code, "code");
   assert.equal(classifyAuthError({ code: "invalid_credentials", message: "Invalid login credentials" }).code, "signin");
   assert.equal(classifyAuthError({ code: "oauth_provider_not_supported", message: "Unsupported provider" }).code, "provider");

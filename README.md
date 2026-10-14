@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. You can continue without an account, or enter an email. This checkout has no Supabase project, so the next screen shows the sign-in link and a 6-digit code instead of sending mail. Quotes are stored in `data/local-db.json`.
+Open http://localhost:3000. You can continue without an account, or enter an email. This checkout has no Supabase project, so the next screen shows the sign-in link and an 8-digit code instead of sending mail. Quotes are stored in `data/local-db.json`.
 
 ## Production
 

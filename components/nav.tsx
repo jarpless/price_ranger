@@ -49,6 +49,11 @@ const menuSections = [
   },
 ] as const;
 
+function sectionsFor(guest: boolean) {
+  if (!guest) return menuSections;
+  return menuSections.filter((section) => section.label !== "Account");
+}
+
 function sideClass(active: boolean) {
   return `flex h-12 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-left text-base font-semibold ${active ? "bg-cream text-pine shadow-[inset_3px_0_0_#132e24]" : "text-cream/80 hover:bg-white/10 hover:text-cream"}`;
 }
@@ -67,6 +72,7 @@ export function Sidebar({
   void quotesLabel;
   const pathname = usePathname();
   const signInActive = pathname === "/signin" || pathname.startsWith("/signin/");
+  const sections = sectionsFor(guest);
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-stretch overflow-y-auto border-r border-pine-deep bg-pine text-cream lg:flex">
@@ -78,7 +84,7 @@ export function Sidebar({
         </span>
       </Link>
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
-        {menuSections.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="mt-4 first:mt-0">
             <p className="px-3 pb-1 text-caption font-semibold uppercase tracking-[0.14em] text-cream/55">{section.label}</p>
             <ul className="space-y-1">
@@ -153,6 +159,7 @@ export function PhoneMenu({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const signInActive = pathname === "/signin" || pathname.startsWith("/signin/");
+  const sections = sectionsFor(guest);
 
   useEffect(() => {
     setOpen(false);
@@ -194,7 +201,7 @@ export function PhoneMenu({
             </button>
           </div>
           <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-8" aria-label="Workspace">
-            {menuSections.map((section) => (
+            {sections.map((section) => (
               <div key={section.label}>
                 <p className="sticky top-0 bg-pine px-3 pb-1 pt-4 text-caption font-semibold uppercase tracking-[0.14em] text-cream/55">{section.label}</p>
                 <ul className="space-y-1">

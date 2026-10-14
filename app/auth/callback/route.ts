@@ -1,33 +1,58 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { adoptGuestAccount, LINK_COOKIE } from "@/lib/account/link";
 import { safeNext } from "@/lib/auth";
-import { dataBackend } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const failure = new URL("/signin?error=link", url.origin);
-  if (dataBackend() !== "supabase") return NextResponse.redirect(failure);
+type PendingCookie = { name: string; value: string; options?: Record<string, unknown> };
+
+export async function GET(request: NextRequest) {
+  const url = request.nextUrl;
+  const origin = siteOriginFromHeaders(request.headers);
+  const failure = NextResponse.redirect(new URL("/signin?error=link", origin));
+  if (dataBackend() !== "supabase") return failure;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return failure;
 
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
-  const supabase = await createClient();
+  let pending: PendingCookie[] = [];
+
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        pending = cookiesToSet.map((cookie) => ({
+          name: cookie.name,
+          value: cookie.value,
+          options: cookie.options as Record<string, unknown> | undefined,
+        }));
+        for (const cookie of cookiesToSet) {
+          request.cookies.set(cookie.name, cookie.value);
+        }
+      },
+    },
+  });
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return NextResponse.redirect(failure);
+    if (error) return failure;
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
       type: type as EmailOtpType,
       token_hash: tokenHash,
     });
-    if (error) return NextResponse.redirect(failure);
+    if (error) return failure;
   } else {
-    return NextResponse.redirect(failure);
+    return failure;
   }
 
   const { data } = await supabase.auth.getUser();
@@ -42,11 +67,15 @@ export async function GET(request: Request) {
       console.error(error instanceof Error ? error.message : "Could not move the guest prices.");
     }
   }
-  const cookieBase = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/" };
-  cookieStore.set(LINK_COOKIE, "", { ...cookieBase, maxAge: 0 });
-  cookieStore.set("pr_reauth", new Date().toISOString(), { ...cookieBase, maxAge: 60 * 10 });
-  const next = cookieStore.get("pr_oauth_next")?.value || "";
-  cookieStore.set("pr_oauth_next", "", { ...cookieBase, maxAge: 0 });
 
-  return NextResponse.redirect(new URL(safeNext(next || null), url.origin));
+  const next = cookieStore.get("pr_oauth_next")?.value || "";
+  const response = NextResponse.redirect(new URL(safeNext(next || null), origin));
+  for (const cookie of pending) {
+    response.cookies.set(cookie.name, cookie.value, cookie.options);
+  }
+  const cookieBase = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/" };
+  response.cookies.set(LINK_COOKIE, "", { ...cookieBase, maxAge: 0 });
+  response.cookies.set("pr_reauth", new Date().toISOString(), { ...cookieBase, maxAge: 60 * 10 });
+  response.cookies.set("pr_oauth_next", "", { ...cookieBase, maxAge: 0 });
+  return response;
 }

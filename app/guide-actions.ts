@@ -131,7 +131,13 @@ export async function acceptTerms(formData: FormData) {
   guide.trialStartedAt = guide.trialStartedAt || now;
   await saveGuideUser(guide);
   const cookieStore = await cookies();
-  cookieStore.set("pr_tos_at", now, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  cookieStore.set("pr_tos_at", now, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
   await recordFunnel(user.id, "terms_accepted", { version: TOS_VERSION, variant: guide.variant }).catch(() => undefined);
   refresh();
   redirect(safeNext(clip(formData.get("next"), 200)));
