@@ -2,11 +2,10 @@
 
 import { PendingLink as Link } from "@/components/pending-link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 import { signOut } from "@/app/actions";
 
-import { IconCamera, IconCard, IconChat, IconHome, IconInfo, IconPhone, IconSettings, NavIcon } from "./icons";
+import { IconCamera, IconCard, IconHome, IconInfo, IconPhone, IconSettings, NavIcon } from "./icons";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
 import { APP_CODENAME } from "@/lib/version";
@@ -31,41 +30,13 @@ export function navCurrent(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function openAsk() {
-  window.dispatchEvent(new Event("pr-ask"));
-}
-
 export function BottomNav({ quotesLabel }: { quotesLabel: string }) {
   const pathname = usePathname();
   const items = navItems(quotesLabel);
-  const before = items.slice(0, 2);
-  const after = items.slice(2);
   return (
     <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <ul className="grid h-16 grid-cols-4">
-        {before.map((item) => {
-          const active = navCurrent(pathname, item.href);
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                data-spotlight={`nav-${item.spot}`}
-                className={`flex h-16 flex-col items-center justify-center whitespace-nowrap text-sm font-semibold ${active ? "text-pine" : "text-muted"}`}
-              >
-                <NavIcon name={item.spot as "home" | "price" | "menu"} className="mb-0.5 h-6 w-6" />
-                {item.short}
-              </Link>
-            </li>
-          );
-        })}
-        <li>
-          <button type="button" onClick={openAsk} className="flex h-16 w-full flex-col items-center justify-center whitespace-nowrap text-sm font-semibold text-muted">
-            <IconChat className="mb-0.5 h-6 w-6" />
-            Ask
-          </button>
-        </li>
-        {after.map((item) => {
+      <ul className="grid h-16 grid-cols-3">
+        {items.map((item) => {
           const active = navCurrent(pathname, item.href);
           return (
             <li key={item.href}>
@@ -112,15 +83,6 @@ export function Sidebar({
 }) {
   void quotesLabel;
   const pathname = usePathname();
-  const [askOpen, setAskOpen] = useState(false);
-  useEffect(() => {
-    const read = () => setAskOpen(document.body.dataset.ask === "open");
-    read();
-    const observer = new MutationObserver(read);
-    observer.observe(document.body, { attributes: true, attributeFilter: ["data-ask"] });
-    return () => observer.disconnect();
-  }, []);
-  const askActive = askOpen || pathname === "/ask";
   const signInActive = pathname === "/signin" || pathname.startsWith("/signin/");
 
   return (
@@ -160,12 +122,6 @@ export function Sidebar({
               </li>
             );
           })}
-          <li>
-            <button type="button" onClick={openAsk} aria-pressed={askActive} className={sideClass(askActive)}>
-              <IconChat className="h-5 w-5" />
-              Ask
-            </button>
-          </li>
           <li>
             <Link
               href="/feedback/new"

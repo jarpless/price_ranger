@@ -58,6 +58,7 @@ export function Shell({
           <ScreenMotion>{children}</ScreenMotion>
         </main>
       </div>
+      <div id="assistant-dock" className="assistant-dock" />
       <BottomNav quotesLabel={quotesLabel} />
       <Feel />
     </div>
