@@ -172,6 +172,7 @@ iframe[src*="vercel.live"] {
 .shell-main .page-frame {
   width: auto;
   max-width: none;
+  min-height: 100%;
   margin-inline: -1rem;
 }
 

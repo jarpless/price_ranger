@@ -13,14 +13,16 @@ export function Shell({
   children,
   quotesLabel,
   guest,
+  accountLabel = null,
 }: {
   children: React.ReactNode;
   quotesLabel: string;
   guest: boolean;
+  accountLabel?: string | null;
 }) {
   return (
     <div className="min-h-dvh bg-cream text-ink lg:flex">
-      <Sidebar quotesLabel={quotesLabel} guest={guest} />
+      <Sidebar quotesLabel={quotesLabel} guest={guest} accountLabel={accountLabel} />
       <div className="shell-main flex min-h-dvh min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-[70] bg-pine text-cream lg:hidden">
           <div className="flex h-12 items-center gap-1 px-2">

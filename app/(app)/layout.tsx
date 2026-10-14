@@ -8,7 +8,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getSessionUser();
   if (!user) return children;
   return (
-    <Shell quotesLabel={vocabulary(user.industry).quotes} guest={user.guest}>
+    <Shell
+      quotesLabel={vocabulary(user.industry).quotes}
+      guest={user.guest}
+      accountLabel={user.guest ? null : user.email || "Signed in"}
+    >
       {children}
     </Shell>
   );

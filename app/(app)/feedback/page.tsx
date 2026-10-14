@@ -17,7 +17,7 @@ export default async function MyFeedbackPage() {
       <p className="mt-2 text-body text-muted">Notes you sent, and where each one stands.</p>
       {tickets.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-line bg-paper px-4 py-8 text-body text-muted">
-          Nothing yet. Tap Feedback in the header, or open Menu and tap Send feedback. You can also shake the phone.
+          Nothing yet. Use Feedback in the sidebar, or Feedback in the header on a phone. You can also open Menu or shake the phone.
         </p>
       ) : (
         <ul className="mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-card">

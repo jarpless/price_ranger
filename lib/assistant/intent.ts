@@ -26,7 +26,7 @@ export function confirmedAction(message: string, pathname: string): ConfirmedSte
       args: { path: "/upgrade" },
       caption: "Open plans. Nothing is charged until you check out.",
       href: "/upgrade",
-      spotlight: "nav-menu",
+      spotlight: "nav-plans",
       needsConfirm: true,
     };
   }

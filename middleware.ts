@@ -72,9 +72,9 @@ export async function middleware(request: NextRequest) {
   const backend = dataBackend();
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/signin";
+    url.pathname = pathname.replace(/^\/login/, "/signin");
     return NextResponse.redirect(url);
   }
 
