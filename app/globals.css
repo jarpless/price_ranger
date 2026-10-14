@@ -11,7 +11,7 @@
   --color-line: #e3dacd;
   --color-danger: #8d3b32;
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
   /* One type ramp. Sizes sit on an 8pt grid except the 13px caption (iOS footnote). */
   --text-caption: 0.8125rem;
   --text-caption--line-height: 1rem;
@@ -31,6 +31,22 @@
 html {
   background: var(--color-cream);
   max-width: 100%;
+}
+
+/* Source Serif 4 at Medium. Fraunces’s f terminal crashed into the next
+   letter even with ligatures off. These faces keep fi/fl off and a small
+   tracking so the crossbar stays clear. Prices stay untacked. */
+.font-serif {
+  font-weight: 500;
+  font-synthesis: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0;
+  letter-spacing: 0.01em;
+}
+
+.font-serif.tabular-nums {
+  letter-spacing: 0;
+  font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0, "tnum" 1;
 }
 
 body {

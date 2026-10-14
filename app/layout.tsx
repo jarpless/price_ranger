@@ -16,13 +16,13 @@ const outfit = localFont({
   display: "swap",
 });
 
-const fraunces = localFont({
+const sourceSerif = localFont({
   src: [
-    { path: "./fonts/fraunces-latin-500-normal.woff2", weight: "500", style: "normal" },
-    { path: "./fonts/fraunces-latin-600-normal.woff2", weight: "600", style: "normal" },
-    { path: "./fonts/fraunces-latin-700-normal.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/source-serif-4-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/source-serif-4-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/source-serif-4-latin-700-normal.woff2", weight: "700", style: "normal" },
   ],
-  variable: "--font-fraunces",
+  variable: "--font-source-serif",
   display: "swap",
 });
 
@@ -54,7 +54,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${outfit.variable} ${fraunces.variable} bg-cream font-sans text-ink antialiased`}>
+      <body className={`${outfit.variable} ${sourceSerif.variable} bg-cream font-sans text-ink antialiased`}>
         {children}
         <AppChrome />
       </body>

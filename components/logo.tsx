@@ -17,7 +17,7 @@ const sources: Record<LogoVariant, Record<LogoTone, string>> = {
 /**
  * Sign-in lockup for cream pages. The traced wordmark is a near-black square, so at a large
  * size on cream it reads as a blot. The light mark sits on a pine plate (the same contrast as
- * the header), and the name is ink in Fraunces. Gold stays out of the letters.
+ * the header), and the name is ink in the display serif. Gold stays out of the letters.
  */
 export function LogoLockup() {
   return (
