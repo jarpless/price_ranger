@@ -117,6 +117,38 @@ export async function publishSheet(
   return next;
 }
 
+const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+/** Shared pages and PDFs never include an email address or other contact text. */
+export function stripContact(value: string): string {
+  return value.replace(EMAIL, "").replace(/\s{2,}/g, " ").replace(/^[·,\s]+|[·,\s]+$/g, "").trim();
+}
+
+/** Buyer-facing sheet: no seller identity, no internal price math, no repeated lines. */
+export function forPublic(sheet: SharedSheet): SharedSheet {
+  const title = stripContact(sheet.title);
+  const note = stripContact(sheet.note || "");
+  const subtitle = stripContact(sheet.subtitle);
+  const options = sheet.options.map((option) => {
+    const lines = option.lines
+      .map((line) => ({
+        name: stripContact(line.name),
+        detail: /[×x]|%|=/.test(line.detail) ? "" : stripContact(line.detail),
+        price: line.price,
+      }))
+      .filter((line) => line.name && line.name.toLowerCase() !== title.toLowerCase());
+    return { ...option, name: /asking price/i.test(option.name) ? "Asking price" : stripContact(option.name), lines };
+  });
+  return {
+    title,
+    subtitle: subtitle && subtitle !== title && subtitle !== note ? subtitle : "",
+    photo: sheet.photo ?? null,
+    note: note && note !== title ? note : "",
+    date: sheet.date,
+    options,
+  };
+}
+
 export async function readSharedSheet(token: string): Promise<SharedSheet | null> {
   if (!token || token.length > 80) return null;
   if (dataBackend() !== "supabase") {

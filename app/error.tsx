@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
 function subscribe(onChange: () => void) {
@@ -22,6 +23,12 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
           ? "That didn't go through. Try again. If you were adding a photo, add one line instead."
           : "You're offline, or this page didn't load. Try again when you have a connection."}
       </p>
+      <p className="mt-3 text-body leading-6 text-muted">
+        After an account is deleted, sign in with a different email.
+      </p>
+      <Link href="/signin" className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl border border-line px-4 font-semibold">
+        Sign in
+      </Link>
       <button
         type="button"
         onClick={reset}

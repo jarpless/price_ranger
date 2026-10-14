@@ -307,8 +307,23 @@ export async function listGuideQuotes(userId: string): Promise<GuideQuote[]> {
 }
 
 export async function getGuideQuote(userId: string, quoteId: string): Promise<GuideQuote | null> {
-  const quotes = await listGuideQuotes(userId);
-  return quotes.find((quote) => quote.quoteId === quoteId) ?? null;
+  if (dataBackend() !== "supabase" || degraded()) {
+    const file = await loadMutable();
+    return file.quotes.find((quote) => quote.userId === userId && quote.quoteId === quoteId) ?? null;
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("guide_quotes")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("quote_id", quoteId)
+    .maybeSingle();
+  if (error) {
+    if (rememberMissing(error)) return getGuideQuote(userId, quoteId);
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+  return mapQuote(data as Record<string, unknown>);
 }
 
 export async function saveGuideQuote(quote: GuideQuote): Promise<void> {

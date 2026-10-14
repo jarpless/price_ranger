@@ -23,7 +23,6 @@ export default async function LoginPage({
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-5 py-10 lg:max-w-xl">
       <LogoLockup />
-      <h1 className="text-center font-serif text-display leading-tight">Sign in</h1>
       <p className="mt-3 text-center text-body leading-6 text-muted">
         Price what you&apos;re selling, then share the number.
       </p>
@@ -35,6 +34,11 @@ export default async function LoginPage({
       {notice === "deleted" ? (
         <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
           That account was deleted, and any subscription was canceled.
+        </p>
+      ) : null}
+      {notice === "unavailable" ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
+          That account is no longer available. Sign in with a different email, or create a new one.
         </p>
       ) : null}
       {notice === "busy" ? (

@@ -25,7 +25,7 @@ export function OtpInput({ name = "code" }: { name?: string }) {
     <fieldset>
       <legend className="mb-2 text-sm font-medium">6-digit code</legend>
       <input type="hidden" name={name} defaultValue="" />
-      <div className="flex gap-2" role="group" aria-label="6-digit code">
+      <div className="grid w-full grid-cols-6 gap-2" role="group" aria-label="6-digit code">
         {Array.from({ length: 6 }, (_, index) => (
           <input
             key={index}
@@ -36,7 +36,7 @@ export function OtpInput({ name = "code" }: { name?: string }) {
             autoComplete={index === 0 ? "one-time-code" : "off"}
             aria-label={`Digit ${index + 1}`}
             maxLength={index === 0 ? 6 : 1}
-            className="h-14 w-11 rounded-2xl border border-line bg-paper text-center font-serif text-title outline-none focus:border-pine"
+            className="h-14 w-full min-w-0 rounded-2xl border border-line bg-paper text-center font-serif text-title outline-none focus:border-pine"
             onChange={(event) => {
               const value = event.target.value;
               if (value.length > 1) {

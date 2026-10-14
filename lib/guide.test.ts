@@ -28,7 +28,7 @@ import {
 } from "./guide/pricing";
 import { isMissingSchema } from "./guide/schema";
 import { explainPrice } from "./guide/help";
-import { buyerSheet } from "./share";
+import { buyerSheet, forPublic } from "./share";
 import type { ItemGroup, QuoteRecord } from "./types";
 
 test("experiment group stays on the same account", () => {
@@ -152,6 +152,16 @@ test("the buyer sheet keeps the seller discount", () => {
   assert.equal(sheet.options[0].lines[0].price, "$765");
   assert.equal(sheet.options[0].lines[1].detail, "1 × $450");
   assert.equal(sheet.options[0].lines[2].price, "$75");
+  const shared = forPublic({
+    ...sheet,
+    seller: "ada@example.com",
+    note: "Email ada@example.com about the roof",
+    subtitle: "ada@example.com",
+  });
+  assert.equal(shared.seller, undefined);
+  assert.doesNotMatch(JSON.stringify(shared), /ada@example.com/);
+  assert.equal(shared.options[0].lines.find((line) => line.name === "Dumpster haul")?.detail, "");
+  assert.equal(shared.options[0].lines.some((line) => line.name === "Small roof repair"), false);
   const pdf = buildPricePdf({
     title: sheet.title,
     subtitle: sheet.subtitle,

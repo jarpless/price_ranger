@@ -1,4 +1,6 @@
-import { PLAN_PRICES_CENTS, type PlanId } from "./plans";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+import { PLAN_PRICES_CENTS, isPlanId, type PlanId } from "./plans";
 
 export type CheckoutPlan = "pass" | "plus" | "pro";
 export type CheckoutInterval = "month" | "year" | "once";
@@ -212,4 +214,95 @@ export async function cancelActiveSubscriptions(customerId: string): Promise<num
     if (removed.ok) canceled += 1;
   }
   return canceled;
+}
+
+/** Stripe-Signature: t=unix,v1=hex HMAC-SHA256 of `${t}.${rawBody}`. */
+export function verifyStripeSignature(rawBody: string, header: string, secret: string): boolean {
+  if (!rawBody || !header || !secret) return false;
+  let timestamp = "";
+  const signatures: string[] = [];
+  for (const part of header.split(",")) {
+    const eq = part.indexOf("=");
+    if (eq < 1) continue;
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (key === "t") timestamp = value;
+    if (key === "v1" && value) signatures.push(value);
+  }
+  const issued = Number(timestamp);
+  if (!timestamp || !Number.isFinite(issued) || signatures.length === 0) return false;
+  if (Math.abs(Date.now() / 1000 - issued) > 300) return false;
+  const expected = createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
+  const expectedBuf = Buffer.from(expected);
+  return signatures.some((signature) => {
+    const actual = Buffer.from(signature);
+    return actual.length === expectedBuf.length && timingSafeEqual(actual, expectedBuf);
+  });
+}
+
+function eventMeta(object: Record<string, unknown>, key: string): string {
+  const metadata = object.metadata;
+  if (!metadata || typeof metadata !== "object") return "";
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : "";
+}
+
+async function setWebhookPlan(userId: string, plan: PlanId, passExpires: string | null): Promise<void> {
+  const { dataBackend } = await import("./env");
+  if (dataBackend() === "local") {
+    const { setLocalPlan } = await import("./store/local");
+    await setLocalPlan(userId, plan, passExpires);
+    return;
+  }
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return;
+  const { createClient } = await import("@supabase/supabase-js");
+  const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const patch: { plan: PlanId; pass_expires_at?: string | null } = { plan };
+  if (plan === "pass") patch.pass_expires_at = passExpires;
+  if (plan === "free") patch.pass_expires_at = null;
+  const { error } = await service.from("profiles").update(patch).eq("id", userId);
+  if (error && /pass_expires_at|schema cache|does not exist/i.test(error.message)) {
+    await service.from("profiles").update({ plan }).eq("id", userId);
+  }
+}
+
+/** Applies a verified test-mode Stripe event. Live-mode events are ignored. */
+export async function applyStripeWebhook(event: { type?: string; data?: { object?: Record<string, unknown> } }): Promise<void> {
+  const object = event.data?.object;
+  if (!object || object.livemode === true) return;
+  const userId = eventMeta(object, "userId");
+  if (!userId) return;
+  const { saveBillingProfile, readBillingProfile } = await import("./account/billing-profile");
+
+  if (event.type === "checkout.session.completed") {
+    const plan = eventMeta(object, "plan");
+    if (!isPlanId(plan) || plan === "free") return;
+    const paid = object.payment_status === "paid" || object.payment_status === "no_payment_required" || object.status === "complete";
+    if (!paid) return;
+    const interval = eventMeta(object, "interval") || "month";
+    const passExpires = plan === "pass" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+    await setWebhookPlan(userId, plan, passExpires);
+    const customerId = idOf(object.customer as string | { id?: string } | null);
+    const subscriptionId = idOf(object.subscription as string | { id?: string } | null);
+    const renewsAt = await subscriptionRenews(subscriptionId);
+    await saveBillingProfile(userId, { customerId, subscriptionId, renewsAt, interval }).catch(() => undefined);
+    return;
+  }
+
+  if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
+    const status = typeof object.status === "string" ? object.status : "";
+    const ended = event.type === "customer.subscription.deleted" || status === "canceled" || status === "unpaid" || status === "incomplete_expired";
+    if (ended) {
+      await setWebhookPlan(userId, "free", null);
+      const profile = await readBillingProfile(userId);
+      await saveBillingProfile(userId, { ...profile, subscriptionId: null, renewsAt: null }).catch(() => undefined);
+      return;
+    }
+    const periodEnd = typeof object.current_period_end === "number" ? new Date(object.current_period_end * 1000).toISOString() : null;
+    const profile = await readBillingProfile(userId);
+    const subscriptionId = typeof object.id === "string" ? object.id : profile.subscriptionId;
+    await saveBillingProfile(userId, { ...profile, subscriptionId, renewsAt: periodEnd || profile.renewsAt }).catch(() => undefined);
+  }
 }

@@ -8,8 +8,9 @@ import type { SessionUser } from "@/lib/types";
 import { feedbackAssistantText } from "@/lib/feedback/mine";
 import { explainPrice, guideAnswer } from "@/lib/guide/help";
 import { getGuideQuote } from "@/lib/guide/store";
+import { confirmedAction, appPath } from "@/lib/assistant/intent";
 import { answerFromMarket } from "@/lib/market";
-import { assistantAllowance, blockedAssistantMessage, recordAssistantUse } from "@/lib/usage";
+import { assistantAllowance, blockedAssistantMessage, recordAssistantUse, recordLocalAssistantUse } from "@/lib/usage";
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
   await recordAssistantUse({
@@ -24,60 +25,14 @@ async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResul
 
 export const dynamic = "force-dynamic";
 
-function confirmedAction(message: string, pathname: string): {
-  name: "navigate";
-  args: Record<string, string>;
-  caption: string;
-  href: string;
-  spotlight: string;
-  needsConfirm: boolean;
-} | null {
-  const text = message.trim().toLowerCase();
-  if (!text) return null;
-  const guide = pathname.split("?")[0] || "/";
-  if (/delete (my )?account|close (my )?account/.test(text)) {
-    return {
-      name: "navigate",
-      args: { path: "/settings/delete" },
-      caption: "Open delete account. Nothing is removed until you confirm on that screen.",
-      href: "/settings/delete",
-      spotlight: "settings-feedback",
-      needsConfirm: true,
-    };
-  }
-  if (/\b(upgrade|subscribe|change my plan|switch to plus|switch to pro|get plus|get pro)\b/.test(text)) {
-    return {
-      name: "navigate",
-      args: { path: "/upgrade" },
-      caption: "Open plans. Nothing is charged until you check out.",
-      href: "/upgrade",
-      spotlight: "nav-menu",
-      needsConfirm: true,
-    };
-  }
-  if (/mark (it |this |that )?sold/.test(text)) {
-    const href = guide.startsWith("/guide/") ? guide : "/";
-    return {
-      name: "navigate",
-      args: { path: href },
-      caption: "I won't mark it sold from here. Open the price and tap Yes, sold.",
-      href,
-      spotlight: "nav-price",
-      needsConfirm: true,
-    };
-  }
-  if (/\b(share (it|this|the link)|send the link|copy the link)\b/.test(text)) {
-    const href = guide.startsWith("/guide/") ? guide : "/";
-    return {
-      name: "navigate",
-      args: { path: href },
-      caption: "I won't share it from here. Open the price and tap Send, then copy the link.",
-      href,
-      spotlight: "nav-price",
-      needsConfirm: true,
-    };
-  }
-  return null;
+async function localReply(user: SessionUser, text: string) {
+  await recordLocalAssistantUse(user.id);
+  return Response.json({
+    type: "message",
+    configured: llmProvider() != null,
+    text,
+    allowance: await assistantAllowance(user),
+  });
 }
 
 function turnsFrom(value: unknown): LlmTurn[] {
@@ -130,13 +85,13 @@ export async function POST(request: Request) {
     if (row?.description && (askingPrice || namesProduct)) {
       const fromQuote = answerFromMarket(row.description, row.priceCents);
       if (fromQuote) {
-        return Response.json({ type: "message", configured: llmProvider() != null, text: fromQuote, allowance: await assistantAllowance(user) });
+        return localReply(user, fromQuote);
       }
     }
     if (askingPrice || namesProduct) {
       const fromMessage = answerFromMarket(latestText, row?.priceCents ?? null);
       if (fromMessage) {
-        return Response.json({ type: "message", configured: llmProvider() != null, text: fromMessage, allowance: await assistantAllowance(user) });
+        return localReply(user, fromMessage);
       }
     }
     if (/my feedback|my ticket|my bug|feedback status/.test(latestText.toLowerCase())) {
@@ -150,12 +105,12 @@ export async function POST(request: Request) {
     if (row) {
       const explained = explainPrice(latestText, row);
       if (explained) {
-        return Response.json({ type: "message", configured: llmProvider() != null, text: explained, allowance: await assistantAllowance(user) });
+        return localReply(user, explained);
       }
     }
     const guided = guideAnswer(pathname, latestText);
     if (guided) {
-      return Response.json({ type: "message", configured: llmProvider() != null, text: guided, allowance: await assistantAllowance(user) });
+      return localReply(user, guided);
     }
   }
   const slice = await loadAccount(user.id, user.email);
@@ -242,7 +197,7 @@ export async function POST(request: Request) {
         name: tool.name,
         args,
         caption: described.caption,
-        href: described.href,
+        href: appPath(described.href),
         spotlight: described.spotlight,
         needsConfirm: toolNeedsConfirm(tool.name, args),
       };

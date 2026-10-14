@@ -18,9 +18,11 @@ export interface PdfInput {
 const WIN_ANSI: Record<string, number> = {
   "\u00a0": 0x20,
   "\u00d7": 0xd7,
-  "\u2013": 0x96,
-  "\u2014": 0x97,
-  "\u2212": 0x96,
+  "\u2013": 0x2d,
+  "\u2014": 0x2d,
+  "\u2212": 0x2d,
+  "\u2010": 0x2d,
+  "\u2011": 0x2d,
   "\u2018": 0x91,
   "\u2019": 0x92,
   "\u201c": 0x93,
@@ -99,11 +101,10 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   const size = jpeg ? jpegSize(jpeg) : null;
   const commands: string[] = [];
   let y = 740;
-  commands.push(`BT /F1 11 Tf 48 ${y} Td (${escapePdf("Price Ranger")}) Tj ET`);
-  const stamp = [input.date, input.seller].filter(Boolean).join("  ·  ").slice(0, 80);
-  if (stamp) {
-    commands.push(`BT /F1 10 Tf 320 ${y} Td (${escapePdf(stamp)}) Tj ET`);
-  }
+  commands.push(`BT /F1 14 Tf 48 ${y} Td (${escapePdf("Price Ranger")}) Tj ET`);
+  y -= 16;
+  const stamp = ["priceranger.app", input.date].filter(Boolean).join("  ·  ").slice(0, 80);
+  commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(stamp)}) Tj ET`);
   y -= 28;
   commands.push(`BT /F1 20 Tf 48 ${y} Td (${escapePdf(input.title.slice(0, 90))}) Tj ET`);
   y -= 22;

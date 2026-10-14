@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { readSharedSheet } from "@/lib/share";
+import { forPublic, readSharedSheet } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
@@ -8,19 +8,16 @@ export const metadata = { title: "Price sheet" };
 
 export default async function PublicSheetPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const sheet = await readSharedSheet(token);
-  if (!sheet) notFound();
+  const loaded = await readSharedSheet(token);
+  if (!loaded) notFound();
+  const sheet = forPublic(loaded);
 
   return (
     <main className="mx-auto min-h-dvh max-w-3xl px-5 py-8">
       <p className="font-serif text-title text-pine">Price Ranger</p>
       <h1 className="mt-2 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{sheet.title}</h1>
+      {sheet.date ? <p className="mt-2 text-caption text-muted">{sheet.date}</p> : null}
       {sheet.subtitle ? <p className="mt-2 text-body text-muted">{sheet.subtitle}</p> : null}
-      {sheet.seller || sheet.date ? (
-        <p className="mt-2 text-caption text-muted">
-          {[sheet.seller, sheet.date].filter(Boolean).join(" · ")}
-        </p>
-      ) : null}
       {sheet.photo ? (
         // The buyer opens this without an account. The picture is part of the sheet they were sent.
         // eslint-disable-next-line @next/next/no-img-element

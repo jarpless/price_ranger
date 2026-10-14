@@ -57,7 +57,7 @@ export function BottomNav({ quotesLabel }: { quotesLabel: string }) {
 export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: boolean }) {
   const pathname = usePathname();
   return (
-    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-pine-deep bg-pine text-cream lg:flex">
+    <aside className="sticky top-0 hidden min-h-dvh w-60 shrink-0 flex-col self-stretch border-r border-pine-deep bg-pine text-cream lg:flex">
       <div className="flex items-center gap-3 px-5 pb-2 pt-8">
         <Logo tone="light" width={32} height={32} className="h-8 w-8" />
         <div>

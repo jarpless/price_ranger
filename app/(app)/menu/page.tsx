@@ -1,8 +1,6 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
-import { signOut } from "@/app/actions";
 import { IconCamera, IconCard, IconChat, IconHome, IconPhone, IconSettings } from "@/components/icons";
-import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { isOwnerEmail } from "@/lib/owner";
 
@@ -54,11 +52,7 @@ export default async function MenuPage() {
             Save account
           </Link>
         </div>
-      ) : (
-        <form action={signOut} className="mt-4">
-          <SubmitButton className="h-12 whitespace-nowrap text-base font-semibold text-pine">Sign out</SubmitButton>
-        </form>
-      )}
+      ) : null}
     </div>
   );
 }

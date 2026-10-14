@@ -6,6 +6,7 @@
     <title>Verify your Price Ranger account</title>
   </head>
   <body style="margin:0;background:#f3eee4;color:#1c1915;font-family:Georgia, 'Iowan Old Style', serif;">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Your 6-digit code is {{ .Token }}. It expires in one hour.</div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3eee4;padding:32px 16px;">
       <tr>
         <td align="center">
@@ -17,7 +18,7 @@
                 <p style="margin:0 0 20px;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;color:#5e564e;">
                   Enter this 6-digit code in Price Ranger. It expires in one hour.
                 </p>
-                <p style="margin:0 0 24px;font-family:Arial, Helvetica, sans-serif;font-size:36px;letter-spacing:8px;font-weight:700;color:#1e4636;">{{ .Token }}</p>
+                <p style="margin:0 0 24px;padding:16px 12px;border:2px solid #1e4636;border-radius:16px;text-align:center;font-family:Arial, Helvetica, sans-serif;font-size:36px;letter-spacing:8px;font-weight:700;color:#1e4636;">{{ .Token }}</p>
                 <p style="margin:0 0 16px;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;">
                   <a href="{{ .ConfirmationURL }}" style="color:#1e4636;">Or open this verification link</a>
                 </p>

@@ -1,21 +1,28 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
-import { setDoNotSell, startPortal } from "@/app/guide-actions";
+import { setDoNotSell } from "@/app/guide-actions";
 import { PasskeyOffer } from "@/components/passkey-button";
 import { InfoTip } from "@/components/info-tip";
 import { SubmitButton } from "@/components/ui";
 import { readBillingProfile } from "@/lib/account/billing-profile";
 import { requireUser } from "@/lib/auth";
 import { passkeyConfigured } from "@/lib/auth-providers";
-import { stripeTestKey } from "@/lib/billing";
 import { ensureGuideUser } from "@/lib/guide/store";
 import { isOwnerEmail } from "@/lib/owner";
-import { PLANS } from "@/lib/plans";
+import { PLANS, type PlanId } from "@/lib/plans";
 import { assistantAllowance } from "@/lib/usage";
 import { VERSION_LABEL } from "@/lib/version";
 
 export const metadata = { title: "Settings" };
+
+function planPrice(planId: PlanId, interval: string | null): string {
+  if (planId === "pass" || interval === "once") return "$2.99 for 30 days";
+  if (planId === "plus" && interval === "year") return "$39/yr";
+  if (planId === "plus") return "$4.99/mo";
+  if (planId === "pro") return "$12/mo";
+  return "$0";
+}
 
 export default async function SettingsPage({
   searchParams,
@@ -38,35 +45,27 @@ export default async function SettingsPage({
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="font-serif text-display">Settings</h1>
       <section className="rounded-3xl border border-line bg-paper p-5">
-        <p className="text-caption font-semibold text-muted">Version</p>
-        <p className="mt-1 font-serif text-title">{VERSION_LABEL}</p>
-      </section>
-      <section className="rounded-3xl border border-line bg-paper p-5">
         <div className="flex items-center gap-1">
           <h2 className="font-serif text-title">Plan</h2>
           <InfoTip id="plans" />
         </div>
         <p className="mt-2 text-body font-semibold">{plan.name}</p>
-        <p className="text-body text-muted">{plan.priceLabel}</p>
-        {renews ? <p className="mt-2 text-body">Renews {renews}.</p> : null}
-        {profile.interval === "once" ? <p className="mt-2 text-body">30-day pass. It does not renew.</p> : null}
+        <p className="text-body text-muted">{planPrice(user.plan, profile.interval)}</p>
+        {renews && profile.interval !== "once" ? <p className="mt-2 text-body">Renews {renews}.</p> : null}
+        {profile.interval === "once" || user.plan === "pass" ? <p className="mt-2 text-body">30-day pass. It does not renew.</p> : null}
         <p className="mt-3 text-body leading-6">
-          {allowance.remaining} of {allowance.cap} assistant messages left this month.
+          {allowance.used} of {allowance.cap} assistant messages used this month.
           {nearLimit ? " Upgrade to keep asking." : ""}
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Link href="/upgrade" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">
             See plans
           </Link>
-          {stripeTestKey() && (profile.customerId || user.plan === "plus" || user.plan === "pro") ? (
-            <form action={startPortal}>
-              <SubmitButton className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
-                Manage subscription
-              </SubmitButton>
-            </form>
-          ) : null}
+          <Link href="/settings/billing" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
+            Manage billing
+          </Link>
         </div>
-        {billing === "unavailable" ? <p className="mt-3 text-body text-danger">Billing portal is not available yet.</p> : null}
+        {billing === "unavailable" ? <p className="mt-3 text-body text-danger">Billing isn't available from this server yet.</p> : null}
       </section>
       {passkeyConfigured() && !user.guest ? <PasskeyOffer /> : null}
       <section className="rounded-3xl border border-line bg-paper p-5">
@@ -103,6 +102,7 @@ export default async function SettingsPage({
           </Link>
         </p>
       ) : null}
+      <p className="text-caption text-muted">{VERSION_LABEL}</p>
     </div>
   );
 }

@@ -31,7 +31,7 @@ function Chip({
 }
 
 export function PlansPicker({ current, ready }: { current: PlanId; ready: boolean }) {
-  const [interval, setInterval] = useState<"month" | "year">("year");
+  const [interval, setInterval] = useState<"month" | "year">("month");
   const plusPrice = interval === "year" ? PLAN_PRICES_CENTS.plusYear : PLAN_PRICES_CENTS.plusMonth;
   const plusLabel = interval === "year" ? `${formatUsd(plusPrice)}/year` : `${formatUsd(plusPrice)}/month`;
 

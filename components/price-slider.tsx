@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { applyAdjustment } from "@/app/guide-actions";
 
 export function PriceSlider({ quoteId }: { quoteId: string }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [percent, setPercent] = useState(0);
   const label = percent === 0 ? "Suggested" : `${percent > 0 ? "+" : ""}${percent}%`;
 
+  function commit() {
+    formRef.current?.requestSubmit();
+  }
+
   return (
-    <form action={applyAdjustment} className="space-y-3">
+    <form ref={formRef} action={applyAdjustment} className="space-y-3">
       <input type="hidden" name="quoteId" value={quoteId} />
       <input type="hidden" name="kind" value="slider" />
       <input type="hidden" name="percent" value={String(percent)} />
@@ -24,14 +29,15 @@ export function PriceSlider({ quoteId }: { quoteId: string }) {
             value={percent}
             aria-valuetext={label}
             onChange={(event) => setPercent(Number(event.target.value))}
+            onPointerUp={commit}
+            onKeyUp={(event) => {
+              if (event.key.startsWith("Arrow") || event.key === "Home" || event.key === "End") commit();
+            }}
             className="h-12 min-w-0 flex-1 accent-pine"
           />
           <span className="w-20 shrink-0 text-right font-serif text-title tabular-nums">{label}</span>
         </span>
       </label>
-      <button type="submit" className="inline-flex h-12 items-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
-        Apply nudge
-      </button>
     </form>
   );
 }

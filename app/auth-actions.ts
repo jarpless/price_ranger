@@ -5,8 +5,8 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { adoptGuestAccount, LINK_COOKIE } from "@/lib/account/link";
-import { getSessionUser, requireUser, setLocalSession } from "@/lib/auth";
-import { authErrorPath, classifyAuthError } from "@/lib/auth-errors";
+import { getSessionUser, requireUser, safeNext, setLocalSession } from "@/lib/auth";
+import { authErrorPath, classifyAuthError, isNextRedirect } from "@/lib/auth-errors";
 import { enabledOAuthButtons, type OAuthProvider } from "@/lib/auth-providers";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip, isEmail } from "@/lib/form";
@@ -42,6 +42,11 @@ function providerId(value: string): OAuthProvider | null {
 export async function startOAuth(formData: FormData) {
   const provider = providerId(clip(formData.get("provider"), 20));
   if (!provider || dataBackend() !== "supabase") redirect("/signin?error=provider");
+  const next = clip(formData.get("next"), 200);
+  if (next) {
+    const cookieStore = await cookies();
+    cookieStore.set("pr_oauth_next", safeNext(next), { ...linkCookie, maxAge: 60 * 10 });
+  }
   const origin = siteOriginFromHeaders(await headers());
   const supabase = await createClient();
   const current = await getSessionUser();
@@ -69,7 +74,12 @@ async function consumeGuestLink(userId: string) {
   const cookieStore = await cookies();
   const guestId = cookieStore.get(LINK_COOKIE)?.value || "";
   if (guestId) cookieStore.set(LINK_COOKIE, "", { ...linkCookie, maxAge: 0 });
-  if (guestId && guestId !== userId) await adoptGuestAccount(guestId, userId);
+  if (!guestId || guestId === userId) return;
+  try {
+    await adoptGuestAccount(guestId, userId);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "Could not move the guest prices.");
+  }
 }
 
 export async function signInWithPassword(formData: FormData) {
@@ -79,11 +89,17 @@ export async function signInWithPassword(formData: FormData) {
   if (password.length < 8) redirect("/signin?error=password");
 
   if (dataBackend() === "supabase") {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) redirect(authErrorPath(classifyAuthError(error), email));
-    const { data } = await supabase.auth.getUser();
-    if (data.user) await consumeGuestLink(data.user.id);
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) redirect(authErrorPath(classifyAuthError(error), email));
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) redirect("/signin?notice=unavailable");
+      await consumeGuestLink(data.user.id);
+    } catch (error) {
+      if (isNextRedirect(error)) throw error;
+      redirect("/signin?notice=unavailable");
+    }
     redirect("/");
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");

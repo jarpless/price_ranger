@@ -69,7 +69,7 @@ export default async function HomePage() {
               </Link>
             </PrimaryDock>
           </div>
-          <ol className="mt-8 hidden space-y-4 lg:block">
+          <ol className="mt-8 space-y-4 lg:mt-0">
             {[
               ["1", "Add a photo"],
               ["2", "Check the price"],
@@ -89,6 +89,7 @@ export default async function HomePage() {
   }
 
   const soldCents = quotes.filter((quote) => quote.outcome === "sold").reduce((sum, quote) => sum + (quote.priceCents || 0), 0);
+  const soldRounded = Math.round(soldCents / 100) * 100;
 
   return (
     <div>
@@ -96,6 +97,7 @@ export default async function HomePage() {
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-10">
         <div>
           <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Your prices</h1>
+          {soldRounded > 0 ? <p className="mt-2 text-body">Sold {formatUsd(soldRounded)}</p> : null}
           <p className="mt-2 text-body text-muted">
             {industry ? `${industry}. ` : ""}
             Pick up a draft, or start a new one.
@@ -128,7 +130,6 @@ export default async function HomePage() {
           <p className="text-caption font-semibold text-muted">Your plan</p>
           <p className="mt-1 font-serif text-title">{plan.name}</p>
           <p className="mt-3 text-body leading-6">{planStatusLine(access)}</p>
-          {soldCents > 0 ? <p className="mt-3 text-body">Sold {formatUsd(soldCents)}</p> : null}
           <Link href="/upgrade" className="mt-4 inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">
             See plans
           </Link>

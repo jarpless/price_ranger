@@ -113,8 +113,9 @@ export function AssistantWidget({ signedIn, allowance: initialAllowance }: { sta
 
   async function play(step: Step, confirmed = false) {
     setSpotlight({ selector: step.spotlight, caption: step.caption });
-    if (step.href.startsWith("/") && !step.href.startsWith("//")) {
-      router.push(step.href);
+    const href = step.href === "/settings/plans" || step.href.startsWith("/settings/plans/") ? "/upgrade" : step.href;
+    if (href.startsWith("/") && !href.startsWith("//")) {
+      router.push(href);
     }
     const stayed = await wait(700, () => stopRef.current);
     if (!stayed) return false;
@@ -249,7 +250,7 @@ export function AssistantWidget({ signedIn, allowance: initialAllowance }: { sta
       </div>
       {allowance ? (
         <p className="flex items-center px-4 text-caption text-muted">
-          {allowance.remaining} of {allowance.cap} messages left
+          {allowance.used} of {allowance.cap} used this month
           <InfoTip id="messages" />
           {allowance.remaining <= 2 ? (
             <Link href="/upgrade" className="ml-2 font-semibold text-pine">
@@ -268,15 +269,21 @@ export function AssistantWidget({ signedIn, allowance: initialAllowance }: { sta
                 : "Agent mode walks the screen while it works. Press Stop any time. Deletes wait for you to confirm."}
             </p>
             <MyFeedbackList />
-            {pathname.startsWith("/guide") || pathname.startsWith("/welcome") || pathname === "/new" ? (
-              <button
-                type="button"
-                className="h-12 w-full whitespace-nowrap rounded-2xl border border-line text-base font-semibold text-ink"
-                onClick={() => void send("Walk me through this step")}
-              >
-                Walk me through this
-              </button>
-            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {(pathname.startsWith("/guide")
+                ? ["What is this worth?", "Walk me through this step", "How do plans work?"]
+                : ["How do plans work?", "Walk me through this"]
+              ).map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="h-11 rounded-full border border-line px-3 text-sm font-semibold text-ink"
+                  onClick={() => void send(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           lines.map((line, index) => (

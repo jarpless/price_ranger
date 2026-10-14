@@ -63,9 +63,8 @@ function soldSearch(query: string): string {
   return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=1&LH_Complete=1&rt=nc`;
 }
 
-function thumb(label: string, color: string): string {
-  const safe = label.replace(/[<>&"]/g, "").slice(0, 18);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${color}"/><text x="80" y="88" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#1c1915">${safe}</text></svg>`;
+function thumb(color: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${color}"/><rect x="58" y="28" width="44" height="104" rx="8" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><circle cx="80" cy="118" r="4" fill="#1c1915"/></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
@@ -78,7 +77,7 @@ function compsFor(variant: VariantSeed, color: string): Comparable[] {
     url: soldSearch(comp.title),
     soldAt: comp.soldAt,
     listed: false,
-    thumbnail: thumb(variant.label, color),
+    thumbnail: thumb(color),
   }));
 }
 
@@ -121,7 +120,7 @@ const ITEMS: ItemSeed[] = [
       },
       {
         id: "standard",
-        label: "Standard (dock)",
+        label: "With dock",
         test: /\b(v1|v2|original|og|hac-001|with dock|standard)\b/i,
         low: 15000,
         high: 20000,
@@ -277,7 +276,11 @@ function detectCondition(text: string): ConditionId {
 }
 
 function scale(cents: number, factor: number): number {
-  return Math.max(0, Math.round(cents * factor));
+  return Math.max(0, Math.round((cents * factor) / 100) * 100);
+}
+
+function fallbackVariant(item: ItemSeed): VariantSeed {
+  return item.variants.find((entry) => entry.id === "standard") || item.variants[0];
 }
 
 function buildQuote(item: ItemSeed, variant: VariantSeed, condition: ConditionId, ambiguous: boolean): MarketQuote {
@@ -320,10 +323,15 @@ export function marketPrice(description: string, options?: { condition?: Conditi
   if (!text) return null;
   const item = ITEMS.find((entry) => entry.test.test(text));
   if (!item) return null;
+  if (item.id === "switch" && /\b(tv|television)\b/i.test(text) && !/joy-?con/i.test(text)) return null;
   const condition = options?.condition ?? detectCondition(text.toLowerCase());
   const forced = options?.variantId ? item.variants.find((entry) => entry.id === options.variantId) : undefined;
-  const matched = item.variants.find((entry) => entry.test.test(text));
-  const variant = forced || matched || item.variants[0];
+  const matched = item.variants.find((entry) => {
+    if (!entry.test.test(text)) return false;
+    if (entry.id === "oled" && /\b(tv|television)\b/i.test(text)) return false;
+    return true;
+  });
+  const variant = forced || matched || fallbackVariant(item);
   const ambiguous = !forced && !matched && item.variants.length > 1;
   return buildQuote(item, variant, condition, ambiguous);
 }
@@ -341,6 +349,7 @@ export interface MarketMeta {
   confidence: Confidence | null;
   suggestedCents: number | null;
   overrideCents: number | null;
+  preset: string | null;
 }
 
 function metaValue(sources: string[], key: string): string | null {
@@ -364,6 +373,7 @@ export function readMarketMeta(sources: string[]): MarketMeta {
     confidence: confidence === "low" || confidence === "medium" || confidence === "high" ? confidence : null,
     suggestedCents: Number.isFinite(suggested) && suggested > 0 ? suggested : null,
     overrideCents: override && Number.isFinite(Number(override)) ? Number(override) : null,
+    preset: metaValue(sources, "preset"),
   };
 }
 

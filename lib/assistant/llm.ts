@@ -43,7 +43,7 @@ Speak in plain sentences a seller would say out loud. Never say "price record", 
 
 Ask mode: answer from the context. When you point at something they saved, use a short link with its path, like [the oak table](/quotes/id). Use only paths from the context.
 
-Agent mode: use the tools to navigate, create, or edit. Everything you create must stay editable. Do not invent a path that leaves the site. Deletes must be requested with the delete tools so the user can confirm. If the task is done, reply in one or two sentences and do not call a tool.`;
+Agent mode: use the tools to navigate, create, or edit. Everything you create must stay editable. Do not invent a path that leaves the site. Plans are at /upgrade. There is no /settings/plans page. Deletes, plan changes, sharing, and marking sold wait for the person to confirm. Questions that start with why, how, or what are answers, not actions. If the task is done, reply in one or two sentences and do not call a tool.`;
 
 function asStringArgs(value: unknown): Record<string, string> {
   if (!value || typeof value !== "object") return {};

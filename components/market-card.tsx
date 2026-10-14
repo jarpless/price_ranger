@@ -11,10 +11,10 @@ import {
 } from "@/lib/market";
 
 const PRESETS = [
-  { value: "off10", label: "−10%" },
-  { value: "off20", label: "−20%" },
-  { value: "ship8", label: "Shipping $8" },
-  { value: "ship15", label: "Shipping $15" },
+  { value: "off10", label: "-10%" },
+  { value: "off20", label: "-20%" },
+  { value: "ship8", label: "Ship $8" },
+  { value: "ship15", label: "Ship $15" },
   { value: "fee3", label: "Fee $3" },
 ] as const;
 
@@ -147,7 +147,11 @@ export function MarketCard({
               <input type="hidden" name="quoteId" value={quoteId} />
               <input type="hidden" name="kind" value="preset" />
               <input type="hidden" name="value" value={preset.value} />
-              <button type="submit" className="h-11 whitespace-nowrap rounded-full border border-line bg-paper px-4 text-sm font-semibold">
+              <button
+                type="submit"
+                aria-pressed={meta.preset === preset.value}
+                className={`h-11 max-w-full whitespace-nowrap rounded-full px-4 text-sm font-semibold ${meta.preset === preset.value ? "bg-pine text-cream" : "border border-line bg-paper"}`}
+              >
                 {preset.label}
               </button>
             </form>
@@ -192,7 +196,7 @@ export function MarketCard({
                     {comp.condition} · {comp.soldAt} · {comp.listed ? "Listed" : "Sold"}
                   </p>
                   <a href={comp.url} target="_blank" rel="noreferrer" className="text-caption font-semibold text-pine">
-                    {comp.source} sold search
+                    See similar sold listings
                   </a>
                 </div>
                 <p className="shrink-0 font-serif text-title tabular-nums">{formatUsd(comp.priceCents)}</p>

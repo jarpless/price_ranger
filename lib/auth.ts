@@ -44,10 +44,20 @@ function accountFromRow(user: {
 }
 
 export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
+  try {
+    return await readSessionUser();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "Sign-in session could not be read.");
+    return null;
+  }
+});
+
+async function readSessionUser(): Promise<SessionUser | null> {
   const backend = dataBackend();
   if (backend === "supabase") {
     const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
     const authUser = data.user;
     if (!authUser?.id) return null;
     const guest = Boolean(authUser.is_anonymous) || !authUser.email;
@@ -82,7 +92,7 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Ses
   const user = await getLocalUser(userId);
   if (!user) return null;
   return accountFromRow(user);
-});
+}
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
@@ -132,12 +142,13 @@ export async function requestMagicLink(
 }
 
 export async function signOutUser() {
+  const cookieStore = await cookies();
+  cookieStore.set(LINK_COOKIE, "", { ...cookieOptions, maxAge: 0 });
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
     await supabase.auth.signOut();
     return;
   }
-  const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, "", { ...cookieOptions, maxAge: 0 });
   cookieStore.set(KIND_COOKIE, "", { ...cookieOptions, maxAge: 0 });
 }

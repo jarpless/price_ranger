@@ -18,8 +18,8 @@ import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
-import { adjustmentFromSources, lineSettlement, priceError, visibleSources } from "@/lib/guide/pricing";
-import { formatUsd } from "@/lib/money";
+import { adjustmentFromSources, lineSettlement, priceError } from "@/lib/guide/pricing";
+import { dollarsInputValue, formatUsd } from "@/lib/money";
 import { getData } from "@/lib/store";
 
 export const metadata = { title: "Your price" };
@@ -34,20 +34,26 @@ export default async function GuidePage({
   const { id } = await params;
   const { error, done } = await searchParams;
   const user = await requireUser();
-  const guide = await ensureGuideUser(user.id);
+  const data = await getData();
+  const [guide, row, quote] = await Promise.all([
+    ensureGuideUser(user.id),
+    getGuideQuote(user.id, id),
+    data.getQuote(user.id, id),
+  ]);
   if (!guide.tosAcceptedAt) redirect("/welcome");
-  const row = await getGuideQuote(user.id, id);
   if (!row) notFound();
+  const groupIds = [...new Set(quote?.tiers.flatMap((tier) => tier.groupIds) ?? [])];
+  const groups = (await Promise.all(groupIds.map((groupId) => data.getGroup(user.id, groupId)))).filter(
+    (group): group is NonNullable<typeof group> => Boolean(group),
+  );
   const copy = stepCopy(row.step, row.path);
   const sent = Boolean(row.step === "share" && row.sharedAt);
-  const title = sent ? "Sent" : copy.title;
-  const now = sent ? "The link is ready. Share it yourself. Nothing else is emailed." : copy.now;
+  const title =
+    sent ? "Link ready" : row.outcome === "sold" ? "Sold" : row.outcome === "not_yet" ? "Not yet" : copy.title;
+  const now = sent ? "The link is ready. Share it yourself. Nothing else is emailed." : row.outcome === "sold" ? "The sold price is saved." : row.outcome === "not_yet" ? "You can mark it sold later from home." : copy.now;
   const price = row.priceCents != null ? formatUsd(row.priceCents) : "";
   const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
   const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
-  const data = await getData();
-  const quote = await data.getQuote(user.id, id);
-  const groups = await data.listGroups(user.id);
   const adjustment = adjustmentFromSources(row.sources);
   const byId = new Map(groups.map((group) => [group.id, group]));
   const lines = (quote?.tiers[0]?.groupIds ?? []).flatMap((groupId) => byId.get(groupId)?.items ?? []).map((item) => {
@@ -57,8 +63,6 @@ export default async function GuidePage({
     );
     return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
   });
-  const sources = visibleSources(row.sources);
-
   return (
     <div data-guide-step={row.step} className="mx-auto max-w-[40rem]">
       <GuideProgress step={row.step} />
@@ -104,9 +108,6 @@ export default async function GuidePage({
             sources={row.sources}
             extras={lines}
           />
-          {sources.length > 0 ? (
-            <p className="mt-3 text-caption text-muted">{sources[0]}</p>
-          ) : null}
           <div className="mt-4 flex items-center gap-1">
             <p className="text-caption text-muted">Send creates a link and a PDF. You share them yourself.</p>
             <InfoTip id="share" />
@@ -137,24 +138,20 @@ export default async function GuidePage({
             </ul>
           ) : null}
           <ShareActions href={shareHref} title={row.description || "Price Ranger"} />
-          <Link
-            href={shareHref}
-            className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink lg:w-auto lg:min-w-48 lg:px-6"
-          >
-            Open the link
-          </Link>
-          <a
-            href={`${shareHref}/pdf`}
-            className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink lg:w-auto lg:min-w-48 lg:px-6"
-          >
-            Download PDF
-          </a>
-          <form action={continueGuide}>
-            <input type="hidden" name="quoteId" value={row.quoteId} />
-            <PrimaryDock>
-              <Button type="submit">Mark sold</Button>
-            </PrimaryDock>
-          </form>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <a
+              href={`${shareHref}/pdf`}
+              className="inline-flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink"
+            >
+              Download PDF
+            </a>
+            <form action={continueGuide} className="flex-1">
+              <input type="hidden" name="quoteId" value={row.quoteId} />
+              <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink">
+                Mark sold
+              </button>
+            </form>
+          </div>
         </div>
       ) : null}
 
@@ -177,9 +174,18 @@ export default async function GuidePage({
             </div>
           ) : (
             <div className="space-y-2">
-              <form action={markOutcome}>
+              <form action={markOutcome} className="space-y-3">
                 <input type="hidden" name="quoteId" value={row.quoteId} />
                 <input type="hidden" name="outcome" value="sold" />
+                <label className="block text-base font-semibold">
+                  Sold for
+                  <input
+                    name="amount"
+                    inputMode="decimal"
+                    defaultValue={row.priceCents != null ? dollarsInputValue(row.priceCents) : ""}
+                    className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal"
+                  />
+                </label>
                 <PrimaryDock>
                   <Button type="submit">{copy.primary}</Button>
                 </PrimaryDock>

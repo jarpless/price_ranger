@@ -28,8 +28,11 @@ export function LoginForm({
   const action = mode === "code" ? sendMagicLink : account === "create" ? createPasswordAccount : signInWithPassword;
   const primary = mode === "code" ? "Email me a code" : account === "create" ? "Create account" : "Sign in";
 
+  const heading = account === "create" ? "Create account" : "Sign in";
+
   return (
     <div className="mt-8 space-y-3">
+      <h1 className="text-center font-serif text-display leading-tight">{heading}</h1>
       <form action={startOAuth}>
         <input type="hidden" name="provider" value="apple" />
         <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ink text-base font-semibold text-cream">
@@ -48,6 +51,23 @@ export function LoginForm({
       {local ? <p className="text-center text-caption text-muted">Apple, Google, and passkeys need the live sign-in project.</p> : null}
 
       <form action={action} className="space-y-3 pt-2">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-line p-1" role="tablist" aria-label="Sign in or create account">
+          {([
+            ["signin", "Sign in"],
+            ["create", "Create account"],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={account === id}
+              onClick={() => setAccount(id)}
+              className={`h-11 rounded-xl text-base font-semibold ${account === id ? "bg-paper text-ink shadow-card" : "text-muted"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <label className="block" htmlFor="email">
           <span className="mb-1.5 block text-sm font-medium">Email</span>
           <input
@@ -66,23 +86,6 @@ export function LoginForm({
 
         {mode === "password" ? (
           <>
-            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-line p-1" role="tablist" aria-label="Sign in or create account">
-              {([
-                ["signin", "Sign in"],
-                ["create", "Create account"],
-              ] as const).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={account === id}
-                  onClick={() => setAccount(id)}
-                  className={`h-11 rounded-xl text-base font-semibold ${account === id ? "bg-paper text-ink shadow-card" : "text-muted"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
             <label className="block" htmlFor="password">
               <span className="mb-1.5 block text-sm font-medium">Password</span>
               <input

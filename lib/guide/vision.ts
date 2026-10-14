@@ -7,7 +7,19 @@ export interface PhotoIdentity {
 }
 
 const PROMPT =
-  'Name the main thing in this photo the way a seller would, in a few words. Reply with JSON only: {"title":"short name","note":"one plain sentence"}. Never use a filename, camera id, or file extension. If you cannot tell what it is, reply {"title":""}.';
+  'Name the main thing in this photo the way a seller would, in a few words. Reply with JSON only: {"title":"short name","note":"one plain sentence"}. Never use a filename, camera id, or file extension. If you cannot tell what it is, reply {"title":""}. Do not guess a variant. A Nintendo Switch is "Nintendo Switch with dock and Joy-Cons" unless the word OLED or Lite is printed on the device. A Switch is not a television.';
+
+/** Keeps a photo title from being priced as the wrong model. */
+export function normalizePhotoTitle(title: string): string {
+  const text = title.replace(/\s+/g, " ").trim();
+  if (/\b(tv|television|monitor)\b/i.test(text) && !/joy-?con/i.test(text)) {
+    return /switch/i.test(text) ? "Nintendo Switch with dock and Joy-Cons" : "";
+  }
+  if (/nintendo\s+switch|\bswitch\b/i.test(text) && !/\b(oled|lite)\b/i.test(text)) {
+    return "Nintendo Switch with dock and Joy-Cons";
+  }
+  return text;
+}
 
 function stubAllowed(): boolean {
   if (process.env.NODE_ENV === "production") return false;
@@ -21,7 +33,7 @@ function parseIdentity(raw: string): PhotoIdentity | null {
   if (start < 0 || end <= start) return null;
   try {
     const parsed = JSON.parse(raw.slice(start, end + 1)) as { title?: unknown; note?: unknown };
-    const title = String(parsed.title || "").replace(/\s+/g, " ").trim().slice(0, 80);
+    const title = normalizePhotoTitle(String(parsed.title || "")).slice(0, 80);
     if (!title || looksLikeFilename(title)) return null;
     const note = String(parsed.note || "").replace(/\s+/g, " ").trim().slice(0, 180);
     return { title, note: note || `Priced from the photo of ${title}.` };

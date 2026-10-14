@@ -121,10 +121,14 @@ body[data-dock="1"] .ask-fab {
 
 @media (min-width: 64rem) {
   .ask-fab {
-    left: auto;
-    right: 2rem;
-    bottom: 2rem;
+    left: 17rem;
+    right: auto;
+    bottom: 1.5rem;
   }
+}
+
+html {
+  scrollbar-gutter: stable;
 }
 
 @media (prefers-reduced-motion: reduce) {

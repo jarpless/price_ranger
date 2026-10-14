@@ -3,6 +3,19 @@ import test from "node:test";
 
 import { answerFromMarket, MARKET_REGRESSION, marketPrice } from "./market";
 
+test("a bare Nintendo Switch is the docked model, not the OLED", () => {
+  const quote = marketPrice("Nintendo Switch");
+  assert.ok(quote);
+  assert.equal(quote.variantId, "standard");
+  assert.equal(quote.cents, 17500);
+  assert.notEqual(quote.cents, 24000);
+});
+
+test("an OLED television is not priced as a Switch", () => {
+  assert.equal(marketPrice("OLED TV"), null);
+  assert.equal(marketPrice("Samsung OLED television"), null);
+});
+
 test("a used Switch with dock lands in the sold range", () => {
   const quote = marketPrice("used Nintendo Switch with dock and Joy-Cons");
   assert.ok(quote);

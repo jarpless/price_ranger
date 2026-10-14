@@ -20,7 +20,12 @@ export default async function UpgradeDonePage({
 }) {
   const { session_id: sessionId = "" } = await searchParams;
   await requireUser();
-  const result = sessionId ? await finishCheckout(sessionId) : null;
+  let result: Awaited<ReturnType<typeof finishCheckout>> = null;
+  try {
+    result = sessionId ? await finishCheckout(sessionId) : null;
+  } catch {
+    result = { status: "pending", plan: "plus", interval: "month", amountCents: 0, customerId: null, subscriptionId: null, renewsAt: null };
+  }
   const status = result?.status ?? "failed";
   const name = planName(result?.plan || "plus");
   const renews = result?.renewsAt ? new Date(result.renewsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
