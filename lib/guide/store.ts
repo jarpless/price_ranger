@@ -471,6 +471,28 @@ export function funnelHasServiceRole(): boolean {
   return dataBackend() !== "supabase" || Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+/** Keeps intro and terms when a guest becomes an account. */
+export async function reassignGuide(fromUserId: string, toUserId: string): Promise<void> {
+  if (!fromUserId || fromUserId === toUserId) return;
+  if (dataBackend() === "supabase" && !degraded()) return;
+  await withLock(async () => {
+    const file = await loadMutable();
+    const from = file.users.find((item) => item.userId === fromUserId);
+    const to = file.users.find((item) => item.userId === toUserId);
+    if (from && !to) file.users.push({ ...from, userId: toUserId });
+    else if (from && to && !to.tosAcceptedAt && from.tosAcceptedAt) {
+      to.tosAcceptedAt = from.tosAcceptedAt;
+      to.tosVersion = from.tosVersion;
+      to.introCompletedAt = from.introCompletedAt;
+      to.trialStartedAt = to.trialStartedAt || from.trialStartedAt;
+    }
+    file.users = file.users.filter((item) => item.userId !== fromUserId);
+    for (const quote of file.quotes) if (quote.userId === fromUserId) quote.userId = toUserId;
+    for (const event of file.events) if (event.userId === fromUserId) event.userId = toUserId;
+    await storeMutable(file);
+  });
+}
+
 /** Local guide rows. Supabase rows leave with the auth user through ON DELETE CASCADE. */
 export async function deleteGuideAccount(userId: string): Promise<void> {
   if (dataBackend() === "supabase" && !degraded()) return;

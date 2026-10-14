@@ -3,7 +3,9 @@ import { PendingLink as Link } from "@/components/pending-link";
 
 import { verifyEmailCode } from "@/app/auth-actions";
 import { Logo } from "@/components/logo";
-import { Button, Notice, TextField } from "@/components/ui";
+import { OtpInput } from "@/components/otp-input";
+import { RateLimitNotice } from "@/components/rate-limit-notice";
+import { Button, Notice } from "@/components/ui";
 import { DEV_CODE_COOKIE, DEV_LINK_COOKIE } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +13,9 @@ export const dynamic = "force-dynamic";
 export default async function SentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string; error?: string }>;
+  searchParams: Promise<{ email?: string; error?: string; notice?: string; retry?: string }>;
 }) {
-  const { email, error } = await searchParams;
+  const { email, error, notice, retry } = await searchParams;
   const cookieStore = await cookies();
   const devLink = cookieStore.get(DEV_LINK_COOKIE)?.value;
   const devCode = cookieStore.get(DEV_CODE_COOKIE)?.value;
@@ -24,8 +26,9 @@ export default async function SentPage({
       <h1 className="font-serif text-3xl">Check your email</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
         {email
-          ? `If ${email} can receive mail, a sign-in link and a 6-digit code are on the way. They expire in 15 minutes.`
-          : "A sign-in link and a 6-digit code are on the way. They expire in 15 minutes."}
+          ? `If ${email} can receive mail, it has a 6-digit code and a link to verify your account.`
+          : "Your email has a 6-digit code and a link to verify your account."}
+        {notice === "resent" ? " We sent another one." : ""}
       </p>
       <p className="mt-3 text-body leading-6">If this inbox cannot receive mail, your draft is still on this device.</p>
       <Link
@@ -34,10 +37,15 @@ export default async function SentPage({
       >
         Back to your draft
       </Link>
+      {error === "rate_limit" ? (
+        <div className="mt-6">
+          <RateLimitNotice seconds={Number(retry || 60)} email={email || ""} />
+        </div>
+      ) : null}
       <form action={verifyEmailCode} className="mt-6 space-y-3">
-        <Notice code={error} />
+        {error && error !== "rate_limit" ? <Notice code={error} /> : null}
         <input type="hidden" name="email" value={email || ""} />
-        <TextField label="6-digit code" name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" required />
+        <OtpInput />
         <Button type="submit" pendingLabel="Checking the code…">Use the code</Button>
       </form>
       {devLink || devCode ? (
@@ -56,7 +64,7 @@ export default async function SentPage({
           ) : null}
         </div>
       ) : null}
-      <Link href="/login" className="mt-6 text-center text-sm font-semibold text-pine">
+      <Link href="/signin" className="mt-6 text-center text-sm font-semibold text-pine">
         Use a different email
       </Link>
     </main>

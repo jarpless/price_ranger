@@ -1,6 +1,6 @@
 # Price Ranger
 
-An estimating app for pricing work, a sale, or a service and presenting a few options. Phones and wide screens are both first-class. This checkout is v2.1.1 Basecamp (`lib/version.ts`).
+An app for pricing something you are selling and sharing that price. Phones and wide screens are both first-class. This checkout is v2.3 Lookout (`lib/version.ts`).
 
 The plan is in [docs/PLAN.md](docs/PLAN.md). The changelog is [CHANGELOG.md](CHANGELOG.md). What the old prototype contained is in [docs/legacy-requirements.md](docs/legacy-requirements.md).
 
@@ -21,18 +21,13 @@ Create a new Supabase project and set:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_SITE_URL` (for www.priceranger.app, `https://www.priceranger.app`)
 
-Run the SQL files in `supabase/migrations`, allow `https://www.priceranger.app/auth/callback` as a redirect URL, and enable email sign-in. Add `{{ .Token }}` to the magic-link email template so the 6-digit code is in the message.
+Run the SQL files in `supabase/migrations`, allow `https://www.priceranger.app/auth/callback` as a redirect URL, and enable email sign-in. Paste the templates in `supabase/templates/` into Confirm signup and Magic link. The steps are in `docs/supabase-email.md`.
 
-Provider buttons stay hidden until you turn the provider on in Supabase and set the flag:
+Apple and Google buttons are always shown. They work after those providers are enabled in the Supabase dashboard. Facebook and Microsoft stay behind `NEXT_PUBLIC_AUTH_FACEBOOK` and `NEXT_PUBLIC_AUTH_AZURE`.
 
-- Google: `NEXT_PUBLIC_AUTH_GOOGLE=true`
-- Facebook: `NEXT_PUBLIC_AUTH_FACEBOOK=true`
-- Microsoft (Azure): `NEXT_PUBLIC_AUTH_AZURE=true`
-- Apple: `NEXT_PUBLIC_ENABLE_APPLE=true` (leave this off until the iOS app)
+Enable anonymous sign-ins for guest drafts. Enable Passkeys in the dashboard before the passkey button can succeed.
 
-Enable anonymous sign-ins for guest drafts. Enable Passkeys in the dashboard, then Settings offers "Add a passkey" after sign-in. Passkeys are documented here; they need that dashboard switch before the button can succeed.
-
-Plan prices and assistant caps live in `lib/plans.ts`. This version does not charge a card. Stripe and Apple in-app purchase are v2.2 and v2.4.
+Plan prices and assistant caps live in `lib/plans.ts`. Stripe checkout stays in test mode (`sk_test_` only). `SUPABASE_SERVICE_ROLE_KEY` stays on the server and is required to link a guest, update a plan, and delete an account.
 
 Optional, all server-side:
 

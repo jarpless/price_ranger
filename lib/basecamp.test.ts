@@ -8,9 +8,9 @@ import { redactText, restoreText } from "./redact";
 import { assistantMessageCap, PLAN_PRICES_CENTS, PLANS } from "./plans";
 import { VERSION_LABEL, APP_VERSION } from "./version";
 
-test("version label is the single Ridgeline stamp", () => {
-  assert.equal(APP_VERSION, "2.2.2");
-  assert.equal(VERSION_LABEL, "v2.2.2 Ridgeline");
+test("version label is the single Lookout stamp", () => {
+  assert.equal(APP_VERSION, "2.3.0");
+  assert.equal(VERSION_LABEL, "v2.3 Lookout");
 });
 
 test("assistant caps come from the plan config", () => {

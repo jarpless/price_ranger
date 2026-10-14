@@ -9,7 +9,7 @@ import { isIndustryId } from "@/lib/vocabulary";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const failure = NextResponse.redirect(new URL("/login?error=link", url.origin));
+  const failure = NextResponse.redirect(new URL("/signin?error=link", url.origin));
   if (dataBackend() !== "local") return failure;
 
   const cookieStore = await cookies();

@@ -1,6 +1,16 @@
 # Changelog
 
-The version number and ranger codename live in `lib/version.ts`. This file records what shipped. The stamp on every screen reads from that module plus `VERCEL_GIT_COMMIT_SHA` and `VERCEL_ENV`.
+The version number and ranger codename live in `lib/version.ts`. This file records what shipped. Settings shows the plain version label.
+
+## v2.3.0 Lookout
+
+Sold listings, a market card, and a sign-in screen that explains itself.
+
+- A used Nintendo Switch with a dock prices from recent sold listings, about $150–$200, with condition, model, confidence, and comparables. The assistant answers from that range.
+- Sign-in is one email field, with Apple, Google, a passkey, and a 6-digit code. Known auth errors, including the email rate limit, stay on the sign-in screen with a countdown.
+- Checkout returns to a success, pending, or failed state. Deleting an account asks for confirmation and cancels an active test subscription.
+- Plans are Free, a 30-day pass, Plus monthly or yearly, and Pro. Settings shows the plan and a manage-subscription action.
+- Brand fonts are self-hosted. New prices start from the camera and item chips.
 
 ## v2.1.1 Basecamp
 
@@ -31,7 +41,5 @@ Phase 1. Magic-link sign-in, catalog, prices, groups with automatic descriptions
 
 ## Planned
 
-- v2.2 Ridgeline. Live Supabase, the plan caps in `lib/plans.ts`, and Stripe checkout. A customer link and a PDF stay in this release.
-- v2.3 Lookout. One live catalog feed, only with written permission.
 - v2.4 Outpost. The iPhone app via Capacitor. Face ID, camera, share sheet, and Sign in with Apple. TestFlight, then the App Store. Apple in-app purchase through RevenueCat.
 - v3.0 Summit. Another industry on the same catalog.

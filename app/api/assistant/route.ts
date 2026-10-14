@@ -8,6 +8,7 @@ import type { SessionUser } from "@/lib/types";
 import { feedbackAssistantText } from "@/lib/feedback/mine";
 import { explainPrice, guideAnswer } from "@/lib/guide/help";
 import { getGuideQuote } from "@/lib/guide/store";
+import { answerFromMarket } from "@/lib/market";
 import { assistantAllowance, blockedAssistantMessage, recordAssistantUse } from "@/lib/usage";
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
@@ -22,6 +23,62 @@ async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResul
 }
 
 export const dynamic = "force-dynamic";
+
+function confirmedAction(message: string, pathname: string): {
+  name: "navigate";
+  args: Record<string, string>;
+  caption: string;
+  href: string;
+  spotlight: string;
+  needsConfirm: boolean;
+} | null {
+  const text = message.trim().toLowerCase();
+  if (!text) return null;
+  const guide = pathname.split("?")[0] || "/";
+  if (/delete (my )?account|close (my )?account/.test(text)) {
+    return {
+      name: "navigate",
+      args: { path: "/settings/delete" },
+      caption: "Open delete account. Nothing is removed until you confirm on that screen.",
+      href: "/settings/delete",
+      spotlight: "settings-feedback",
+      needsConfirm: true,
+    };
+  }
+  if (/\b(upgrade|subscribe|change my plan|switch to plus|switch to pro|get plus|get pro)\b/.test(text)) {
+    return {
+      name: "navigate",
+      args: { path: "/upgrade" },
+      caption: "Open plans. Nothing is charged until you check out.",
+      href: "/upgrade",
+      spotlight: "nav-menu",
+      needsConfirm: true,
+    };
+  }
+  if (/mark (it |this |that )?sold/.test(text)) {
+    const href = guide.startsWith("/guide/") ? guide : "/";
+    return {
+      name: "navigate",
+      args: { path: href },
+      caption: "I won't mark it sold from here. Open the price and tap Yes, sold.",
+      href,
+      spotlight: "nav-price",
+      needsConfirm: true,
+    };
+  }
+  if (/\b(share (it|this|the link)|send the link|copy the link)\b/.test(text)) {
+    const href = guide.startsWith("/guide/") ? guide : "/";
+    return {
+      name: "navigate",
+      args: { path: href },
+      caption: "I won't share it from here. Open the price and tap Send, then copy the link.",
+      href,
+      spotlight: "nav-price",
+      needsConfirm: true,
+    };
+  }
+  return null;
+}
 
 function turnsFrom(value: unknown): LlmTurn[] {
   if (!Array.isArray(value)) return [];
@@ -50,27 +107,55 @@ export async function POST(request: Request) {
 
   const pathname = String(body.pathname || "/").slice(0, 200);
   const turns = turnsFrom(body.turns);
+  const latestIntent = [...turns].reverse().find((turn) => turn.role === "user")?.content || "";
+  const confirmed = confirmedAction(latestIntent, pathname);
+  if (confirmed) {
+    return Response.json({
+      type: "plan",
+      configured: llmProvider() != null,
+      text: confirmed.caption,
+      steps: [confirmed],
+      continue: false,
+      allowance: await assistantAllowance(user),
+    });
+  }
   if (body.mode === "ask") {
     const latest = [...turns].reverse().find((turn) => turn.role === "user");
-    if (/my feedback|my ticket|my bug|feedback status/.test((latest?.content || "").toLowerCase())) {
+    const latestText = latest?.content || "";
+    const guidePath = pathname.split("?")[0] || "";
+    const quoteId = guidePath.startsWith("/guide/") ? guidePath.split("/")[2] || "" : "";
+    const row = quoteId ? await getGuideQuote(user.id, quoteId) : null;
+    const askingPrice = /how much|worth|price|re-?price|what should i (ask|charge)|fair price|sold for/i.test(latestText);
+    const namesProduct = /switch|iphone|playstation|\bps5\b|airpods|xbox|macbook/i.test(latestText);
+    if (row?.description && (askingPrice || namesProduct)) {
+      const fromQuote = answerFromMarket(row.description, row.priceCents);
+      if (fromQuote) {
+        return Response.json({ type: "message", configured: llmProvider() != null, text: fromQuote, allowance: await assistantAllowance(user) });
+      }
+    }
+    if (askingPrice || namesProduct) {
+      const fromMessage = answerFromMarket(latestText, row?.priceCents ?? null);
+      if (fromMessage) {
+        return Response.json({ type: "message", configured: llmProvider() != null, text: fromMessage, allowance: await assistantAllowance(user) });
+      }
+    }
+    if (/my feedback|my ticket|my bug|feedback status/.test(latestText.toLowerCase())) {
       return Response.json({
         type: "message",
         configured: llmProvider() != null,
         text: await feedbackAssistantText(user.id),
+        allowance: await assistantAllowance(user),
       });
     }
-    const guidePath = pathname.split("?")[0] || "";
-    if (guidePath.startsWith("/guide/")) {
-      const quoteId = guidePath.split("/")[2] || "";
-      const row = quoteId ? await getGuideQuote(user.id, quoteId) : null;
-      const explained = explainPrice(latest?.content || "", row);
+    if (row) {
+      const explained = explainPrice(latestText, row);
       if (explained) {
-        return Response.json({ type: "message", configured: llmProvider() != null, text: explained });
+        return Response.json({ type: "message", configured: llmProvider() != null, text: explained, allowance: await assistantAllowance(user) });
       }
     }
-    const guided = guideAnswer(pathname, latest?.content || "");
+    const guided = guideAnswer(pathname, latestText);
     if (guided) {
-      return Response.json({ type: "message", configured: llmProvider() != null, text: guided });
+      return Response.json({ type: "message", configured: llmProvider() != null, text: guided, allowance: await assistantAllowance(user) });
     }
   }
   const slice = await loadAccount(user.id, user.email);
@@ -104,6 +189,7 @@ export async function POST(request: Request) {
         type: "message",
         configured: true,
         text: text || "I could not find that in your account.",
+        allowance: await assistantAllowance(user),
       });
     } catch (error) {
       const text = error instanceof Error ? error.message : "The assistant failed.";

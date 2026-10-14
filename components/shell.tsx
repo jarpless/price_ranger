@@ -30,8 +30,8 @@ export function Shell({
               Price Ranger
             </Link>
             {guest ? (
-              <Link href="/login?reason=save" className="ml-auto whitespace-nowrap px-2 text-sm font-semibold text-cream">
-                Save
+              <Link href="/signin" className="ml-auto inline-flex h-11 items-center whitespace-nowrap rounded-xl bg-cream px-3 text-sm font-semibold text-pine">
+                Sign in
               </Link>
             ) : (
               <form action={signOut} className="ml-auto">
@@ -42,11 +42,6 @@ export function Shell({
             )}
           </div>
         </header>
-        {guest ? (
-          <p className="bg-paper px-4 py-2 text-caption leading-4 text-muted lg:px-10">
-            This draft stays on this device until you save an account.
-          </p>
-        ) : null}
         <main className="mx-auto w-full max-w-[36rem] flex-1 px-4 pb-40 pt-6 lg:max-w-[60rem] lg:px-10 lg:pb-16 lg:pt-12">
           <div className="mb-4 hidden lg:block">
             <BackButton className="text-pine" />

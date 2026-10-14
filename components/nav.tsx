@@ -5,8 +5,10 @@ import { usePathname } from "next/navigation";
 
 import { signOut } from "@/app/actions";
 
+import { NavIcon } from "./icons";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
+import { APP_CODENAME } from "@/lib/version";
 
 export function navItems(quotesLabel: string) {
   void quotesLabel;
@@ -41,7 +43,7 @@ export function BottomNav({ quotesLabel }: { quotesLabel: string }) {
                 aria-current={active ? "page" : undefined}
                 className={`flex h-16 flex-col items-center justify-center whitespace-nowrap text-sm font-semibold ${active ? "text-pine" : "text-muted"}`}
               >
-                <span className={`mb-1 h-0.5 w-6 rounded-full ${active ? "bg-pine" : "bg-transparent"}`} />
+                <NavIcon name={item.spot as "home" | "price" | "menu"} className="mb-0.5 h-6 w-6" />
                 {item.short}
               </Link>
             </li>
@@ -60,7 +62,7 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
         <Logo tone="light" width={32} height={32} className="h-8 w-8" />
         <div>
           <p className="font-serif text-title leading-8">Price Ranger</p>
-          <p className="text-caption uppercase tracking-[0.14em] text-cream/70">Ridgeline</p>
+          <p className="text-caption uppercase tracking-[0.14em] text-cream/70">{APP_CODENAME}</p>
         </div>
       </div>
       <nav className="mt-8 flex-1 px-3">
@@ -73,8 +75,9 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   data-spotlight={`nav-${item.spot}`}
-                  className={`flex h-12 items-center whitespace-nowrap rounded-xl px-3 text-base font-semibold ${active ? "bg-white/15 text-cream" : "text-cream/80 hover:bg-white/10 hover:text-cream"}`}
+                  className={`flex h-12 items-center gap-3 whitespace-nowrap rounded-xl px-3 text-base font-semibold ${active ? "bg-white/15 text-cream" : "text-cream/80 hover:bg-white/10 hover:text-cream"}`}
                 >
+                  <NavIcon name={item.spot as "home" | "price" | "menu"} className="h-5 w-5" />
                   {item.label}
                 </Link>
               </li>
@@ -83,9 +86,14 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
         </ul>
       </nav>
       {guest ? (
-        <Link href="/login?reason=save" className="mx-3 mb-6 flex h-12 items-center whitespace-nowrap rounded-xl px-3 text-base font-semibold text-cream hover:bg-white/10">
-          Save account
-        </Link>
+        <div className="mx-3 mb-6 space-y-1">
+          <Link href="/signin" className="flex h-12 items-center whitespace-nowrap rounded-xl bg-cream px-3 text-base font-semibold text-pine">
+            Sign in
+          </Link>
+          <Link href="/signin?reason=save" className="flex h-12 items-center whitespace-nowrap rounded-xl px-3 text-base font-semibold text-cream hover:bg-white/10">
+            Save account
+          </Link>
+        </div>
       ) : (
         <form action={signOut} className="px-3 pb-6">
           <SubmitButton

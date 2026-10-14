@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme {
+@theme inline {
   --color-pine: #1e4636;
   --color-pine-deep: #132e24;
   --color-gold: #c6a15b;

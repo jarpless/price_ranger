@@ -22,14 +22,20 @@ export interface SharedSheet {
   subtitle: string;
   photo?: string | null;
   note?: string;
+  seller?: string;
+  date?: string;
   options: SheetOption[];
 }
+
+const PLACEHOLDER_NAME = /^(buyer|customer|sample|price check|listing)$/i;
 
 export interface SheetExtras {
   photo?: string | null;
   note?: string;
   sources?: string[];
   adjustment?: Adjustment;
+  seller?: string;
+  date?: string;
 }
 
 export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: SheetExtras = {}): SharedSheet {
@@ -50,13 +56,17 @@ export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: Shee
       const settled = lineSettlement(item, adjustment);
       return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
     });
-    return { name: tier.name, lines, total: formatUsd(settledTotal(money, adjustment)) };
+    const name = /^(standard|price)$/i.test(tier.name) ? "Asking price" : tier.name;
+    return { name, lines, total: formatUsd(settledTotal(money, adjustment)) };
   });
+  const subtitle = PLACEHOLDER_NAME.test(quote.customerName.trim()) ? extras.note || "" : quote.customerName;
   return {
     title: quote.title,
-    subtitle: quote.customerName,
+    subtitle,
     photo: extras.photo ?? null,
     note: extras.note,
+    seller: extras.seller,
+    date: extras.date,
     options,
   };
 }
@@ -65,12 +75,14 @@ export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: Shee
 export function buyerSheet(
   quote: QuoteRecord,
   groups: ItemGroup[],
-  guide: { sources?: string[] | null; note?: string | null; photo?: string | null } = {},
+  guide: { sources?: string[] | null; note?: string | null; photo?: string | null; seller?: string; date?: string } = {},
 ): SharedSheet {
   return buildSheet(quote, groups, {
     sources: guide.sources ?? [],
     note: guide.note || undefined,
     photo: guide.photo ?? null,
+    seller: guide.seller,
+    date: guide.date,
   });
 }
 

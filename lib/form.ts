@@ -26,4 +26,10 @@ export const FORM_ERRORS: Record<string, string> = {
   provider: "That sign-in provider needs Supabase, with the provider turned on.",
   guest: "Guest sign-in needs anonymous auth in Supabase, or local mode.",
   signin: "That email and password did not match.",
+  unverified: "That email isn't verified yet. Enter the 6-digit code, or send it again.",
+  "resend-wait": "Wait a minute before sending another code.",
+  rate_limit: "You can request another code in a minute.",
+  captcha: "The sign-in check failed. Try again.",
+  auth: "We couldn't send that just now. Try again in a minute.",
+  payments: "Test payments aren't available from this server yet.",
 };

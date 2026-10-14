@@ -2,16 +2,18 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { notFound, redirect } from "next/navigation";
 
 import {
-  applyAdjustment,
   continueGuide,
   markOutcome,
   saveDescription,
   sendQuote,
 } from "@/app/guide-actions";
 import { GuideProgress } from "@/components/guide-ui";
+import { MarketCard } from "@/components/market-card";
 import { PathSwitch } from "@/components/path-switch";
 import { PhotoField } from "@/components/photo-field";
 import { PrimaryDock } from "@/components/primary-dock";
+import { ShareActions } from "@/components/share-actions";
+import { InfoTip } from "@/components/info-tip";
 import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { stepCopy } from "@/lib/guide/flow";
@@ -38,8 +40,8 @@ export default async function GuidePage({
   if (!row) notFound();
   const copy = stepCopy(row.step, row.path);
   const sent = Boolean(row.step === "share" && row.sharedAt);
-  const title = sent ? "Sent" : row.step === "sold" ? copy.title : copy.title;
-  const now = sent ? "The link is ready. Mark it sold when you know." : copy.now;
+  const title = sent ? "Sent" : copy.title;
+  const now = sent ? "The link is ready. Share it yourself. Nothing else is emailed." : copy.now;
   const price = row.priceCents != null ? formatUsd(row.priceCents) : "";
   const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
   const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
@@ -93,73 +95,23 @@ export default async function GuidePage({
       ) : null}
 
       {showPrice ? (
-        <div className="mt-6">
-          <div className="rounded-2xl border border-line bg-paper p-5 shadow-card">
-            <span className="block font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">{price}</span>
-            <span className="mt-3 block text-body leading-6">{row.note}</span>
-            {lines.length > 0 ? (
-              <ul className="mt-4 space-y-3 border-t border-line pt-4">
-                {lines.map((line) => (
-                  <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3">
-                    <span>
-                      <span className="block text-base font-semibold">{line.name}</span>
-                      <span className="text-caption text-muted">{line.detail}</span>
-                    </span>
-                    <span className="shrink-0 font-serif text-title tabular-nums">{line.price}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+        <div>
+          <MarketCard
+            quoteId={row.quoteId}
+            description={row.description}
+            priceCents={row.priceCents}
+            note={row.note}
+            sources={row.sources}
+            extras={lines}
+          />
+          {sources.length > 0 ? (
+            <p className="mt-3 text-caption text-muted">{sources[0]}</p>
+          ) : null}
+          <div className="mt-4 flex items-center gap-1">
+            <p className="text-caption text-muted">Send creates a link and a PDF. You share them yourself.</p>
+            <InfoTip id="share" />
           </div>
-          <details className="mt-4 rounded-2xl border border-line bg-paper p-4 shadow-card">
-            <summary className="cursor-pointer whitespace-nowrap text-base font-semibold">Change it</summary>
-            <div className="mt-4 space-y-4">
-              <form action={applyAdjustment} className="space-y-2">
-                <input type="hidden" name="quoteId" value={row.quoteId} />
-                <input type="hidden" name="kind" value="discount" />
-                <label className="block text-base font-semibold">
-                  Discount percent
-                  <input name="percent" inputMode="numeric" placeholder="10" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
-                </label>
-                <label className="flex min-h-12 items-center gap-3 text-body">
-                  <input name="includeFees" type="checkbox" className="h-12 w-12 shrink-0" />
-                  Also take it off fees
-                </label>
-                <Button type="submit" variant="secondary">Take off</Button>
-              </form>
-              <form action={applyAdjustment} className="space-y-2">
-                <input type="hidden" name="quoteId" value={row.quoteId} />
-                <input type="hidden" name="kind" value="fee" />
-                <label className="block text-base font-semibold">
-                  Fee
-                  <input name="amount" inputMode="decimal" placeholder="25" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
-                </label>
-                <Button type="submit" variant="secondary">Add fee</Button>
-              </form>
-              <form action={applyAdjustment} className="space-y-2">
-                <input type="hidden" name="quoteId" value={row.quoteId} />
-                <input type="hidden" name="kind" value="line" />
-                <label className="block text-base font-semibold">
-                  Extra line
-                  <input name="name" placeholder="Delivery" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
-                </label>
-                <label className="block text-base font-semibold">
-                  Amount
-                  <input name="amount" inputMode="decimal" placeholder="15" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
-                </label>
-                <Button type="submit" variant="secondary">Add line</Button>
-              </form>
-              <div>
-                <p className="text-base font-semibold">Sources</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-body text-muted">
-                  {sources.map((source) => (
-                    <li key={source}>{source}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </details>
-          <form action={sendQuote} className="mt-4">
+          <form action={sendQuote}>
             <input type="hidden" name="quoteId" value={row.quoteId} />
             <PrimaryDock>
               <Button type="submit">Send</Button>
@@ -184,6 +136,7 @@ export default async function GuidePage({
               ))}
             </ul>
           ) : null}
+          <ShareActions href={shareHref} title={row.description || "Price Ranger"} />
           <Link
             href={shareHref}
             className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink lg:w-auto lg:min-w-48 lg:px-6"

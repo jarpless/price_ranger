@@ -1,3 +1,4 @@
+import { answerFromMarket } from "../market";
 import { formatUsd } from "../money";
 import { isGuideStep, stepCopy, type GuidePath, type GuideStep } from "./flow";
 
@@ -20,9 +21,15 @@ export function explainPrice(
   quote: { description: string; priceCents: number | null; note: string } | null,
 ): string | null {
   const text = message.trim().toLowerCase();
-  if (!/why (this|the) price|what should i do next/.test(text)) return null;
+  const askingPrice = /why (this|the) price|what should i do next|how much|what('?s| is) it worth|price (this|the|it)|re-?price/.test(text);
+  if (!askingPrice && !quote) return null;
+  if (quote?.description) {
+    const priced = answerFromMarket(quote.description, quote.priceCents);
+    if (priced && (askingPrice || /price|worth|switch|how much/.test(text))) return priced;
+  }
+  if (!askingPrice) return null;
   if (!quote || quote.priceCents == null) {
-    return "Add a photo or a few words. You'll see a price and a sentence that explains it. Next, tap Send.";
+    return "Add a photo or tap an item. You'll see a range, a condition, and sold listings. Next, tap Send when you want a link.";
   }
   const name = quote.description || "this";
   return `This is ${formatUsd(quote.priceCents)} for ${name}. ${quote.note} Next, tap Send to share the link.`;
@@ -46,7 +53,7 @@ export function guideAnswer(pathname: string, message: string): string | null {
     `When you're ready, tap “${copy.primary}”.`,
   ];
   if (step === "review" || step === "adjust") {
-    lines.push("Discounts, fees, extra lines, and sources are under Change it. You can send without opening it.");
+    lines.push("Condition, model, and preset chips update the price. You can also type your own number, then tap Send.");
   }
   if (step === "share") {
     lines.push("After you send it, you'll see a reminder to mark it sold.");

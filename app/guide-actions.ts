@@ -5,7 +5,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireUser, safeNext } from "@/lib/auth";
-import { confirmPlusCheckout, createPlusCheckout, stripeTestKey } from "@/lib/billing";
+import { createCheckout, parseCheckoutChoice, readCheckout, stripeTestKey } from "@/lib/billing";
+import { saveBillingProfile } from "@/lib/account/billing-profile";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip } from "@/lib/form";
 import { pricingAccess } from "@/lib/guide/access";
@@ -23,8 +24,9 @@ import {
   saveGuideUser,
   type GuideQuote as StoredGuideQuote,
 } from "@/lib/guide/store";
+import { readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById } from "@/lib/market";
 import { parseDollarsToCents } from "@/lib/money";
-import { PLAN_PRICES_CENTS } from "@/lib/plans";
+import { isPlanId, PLAN_PRICES_CENTS, type PlanId } from "@/lib/plans";
 import { buyerSheet, publishSheet } from "@/lib/share";
 import { getData } from "@/lib/store";
 import { addLocalPaidCents, setLocalPlan } from "@/lib/store/local";
@@ -49,6 +51,25 @@ async function quoteLines(userId: string, quoteId: string) {
 
 async function settledPrice(userId: string, quoteId: string, adjustment: Adjustment): Promise<number> {
   return settledTotal(await quoteLines(userId, quoteId), adjustment);
+}
+
+async function setFirstLinePrice(userId: string, quoteId: string, cents: number) {
+  const data = await getData();
+  const quote = await data.getQuote(userId, quoteId);
+  const groups = await data.listGroups(userId);
+  const group = quote?.tiers[0]?.groupIds.map((id) => groups.find((item) => item.id === id)).find(Boolean);
+  const line = group?.items[0];
+  if (!line) return;
+  await data.updateGroupItem(userId, line.id, { quantity: 1, unitPriceCents: cents });
+}
+
+async function addExtraLine(userId: string, quoteId: string, name: string, amount: number) {
+  const data = await getData();
+  const quote = await data.getQuote(userId, quoteId);
+  const groupId = quote?.tiers[0]?.groupIds[0];
+  if (!groupId) return;
+  const itemId = await data.createCustomItem(userId, { name, unit: "each", unitPriceCents: amount });
+  await data.addGroupItem(userId, groupId, itemId);
 }
 
 function isRedirect(error: unknown): boolean {
@@ -331,7 +352,35 @@ export async function applyAdjustment(formData: FormData) {
   const kind = clip(formData.get("kind"), 20);
   const data = await getData();
   let sources = row.sources;
-  if (kind === "discount") {
+  if (kind === "condition" || kind === "variant") {
+    const meta = readMarketMeta(sources);
+    const condition = kind === "condition" ? conditionById(clip(formData.get("value"), 20)) : meta.condition;
+    const variant = kind === "variant" ? clip(formData.get("value"), 40) : meta.variantId;
+    const priced = repriceMarket(row.description, condition, variant);
+    if (!priced) redirect(`/guide/${quoteId}?error=price`);
+    sources = replaceMarketSources(sources.filter((source) => !source.startsWith("meta:override=")), priced);
+    await setFirstLinePrice(user.id, quoteId, priced.cents);
+  } else if (kind === "price" || kind === "slider") {
+    const meta = readMarketMeta(sources);
+    const base = meta.suggestedCents || row.priceCents || 0;
+    const amount = kind === "slider"
+      ? Math.max(0, Math.round((base * (100 + Number(clip(formData.get("percent"), 8) || "0"))) / 100))
+      : parseDollarsToCents(clip(formData.get("amount"), 20));
+    if (amount == null) redirect(`/guide/${quoteId}?error=price`);
+    sources = withOverride(sources, amount);
+    await setFirstLinePrice(user.id, quoteId, amount);
+  } else if (kind === "preset") {
+    const preset = clip(formData.get("value"), 20);
+    if (preset === "off10" || preset === "off20") {
+      sources = withAdjustment(sources, { percent: preset === "off10" ? 10 : 20, includeFees: false });
+    } else if (preset === "ship8" || preset === "ship15" || preset === "fee3") {
+      const amount = preset === "ship8" ? 800 : preset === "ship15" ? 1500 : 300;
+      const name = preset.startsWith("ship") ? "Shipping" : "Fee";
+      await addExtraLine(user.id, quoteId, name, amount);
+    } else {
+      redirect(`/guide/${quoteId}?error=fee`);
+    }
+  } else if (kind === "discount") {
     const raw = clip(formData.get("percent"), 8);
     const percent = Number(raw);
     if (!/^\d{1,3}$/.test(raw) || !Number.isFinite(percent) || percent <= 0 || percent > 100) {
@@ -375,6 +424,8 @@ export async function sendQuote(formData: FormData) {
       sources: row.sources,
       note: row.note,
       photo: photo ? photoDataUrl(photo) : null,
+      seller: user.email && !user.guest ? user.email : "Seller",
+      date: new Date().toISOString().slice(0, 10),
     }),
   );
   if (!token) redirect(`/guide/${quoteId}?error=share`);
@@ -424,53 +475,98 @@ export async function requestDeletion() {
   const { deleteSignedInAccount } = await import("@/lib/account/delete");
   const result = await deleteSignedInAccount(user.id);
   if (!result.ok) redirect("/settings?privacy=delete-failed");
-  redirect("/login?notice=deleted");
+  redirect("/signin?notice=deleted");
 }
 
-export async function startCheckout() {
+export async function startCheckout(formData?: FormData) {
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
   await recordFunnel(user.id, "upgrade_viewed", { variant: guide.variant, source: "checkout" });
-  if (!stripeTestKey()) redirect("/upgrade");
+  if (!stripeTestKey()) redirect("/upgrade?error=payments");
+  const choice = parseCheckoutChoice(
+    clip(formData?.get("plan") ?? "plus", 20),
+    clip(formData?.get("interval") ?? "month", 10),
+  );
+  if (!choice) redirect("/upgrade");
   const origin = siteOriginFromHeaders(await headers());
   let url = "";
   try {
-    url = await createPlusCheckout({
+    url = await createCheckout({
       userId: user.id,
       email: user.email,
       origin,
+      choice,
     });
   } catch {
-    redirect("/upgrade");
+    redirect("/upgrade?error=payments");
   }
   redirect(url);
 }
 
+export async function startPortal() {
+  const user = await requireUser();
+  if (!stripeTestKey()) redirect("/settings?billing=unavailable");
+  const { readBillingProfile } = await import("@/lib/account/billing-profile");
+  const { createPortal, findCustomerId } = await import("@/lib/billing");
+  const profile = await readBillingProfile(user.id);
+  const customerId = profile.customerId || (user.email ? await findCustomerId(user.email).catch(() => null) : null);
+  if (!customerId) redirect("/upgrade");
+  const origin = siteOriginFromHeaders(await headers());
+  try {
+    redirect(await createPortal({ customerId, origin }));
+  } catch {
+    redirect("/settings?billing=unavailable");
+  }
+}
+
 export async function finishCheckout(sessionId: string) {
   const user = await requireUser();
-  const paid = await confirmPlusCheckout(sessionId, user.id);
-  if (!paid) return false;
-  if (dataBackend() === "local") {
-    await setLocalPlan(user.id, "plus", null);
-    await addLocalPaidCents(user.id, PLAN_PRICES_CENTS.plusMonth);
-  } else if (dataBackend() === "supabase") {
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!key || !url) return false;
-    const { createClient } = await import("@supabase/supabase-js");
-    const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const current = await service.from("profiles").select("paid_cents").eq("id", user.id).maybeSingle();
-    const paid = Number((current.data as { paid_cents?: number } | null)?.paid_cents ?? 0);
-    let { error } = await service.from("profiles").update({ plan: "plus", paid_cents: paid + PLAN_PRICES_CENTS.plusMonth }).eq("id", user.id);
-    if (error && /paid_cents|schema cache|does not exist/i.test(error.message)) {
-      const retry = await service.from("profiles").update({ plan: "plus" }).eq("id", user.id);
-      error = retry.error;
-    }
-    if (error) throw new Error(error.message);
+  let result: Awaited<ReturnType<typeof readCheckout>> = null;
+  try {
+    result = await readCheckout(sessionId, user.id);
+  } catch {
+    return null;
   }
-  const guide = await ensureGuideUser(user.id);
-  await recordFunnel(user.id, "checkout_completed", { plan: "plus", variant: guide.variant });
+  if (!result || result.status !== "paid") return result;
+  const plan: PlanId = isPlanId(result.plan) ? result.plan : "plus";
+  const passExpires = plan === "pass" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+  try {
+    if (dataBackend() === "local") {
+      await setLocalPlan(user.id, plan, passExpires);
+      await addLocalPaidCents(user.id, result.amountCents || PLAN_PRICES_CENTS.plusMonth);
+    } else if (dataBackend() === "supabase") {
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!key || !url) return { ...result, status: "pending" as const };
+      const { createClient } = await import("@supabase/supabase-js");
+      const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+      const current = await service.from("profiles").select("paid_cents").eq("id", user.id).maybeSingle();
+      const already = Number((current.data as { paid_cents?: number } | null)?.paid_cents ?? 0);
+      const patch: { plan: PlanId; paid_cents?: number; pass_expires_at?: string | null } = {
+        plan,
+        paid_cents: already + (result.amountCents || 0),
+      };
+      if (plan === "pass") patch.pass_expires_at = passExpires;
+      let { error } = await service.from("profiles").update(patch).eq("id", user.id);
+      if (error && /paid_cents|pass_expires_at|schema cache|does not exist/i.test(error.message)) {
+        const retry = await service.from("profiles").update({ plan, ...(plan === "pass" ? { pass_expires_at: passExpires } : {}) }).eq("id", user.id);
+        error = retry.error;
+      }
+      if (error) return { ...result, status: "pending" as const };
+      await saveBillingProfile(user.id, {
+        customerId: result.customerId,
+        subscriptionId: result.subscriptionId,
+        renewsAt: result.renewsAt,
+        interval: result.interval,
+      }).catch(() => undefined);
+    }
+    const guide = await ensureGuideUser(user.id);
+    await recordFunnel(user.id, "checkout_completed", { plan, variant: guide.variant }).catch(() => undefined);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    return { ...result, status: "pending" as const };
+  }
   refresh();
-  return true;
+  return result;
 }
 

@@ -1,18 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Outfit } from "next/font/google";
+import localFont from "next/font/local";
 
 import { AppChrome } from "@/components/app-chrome";
 
 import "./globals.css";
 
-const outfit = Outfit({
-  subsets: ["latin"],
+const outfit = localFont({
+  src: [
+    { path: "./fonts/outfit-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/outfit-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/outfit-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/outfit-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-outfit",
+  display: "swap",
 });
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
+const fraunces = localFont({
+  src: [
+    { path: "./fonts/fraunces-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/fraunces-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/fraunces-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-fraunces",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

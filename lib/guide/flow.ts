@@ -4,6 +4,12 @@ import {
   freeQuoteLimit,
   trialDays,
 } from "./config";
+import {
+  marketPrice,
+  type Comparable,
+  type ConditionId,
+  type Confidence,
+} from "../market";
 
 export const VARIANTS = ["a", "b"] as const;
 export type Variant = (typeof VARIANTS)[number];
@@ -87,7 +93,7 @@ export function onboardingCopy(variant: Variant): OnboardingCopy {
 
 export function pathLabel(path: GuidePath): string {
   if (path === "item") return "Selling an item";
-  if (path === "job") return "Quoting a job";
+  if (path === "job") return "Pricing a service";
   return "Checking a price";
 }
 
@@ -107,14 +113,14 @@ const STEP_COPY: Record<GuideStep, StepCopy> = {
   },
   review: {
     title: "Your price",
-    now: "This is the price we suggest.",
-    next: "Send it, or change it first.",
+    now: "A range from recent sold listings, with a price in the middle.",
+    next: "Send the link, or tap a chip to adjust it.",
     primary: "Send",
   },
   adjust: {
-    title: "Change it",
-    now: "Optional. The price updates as you go.",
-    next: "Send it when it looks right.",
+    title: "Your price",
+    now: "Tap a chip for condition, a discount, or shipping. Typing is optional.",
+    next: "Send the link when it looks right.",
     primary: "Send",
   },
   share: {
@@ -170,8 +176,44 @@ export function nextStep(step: GuideStep): GuideStep | null {
 
 export interface PriceSuggestion {
   cents: number;
+  lowCents: number;
+  highCents: number;
   note: string;
   sources: string[];
+  confidence: Confidence;
+  condition: ConditionId;
+  model: string | null;
+  modelChoices: { id: string; label: string }[];
+  itemId: string | null;
+  comparables: Comparable[];
+}
+
+function suggestion(partial: {
+  cents: number;
+  note: string;
+  sources: string[];
+  lowCents?: number;
+  highCents?: number;
+  confidence?: Confidence;
+  condition?: ConditionId;
+  model?: string | null;
+  modelChoices?: { id: string; label: string }[];
+  itemId?: string | null;
+  comparables?: Comparable[];
+}): PriceSuggestion {
+  return {
+    lowCents: partial.lowCents ?? partial.cents,
+    highCents: partial.highCents ?? partial.cents,
+    confidence: partial.confidence ?? "medium",
+    condition: partial.condition ?? "good",
+    model: partial.model ?? null,
+    modelChoices: partial.modelChoices ?? [],
+    itemId: partial.itemId ?? null,
+    comparables: partial.comparables ?? [],
+    cents: partial.cents,
+    note: partial.note,
+    sources: partial.sources,
+  };
 }
 
 const PRICE_RULES: { test: RegExp; cents: number; note: string }[] = [
@@ -184,32 +226,59 @@ const PRICE_RULES: { test: RegExp; cents: number; note: string }[] = [
 
 export function suggestPrice(description: string, path: GuidePath): PriceSuggestion {
   const text = description.toLowerCase();
+  const priced = marketPrice(description);
+  if (priced) {
+    return suggestion({
+      cents: priced.cents,
+      lowCents: priced.lowCents,
+      highCents: priced.highCents,
+      note: priced.note,
+      sources: priced.sources,
+      confidence: priced.confidence,
+      condition: priced.condition,
+      model: priced.variantLabel,
+      modelChoices: priced.ambiguousModel ? priced.variants : [],
+      itemId: priced.itemId,
+      comparables: priced.comparables,
+    });
+  }
   if (/roof|shingle/.test(text)) {
     const repair = /\b(small|repair|patch|leak|fix)\b/.test(text);
     const full = /\b(replac|full|reroof|tear-?off|new roof)\b/.test(text);
     if (repair && !full) {
-      return {
+      return suggestion({
         cents: 85000,
+        lowCents: 65000,
+        highCents: 120000,
+        confidence: "medium",
         note: "A small roof repair, not a full replacement.",
         sources: ["Similar small repairs in Price Ranger", "Not priced as a full roof"],
-      };
+      });
     }
-    return {
+    return suggestion({
       cents: 850000,
+      lowCents: 700000,
+      highCents: 1100000,
+      confidence: "medium",
       note: "Most full roof jobs like this land around this price.",
       sources: ["Similar prices in Price Ranger", "A typical range for this kind of job"],
-    };
+    });
   }
   const match = PRICE_RULES.find((rule) => rule.test.test(text));
-  const fallback =
-    path === "job" ? 35000 : path === "check" ? 2500 : 4000;
+  const fallback = path === "job" ? 35000 : path === "check" ? 2500 : 4000;
   const cents = match?.cents ?? fallback;
-  const note = match?.note ?? "A starting price from similar things people price here.";
-  return {
+  const note = match?.note ?? "A starting price. We don't have enough sold listings to be sure.";
+  const confidence: Confidence = match ? "medium" : "low";
+  return suggestion({
     cents,
+    lowCents: Math.round(cents * 0.8),
+    highCents: Math.round(cents * 1.2),
+    confidence,
     note,
-    sources: ["Similar prices in Price Ranger", "A typical range for this kind of " + (path === "job" ? "job" : "sale")],
-  };
+    sources: match
+      ? ["Similar prices in Price Ranger", "A typical range for this kind of " + (path === "job" ? "job" : "sale")]
+      : ["Not enough sold listings yet", "A typical range for this kind of " + (path === "job" ? "job" : "sale")],
+  });
 }
 
 export function applyDiscount(cents: number, percent: number): number {

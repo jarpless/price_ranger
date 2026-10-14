@@ -13,9 +13,14 @@ export default async function PublicSheetPage({ params }: { params: Promise<{ to
 
   return (
     <main className="mx-auto min-h-dvh max-w-3xl px-5 py-8">
-      <p className="text-caption font-semibold text-muted">Price sheet</p>
+      <p className="font-serif text-title text-pine">Price Ranger</p>
       <h1 className="mt-2 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{sheet.title}</h1>
-      <p className="mt-2 text-body text-muted">{sheet.subtitle}</p>
+      {sheet.subtitle ? <p className="mt-2 text-body text-muted">{sheet.subtitle}</p> : null}
+      {sheet.seller || sheet.date ? (
+        <p className="mt-2 text-caption text-muted">
+          {[sheet.seller, sheet.date].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
       {sheet.photo ? (
         // The buyer opens this without an account. The picture is part of the sheet they were sent.
         // eslint-disable-next-line @next/next/no-img-element

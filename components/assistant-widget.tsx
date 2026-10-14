@@ -6,9 +6,16 @@ import { useEffect, useRef, useState } from "react";
 
 import type { BuildStamp } from "@/lib/build-info";
 
+import { InfoTip } from "./info-tip";
 import { Logo } from "./logo";
 import { MyFeedbackList } from "./my-feedback-list";
 import { Spotlight } from "./spotlight";
+
+interface Allowance {
+  used: number;
+  cap: number;
+  remaining: number;
+}
 
 interface ChatLine {
   role: "user" | "assistant";
@@ -54,7 +61,7 @@ async function wait(ms: number, stop: () => boolean) {
   return true;
 }
 
-export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boolean }) {
+export function AssistantWidget({ signedIn, allowance: initialAllowance }: { stamp: BuildStamp; signedIn: boolean; allowance?: Allowance | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -66,6 +73,7 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
   const [pending, setPending] = useState<Step | null>(null);
   const [spotlight, setSpotlight] = useState<{ selector: string; caption: string } | null>(null);
   const [tourHref, setTourHref] = useState("");
+  const [allowance, setAllowance] = useState<Allowance | null>(initialAllowance ?? null);
   const stopRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
   const playedRef = useRef<{ caption: string; href: string; spotlight: string }[]>([]);
@@ -166,12 +174,14 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
         steps?: Step[];
         continue?: boolean;
         error?: string;
+        allowance?: Allowance;
       };
       if (!response.ok) {
         setLines((current) => [...current, { role: "assistant", text: payload.error || payload.text || "The assistant could not answer." }]);
         break;
       }
       if (payload.note) setNote(payload.note);
+      if (payload.allowance) setAllowance(payload.allowance);
       if (payload.type === "message") {
         setLines((current) => [...current, { role: "assistant", text: payload.text || "" }]);
         turnsRef.current.push({ role: "assistant", content: payload.text || "" });
@@ -237,6 +247,17 @@ export function AssistantWidget({ signedIn }: { stamp: BuildStamp; signedIn: boo
           </button>
         ))}
       </div>
+      {allowance ? (
+        <p className="flex items-center px-4 text-caption text-muted">
+          {allowance.remaining} of {allowance.cap} messages left
+          <InfoTip id="messages" />
+          {allowance.remaining <= 2 ? (
+            <Link href="/upgrade" className="ml-2 font-semibold text-pine">
+              Upgrade
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
       {note ? <p className="px-4 text-xs leading-relaxed text-muted">{note}</p> : null}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {lines.length === 0 ? (

@@ -18,13 +18,15 @@ function flag(name: string): boolean {
   return process.env[name] === "true";
 }
 
-/** Buttons for providers that are explicitly turned on. Apple stays hidden until NEXT_PUBLIC_ENABLE_APPLE is true. */
+/**
+ * Apple and Google are always offered on the sign-in screen.
+ * They succeed after the provider is enabled in the Supabase dashboard.
+ * Facebook and Microsoft stay behind flags.
+ */
 export function enabledOAuthButtons(): OAuthButton[] {
-  const buttons: OAuthButton[] = [];
-  if (flag("NEXT_PUBLIC_AUTH_GOOGLE")) buttons.push(BUTTONS.google);
+  const buttons: OAuthButton[] = [BUTTONS.apple, BUTTONS.google];
   if (flag("NEXT_PUBLIC_AUTH_FACEBOOK")) buttons.push(BUTTONS.facebook);
   if (flag("NEXT_PUBLIC_AUTH_AZURE")) buttons.push(BUTTONS.azure);
-  if (flag("NEXT_PUBLIC_ENABLE_APPLE")) buttons.push(BUTTONS.apple);
   return buttons;
 }
 

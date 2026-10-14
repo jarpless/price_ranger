@@ -5,7 +5,8 @@ import { startSample } from "@/app/guide-actions";
 import { GuideSetupNotice } from "@/components/guide-setup-notice";
 import { PrimaryDock } from "@/components/primary-dock";
 import { SubmitButton } from "@/components/ui";
-import { requireUser } from "@/lib/auth";
+import { Landing } from "@/components/landing";
+import { getSessionUser } from "@/lib/auth";
 import { planStatusLine, pricingAccess } from "@/lib/guide/access";
 import { ensureGuideUser, listGuideQuotes, type GuideQuote } from "@/lib/guide/store";
 import { formatUsd } from "@/lib/money";
@@ -17,13 +18,14 @@ export const metadata = { title: "Home" };
 function statusLabel(quote: GuideQuote): string {
   if (quote.outcome === "sold") return "Sold";
   if (quote.outcome === "not_yet") return "Not yet";
-  if (quote.sharedAt) return "Sent";
+  if (quote.sharedAt) return "Link ready";
   if (!quote.finishedAt) return "Resume";
   return "Draft";
 }
 
 export default async function HomePage() {
-  const user = await requireUser();
+  const user = await getSessionUser();
+  if (!user) return <Landing />;
   const guide = await ensureGuideUser(user.id);
   if (!guide.tosAcceptedAt) redirect("/welcome");
   const quotes = await listGuideQuotes(user.id);
@@ -68,18 +70,18 @@ export default async function HomePage() {
             </PrimaryDock>
           </div>
           <ol className="mt-8 hidden space-y-4 lg:block">
-            <li className="rounded-2xl border border-line bg-paper p-4 shadow-card">
-              <p className="text-caption font-semibold text-pine">1</p>
-              <p className="mt-1 text-base font-semibold">Add a photo</p>
-            </li>
-            <li className="rounded-2xl border border-line bg-paper p-4 shadow-card">
-              <p className="text-caption font-semibold text-pine">2</p>
-              <p className="mt-1 text-base font-semibold">Check the price</p>
-            </li>
-            <li className="rounded-2xl border border-line bg-paper p-4 shadow-card">
-              <p className="text-caption font-semibold text-pine">3</p>
-              <p className="mt-1 text-base font-semibold">Send the link</p>
-            </li>
+            {[
+              ["1", "Add a photo"],
+              ["2", "Check the price"],
+              ["3", "Send the link"],
+            ].map(([step, label]) => (
+              <li key={step}>
+                <Link href="/new" className="block rounded-2xl border border-line bg-paper p-4 shadow-card">
+                  <p className="text-caption font-semibold text-pine">{step}</p>
+                  <p className="mt-1 text-base font-semibold">{label}</p>
+                </Link>
+              </li>
+            ))}
           </ol>
         </div>
       </div>

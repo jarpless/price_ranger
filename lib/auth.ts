@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { LINK_COOKIE } from "./account/link";
+import { classifyAuthError, type ClassifiedAuthError } from "./auth-errors";
 import { dataBackend } from "./env";
 import { effectivePlan, isPlanId, type PlanId } from "./plans";
 import {
@@ -100,27 +102,25 @@ export async function setLocalSession(userId: string, kind: "guest" | "user") {
 export async function requestMagicLink(
   email: string,
   origin: string,
-): Promise<{ devLink?: string; devCode?: string }> {
+): Promise<{ devLink?: string; devCode?: string; error?: ClassifiedAuthError }> {
   const backend = dataBackend();
   if (backend === "supabase") {
     const supabase = await createClient();
     const current = await getSessionUser();
     if (current?.guest) {
-      const { error } = await supabase.auth.updateUser(
-        { email },
-        { emailRedirectTo: `${origin}/auth/callback` },
-      );
-      if (error) throw new Error(error.message);
-      return {};
+      const cookieStore = await cookies();
+      cookieStore.set(LINK_COOKIE, current.id, { ...cookieOptions, maxAge: 60 * 60 });
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) return { error: classifyAuthError(signOutError) };
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${origin}/auth/callback` },
     });
-    if (error) throw new Error(error.message);
+    if (error) return { error: classifyAuthError(error) };
     return {};
   }
-  if (backend !== "local") throw new Error("Sign-in is not configured.");
+  if (backend !== "local") return { error: classifyAuthError({ code: "signup_disabled", message: "Sign-in is not configured." }) };
 
   const token = await issueMagicLink(email);
   const code = await issueEmailCode(email);

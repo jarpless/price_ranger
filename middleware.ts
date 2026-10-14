@@ -8,8 +8,11 @@ import { refreshSupabaseSession } from "./lib/supabase/middleware";
 
 function isPublic(pathname: string) {
   return (
+    pathname === "/" ||
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
+    pathname === "/signin" ||
+    pathname.startsWith("/signin/") ||
     pathname.startsWith("/auth/") ||
     pathname === "/setup" ||
     pathname === "/terms" ||
@@ -19,7 +22,7 @@ function isPublic(pathname: string) {
 }
 
 function isLogin(pathname: string) {
-  return pathname === "/login" || pathname.startsWith("/login/");
+  return pathname === "/login" || pathname.startsWith("/login/") || pathname === "/signin" || pathname.startsWith("/signin/");
 }
 
 function guestEntry(request: NextRequest) {
@@ -35,7 +38,7 @@ function unsignedRedirect(request: NextRequest) {
     guestSent: request.nextUrl.searchParams.get(GUEST_SENT_PARAM) === "1",
   });
   if (where === "guest") return NextResponse.redirect(guestEntry(request));
-  const url = new URL("/login", request.url);
+  const url = new URL("/signin", request.url);
   if (where === "cookies") url.searchParams.set("notice", "cookies");
   return NextResponse.redirect(url);
 }
@@ -68,6 +71,12 @@ async function supabaseGate(request: NextRequest): Promise<{
 export async function middleware(request: NextRequest) {
   const backend = dataBackend();
   const { pathname } = request.nextUrl;
+
+  if (pathname === "/login") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/signin";
+    return NextResponse.redirect(url);
+  }
 
   if (backend === "unconfigured") {
     if (pathname === "/setup") return NextResponse.next();

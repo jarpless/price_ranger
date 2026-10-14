@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     hasProbe: hasCookie(request.headers.get("cookie"), GUEST_PROBE_COOKIE),
   });
 
-  if (gate === "public") redirect("/login");
+  if (gate === "public") redirect("/signin");
 
   const existing = await getSessionUser();
   if (existing) redirect(withoutParam(next, GUEST_SENT_PARAM));
@@ -46,15 +46,15 @@ export async function GET(request: Request) {
     redirect(`${url.pathname}${url.search}`);
   }
 
-  if (gate === "refuse") redirect("/login?notice=cookies");
+  if (gate === "refuse") redirect("/signin?notice=cookies");
 
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInAnonymously();
     if (error) {
-      if (isGuestRateLimited(error)) redirect("/login?notice=busy");
+      if (isGuestRateLimited(error)) redirect("/signin?notice=busy");
       const detail = encodeURIComponent(guestErrorDetail(error.message));
-      redirect(`/login?error=guest&detail=${detail}`);
+      redirect(`/signin?error=guest&detail=${detail}`);
     }
     redirect(withParam(next, GUEST_SENT_PARAM, "1"));
   }
