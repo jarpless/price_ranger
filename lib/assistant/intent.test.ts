@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { appPath, confirmedAction } from "./intent";
+import { appPath, confirmedAction, inferAssistantMode } from "./intent";
 
 test("explain questions are not account actions", () => {
   assert.equal(confirmedAction("Why should I upgrade?", "/guide/1"), null);
@@ -15,4 +15,11 @@ test("a direct upgrade request opens plans, not a missing settings path", () => 
   assert.equal(step?.href, "/upgrade");
   assert.equal(step?.needsConfirm, true);
   assert.equal(appPath("/settings/plans"), "/upgrade");
+});
+
+test("a question is answered and a request to open something is an action", () => {
+  assert.equal(inferAssistantMode("What plan am I on?"), "ask");
+  assert.equal(inferAssistantMode("How do I share a price?"), "ask");
+  assert.equal(inferAssistantMode("Open prices"), "agent");
+  assert.equal(inferAssistantMode("Upgrade me to Plus"), "agent");
 });

@@ -1,16 +1,7 @@
-"use client";
+import type { ReactNode } from "react";
 
-import { useEffect, type ReactNode } from "react";
-
-/** Pins the one primary action in the thumb zone on compact widths. */
+/** The page action sits in the flow. The assistant pill is the fixed control. */
 export function PrimaryDock({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    document.body.dataset.dock = "1";
-    return () => {
-      delete document.body.dataset.dock;
-    };
-  }, []);
-
   return (
     <div className="primary-dock">
       <div className="primary-dock-inner">{children}</div>

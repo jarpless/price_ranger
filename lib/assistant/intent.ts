@@ -1,3 +1,5 @@
+import { planLocally } from "./plan";
+
 export interface ConfirmedStep {
   name: "navigate";
   args: Record<string, string>;
@@ -53,4 +55,19 @@ export function confirmedAction(message: string, pathname: string): ConfirmedSte
     };
   }
   return null;
+}
+
+/** Questions get an answer. A request to open, add, or change something walks the screen. */
+export function inferAssistantMode(message: string, pathname = "/"): "ask" | "agent" {
+  const text = message.replace(/\s+/g, " ").trim();
+  if (!text) return "ask";
+  const lower = text.toLowerCase();
+  if (text.includes("?") || /^(why|how|what|when|where|who|explain|tell me|is |are |does |do |can |could |should )/.test(lower)) {
+    return "ask";
+  }
+  if (confirmedAction(text, pathname) || planLocally(text, pathname)) return "agent";
+  if (/^(please )?(open|go to|show me|take me|add|create|new|delete|remove|start|mark|upgrade|walk|change|update)\b/.test(lower)) {
+    return "agent";
+  }
+  return "ask";
 }

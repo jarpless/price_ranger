@@ -19,8 +19,9 @@ import {
   writeSnapshot,
 } from "@/lib/assistant/presence";
 
+import { inferAssistantMode } from "@/lib/assistant/intent";
+
 import { InfoTip } from "./info-tip";
-import { IconChat } from "./icons";
 import { Logo } from "./logo";
 import { MyFeedbackList } from "./my-feedback-list";
 import { Spotlight } from "./spotlight";
@@ -432,6 +433,9 @@ export function AssistantWidget({
   }
 
   async function play(step: Step, confirmed = false) {
+    setLines((current) => [...current, { role: "assistant", text: step.caption }]);
+    turnsRef.current.push({ role: "assistant", content: step.caption });
+    setTurnVersion((value) => value + 1);
     setSpotlight({ selector: step.spotlight, caption: step.caption });
     const href = step.href === "/settings/plans" || step.href.startsWith("/settings/plans/") ? "/upgrade" : step.href;
     if (href.startsWith("/") && !href.startsWith("//")) {
@@ -564,12 +568,17 @@ export function AssistantWidget({
   async function send(preset?: string, fromHost = false) {
     const text = (preset ?? draft).trim();
     if (!text || runningRef.current) return;
-    if (!fromHost) setDraft("");
+    if (!fromHost) {
+      const chosen = inferAssistantMode(text, pathnameRef.current);
+      modeRef.current = chosen;
+      setMode(chosen);
+      setDraft("");
+    }
     if (popoutRef.current && !fromHost) {
       const acked = await waitForHost(text);
       if (acked) return;
       if (modeRef.current === "agent") {
-        const hint = "Agent mode needs the Price Ranger window. Bring the assistant back, or switch to Ask.";
+        const hint = "That step needs the Price Ranger window. Bring the assistant back to walk the screen.";
         turnsRef.current = [...turnsRef.current, { role: "user", content: text }, { role: "assistant", content: hint }];
         setLines((current) => [...current, { role: "user", text }, { role: "assistant", text: hint }]);
         setTurnVersion((value) => value + 1);
@@ -648,7 +657,7 @@ export function AssistantWidget({
   const dockTarget = !popout && !mobile && chrome === "docked" && panelVisible ? document.getElementById("assistant-dock") : null;
   const docked = Boolean(dockTarget);
   const showLauncher = !popout && !docked;
-  const launcherLabel = popoutAlive ? "Assistant open in another window, click to bring it back" : "Ask Price Ranger";
+  const launcherLabel = popoutAlive ? "Assistant open in another window, click to bring it back" : "Price Ranger";
 
   const panel = (
     <div className="flex min-h-0 flex-1 flex-col bg-paper text-ink">
@@ -687,22 +696,6 @@ export function AssistantWidget({
           </div>
         ) : null}
       </div>
-      <div className="grid grid-cols-2 gap-1 p-3">
-        {(["ask", "agent"] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={mode === item}
-            onClick={() => {
-              modeRef.current = item;
-              setMode(item);
-            }}
-            className={`h-12 rounded-xl text-base font-semibold ${mode === item ? "bg-pine text-cream" : "bg-cream text-muted"}`}
-          >
-            {item === "ask" ? "Ask" : "Agent"}
-          </button>
-        ))}
-      </div>
       {allowance ? (
         <p className="flex items-center px-4 text-caption text-muted">
           {allowance.used} of {allowance.cap} used this month
@@ -719,9 +712,7 @@ export function AssistantWidget({
         {lines.length === 0 ? (
           <div className="space-y-3">
             <p className="text-sm leading-relaxed text-muted">
-              {mode === "ask"
-                ? "Ask about your quotes, prices, and groups. On a pricing step, ask to be walked through it."
-                : "Agent mode walks the screen while it works. Press Stop any time. Deletes wait for you to confirm."}
+              Ask about a price, or say what to do. Price Ranger answers, and it walks the screen when you tell it to act. Press Stop any time. Deletes wait for you to confirm.
             </p>
             <MyFeedbackList />
             <div className="flex flex-wrap gap-2">
@@ -794,8 +785,8 @@ export function AssistantWidget({
           ref={inputRef}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={mode === "ask" ? "Ask about your quotes" : "Tell it what to do"}
-          aria-label={mode === "ask" ? "Ask about your quotes" : "Tell the agent what to do"}
+          placeholder="Ask or tell Price Ranger what to do"
+          aria-label="Message Price Ranger"
           className="h-12 min-w-0 flex-1 rounded-2xl border border-line px-3 text-base outline-none focus:border-pine"
         />
         {running ? (
@@ -803,7 +794,7 @@ export function AssistantWidget({
             Stop
           </button>
         ) : (
-          <button className="h-12 whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">{mode === "ask" ? "Ask" : "Run"}</button>
+          <button className="h-12 whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">Send</button>
         )}
       </form>
     </div>
@@ -815,7 +806,7 @@ export function AssistantWidget({
       id="assistant-panel"
       role={modal ? "dialog" : "complementary"}
       aria-modal={modal ? true : undefined}
-      aria-label="Ask Price Ranger"
+      aria-label="Price Ranger"
       className={docked ? "ask-dock" : popout ? "ask-popout" : "ask-float"}
       style={docked ? { width: dockWidth } : undefined}
       onKeyDown={(event) => {
@@ -862,7 +853,7 @@ export function AssistantWidget({
           }}
         >
           <span className="ask-launcher-mark">
-            <IconChat className="h-5 w-5" />
+            <Logo tone="light" width={28} height={28} className="h-6 w-6" alt="" />
           </span>
           <span>{launcherLabel}</span>
         </button>

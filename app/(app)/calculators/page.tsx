@@ -14,8 +14,8 @@ export default function CalculatorsPage() {
       <div className="mt-6">
         <Calculator />
       </div>
-      <Link href="/menu" className="mt-6 inline-flex h-12 items-center font-semibold text-pine">
-        Back to the menu
+      <Link href="/" className="mt-6 inline-flex h-12 items-center font-semibold text-pine">
+        Your prices
       </Link>
     </div>
   );

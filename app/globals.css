@@ -155,16 +155,6 @@ textarea:focus-visible {
   --ask-clearance: calc(1rem + env(safe-area-inset-bottom));
 }
 
-@media (max-width: 63.99rem) {
-  :root {
-    --ask-clearance: calc(4.75rem + env(safe-area-inset-bottom));
-  }
-
-  body[data-dock="1"] {
-    --ask-clearance: calc(9rem + env(safe-area-inset-bottom));
-  }
-}
-
 /* Preview deploys inject a right-edge circle. It reads as a clipped, unlabeled Feedback pill. */
 vercel-live-feedback,
 [data-vercel-toolbar],
@@ -235,36 +225,17 @@ iframe[src*="vercel.live"] {
 }
 
 .primary-dock {
-  position: fixed;
-  z-index: 30;
-  inset-inline: 0;
-  bottom: calc(4rem + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--color-line);
-  background: var(--color-paper);
-  padding: var(--space-2) var(--gutter);
-  box-shadow: var(--shadow-dock);
+  position: static;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
 }
 
 .primary-dock-inner {
   width: 100%;
-  max-width: 36rem;
-  margin-inline: auto;
-}
-
-@media (min-width: 64rem) {
-  .primary-dock {
-    position: static;
-    z-index: auto;
-    border: 0;
-    background: transparent;
-    padding: 0;
-    box-shadow: none;
-  }
-
-  .primary-dock-inner {
-    max-width: none;
-    margin-inline: 0;
-  }
+  max-width: none;
+  margin-inline: 0;
 }
 
 .page-stack {
