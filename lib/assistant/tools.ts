@@ -14,6 +14,8 @@ export const TOOL_NAMES = [
   "connect_catalog",
   "import_prices",
   "present_quote",
+  "set_asking_price",
+  "mark_sold",
   "delete_quote",
   "delete_price",
   "delete_group",
@@ -31,6 +33,7 @@ export interface PlannedTool {
 }
 
 const DESTRUCTIVE = new Set<ToolName>(["delete_quote", "delete_price", "delete_group"]);
+const CONFIRMED = new Set<ToolName>([...DESTRUCTIVE, "set_asking_price", "mark_sold", "update_price"]);
 
 export function isToolName(value: string): value is ToolName {
   return (TOOL_NAMES as readonly string[]).includes(value);
@@ -44,7 +47,7 @@ export function safeInternalPath(value: string): string | null {
 }
 
 export function toolNeedsConfirm(name: ToolName, args: Record<string, string>): boolean {
-  if (DESTRUCTIVE.has(name)) return true;
+  if (CONFIRMED.has(name)) return true;
   if (name === "navigate" && !safeInternalPath(args.path || "")) return true;
   return false;
 }
@@ -145,6 +148,24 @@ export function describeTool(name: ToolName, args: Record<string, string>, pathn
         spotlight: "present-button",
         caption: "Present saves a customer copy, then opens the full-screen options.",
       };
+    case "set_asking_price": {
+      const id = args.quoteId || quoteId || "";
+      return {
+        href: id ? `/guide/${id}` : "/",
+        spotlight: "asking-price",
+        caption: `Change this quote to $${args.amount || "the new amount"}? Nothing in your price library changes until you confirm.`,
+      };
+    }
+    case "mark_sold": {
+      const id = args.quoteId || quoteId || "";
+      return {
+        href: id ? `/guide/${id}` : "/",
+        spotlight: "mark-sold",
+        caption: args.amount
+          ? `Mark this sold for $${args.amount}? I’ll save that on this quote after you confirm.`
+          : "Mark this sold at the price on screen? I’ll save it on this quote after you confirm.",
+      };
+    }
     case "delete_quote":
     case "delete_price":
     case "delete_group":
@@ -270,6 +291,30 @@ export function llmToolDefinitions(): {
       name: "present_quote",
       description: "Save the customer presentation copy and open it.",
       parameters: { type: "object", properties: { quoteId: stringProp("Quote id") }, required: ["quoteId"] },
+    },
+    {
+      name: "set_asking_price",
+      description: "Change the asking price on the open quote at /guide/[id]. Never use this for the Prices library. The user must confirm.",
+      parameters: {
+        type: "object",
+        properties: {
+          quoteId: stringProp("Guide quote id from the /guide path"),
+          amount: stringProp("Dollar amount such as 160"),
+        },
+        required: ["quoteId", "amount"],
+      },
+    },
+    {
+      name: "mark_sold",
+      description: "Mark the open quote sold. Do not start a tour. The user must confirm.",
+      parameters: {
+        type: "object",
+        properties: {
+          quoteId: stringProp("Guide quote id from the /guide path"),
+          amount: stringProp("Optional sold amount in dollars. Omit to use the price on screen."),
+        },
+        required: ["quoteId"],
+      },
     },
     {
       name: "delete_quote",

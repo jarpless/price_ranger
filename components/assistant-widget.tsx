@@ -652,7 +652,17 @@ export function AssistantWidget({
     handle.addEventListener("pointerup", up);
   }
 
-  if (!signedIn || pathname.startsWith("/p/")) return null;
+  const suppressPill = pathname.startsWith("/signin") || pathname.startsWith("/login") || pathname.startsWith("/settings/delete");
+  const laneOff = suppressPill || (!popout && !mobile && chrome === "docked" && panelVisible);
+  useEffect(() => {
+    if (!signedIn) {
+      document.body.dataset.ask = "off";
+      return;
+    }
+    document.body.dataset.ask = laneOff ? "off" : "on";
+  }, [signedIn, laneOff]);
+
+  if (!signedIn || pathname.startsWith("/p/") || suppressPill) return null;
 
   const dockTarget = !popout && !mobile && chrome === "docked" && panelVisible ? document.getElementById("assistant-dock") : null;
   const docked = Boolean(dockTarget);

@@ -22,7 +22,7 @@ export function Shell({
   return (
     <div className="min-h-dvh bg-cream text-ink lg:flex">
       <Sidebar quotesLabel={quotesLabel} guest={guest} accountLabel={accountLabel} owner={owner} />
-      <div className="shell-main flex min-h-dvh min-w-0 flex-1 flex-col">
+      <div className="shell-main ask-lane flex min-h-dvh min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-[70] bg-pine text-cream lg:hidden">
           <div className="flex h-12 items-center gap-1 px-2">
             <BackButton />

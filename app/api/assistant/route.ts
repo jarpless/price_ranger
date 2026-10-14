@@ -9,7 +9,7 @@ import { feedbackAssistantText } from "@/lib/feedback/mine";
 import { screenAnswer } from "@/lib/assistant/screen";
 import { explainPrice } from "@/lib/guide/help";
 import { getGuideQuote } from "@/lib/guide/store";
-import { confirmedAction, appPath } from "@/lib/assistant/intent";
+import { confirmedAction, appPath, quoteCommand } from "@/lib/assistant/intent";
 import { answerFromMarket, conditionLabel, readMarketMeta } from "@/lib/market";
 import { PLANS } from "@/lib/plans";
 import { formatUsd } from "@/lib/money";
@@ -66,6 +66,18 @@ export async function POST(request: Request) {
   const pathname = String(body.pathname || "/").slice(0, 200);
   const turns = turnsFrom(body.turns);
   const latestIntent = [...turns].reverse().find((turn) => turn.role === "user")?.content || "";
+  const commanded = quoteCommand(latestIntent, pathname);
+  if (commanded?.type === "reply") return localReply(user, commanded.text);
+  if (commanded?.type === "step") {
+    return Response.json({
+      type: "plan",
+      configured: llmProvider() != null,
+      text: commanded.step.caption,
+      steps: [commanded.step],
+      continue: false,
+      allowance: await assistantAllowance(user),
+    });
+  }
   const confirmed = confirmedAction(latestIntent, pathname);
   if (confirmed) {
     return Response.json({

@@ -43,6 +43,29 @@ function unsignedRedirect(request: NextRequest) {
   return NextResponse.redirect(url);
 }
 
+const SIGNIN_EMAIL = "pr_pending_email";
+
+/** A sign-in error must not leave the address in the query string. */
+function stripSignInEmail(request: NextRequest): NextResponse | null {
+  const email = request.nextUrl.searchParams.get("email");
+  if (!email) return null;
+  const { pathname } = request.nextUrl;
+  const onLogin = pathname === "/login" || pathname.startsWith("/login/") || pathname === "/signin" || pathname.startsWith("/signin/");
+  if (!onLogin) return null;
+  const clean = request.nextUrl.clone();
+  clean.pathname = pathname.replace(/^\/login/, "/signin");
+  clean.searchParams.delete("email");
+  const response = NextResponse.redirect(clean);
+  response.cookies.set(SIGNIN_EMAIL, email.slice(0, 320), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 15,
+    secure: process.env.NODE_ENV === "production",
+  });
+  return response;
+}
+
 function stripGuestSent(request: NextRequest) {
   if (request.nextUrl.searchParams.get(GUEST_SENT_PARAM) !== "1") return null;
   const clean = request.nextUrl.clone();
@@ -71,6 +94,9 @@ async function supabaseGate(request: NextRequest): Promise<{
 export async function middleware(request: NextRequest) {
   const backend = dataBackend();
   const { pathname } = request.nextUrl;
+
+  const emailStripped = stripSignInEmail(request);
+  if (emailStripped) return emailStripped;
 
   if (pathname === "/login" || pathname.startsWith("/login/")) {
     const url = request.nextUrl.clone();

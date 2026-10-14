@@ -97,10 +97,10 @@ export function isNextRedirect(error: unknown): boolean {
   return typeof error === "object" && error !== null && "digest" in error && String((error as { digest?: unknown }).digest).includes("NEXT_REDIRECT");
 }
 
-export function authErrorPath(error: ClassifiedAuthError, email = ""): string {
+/** Error links never carry an email. The sign-in form reads pr_signin_email instead. */
+export function authErrorPath(error: ClassifiedAuthError, _email = ""): string {
   const params = new URLSearchParams();
   params.set("error", error.code);
-  if (email) params.set("email", email);
   if (error.retryAfterSeconds > 0) params.set("retry", String(error.retryAfterSeconds));
   return `/signin?${params.toString()}`;
 }

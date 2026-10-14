@@ -1,5 +1,6 @@
 import { applyAdjustment } from "@/app/guide-actions";
 import { InfoTip } from "@/components/info-tip";
+import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import {
@@ -25,6 +26,7 @@ export function MarketCard({
   note,
   sources,
   extras,
+  totalCents,
 }: {
   quoteId: string;
   description: string;
@@ -32,6 +34,7 @@ export function MarketCard({
   note: string;
   sources: string[];
   extras: { name: string; detail: string; price: string }[];
+  totalCents?: number | null;
 }) {
   const meta = readMarketMeta(sources);
   const live = marketPrice(description, {
@@ -43,6 +46,7 @@ export function MarketCard({
   const confidence = meta.confidence ?? live?.confidence ?? (live ? "medium" : "low");
   const condition = (meta.condition || live?.condition || "good") as ConditionId;
   const point = priceCents ?? live?.cents ?? null;
+  const headline = totalCents ?? point;
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
 
   return (
@@ -55,8 +59,8 @@ export function MarketCard({
           </p>
           <InfoTip id="condition" />
         </div>
-        <p className="mt-2 font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">
-          {point != null ? formatUsd(point) : "—"}
+        <p data-spotlight="asking-price" className="mt-2 font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">
+          {headline != null ? formatUsd(headline) : "—"}
         </p>
         {low != null && high != null ? (
           <p className="mt-1 flex items-center text-body text-muted">
@@ -76,7 +80,7 @@ export function MarketCard({
           <p className="mt-2 text-caption text-muted">Suggested {formatUsd(suggested)} before your edit.</p>
         ) : null}
         {live && low != null ? <p className="mt-3 text-body leading-6">{live.note}</p> : null}
-        {extras.length > 1 ? (
+        {extras.length > 0 ? (
           <ul className="mt-4 border-t border-line pt-2">
             {extras.map((line) => (
               <li key={`${line.name}-${line.detail}`} className="line-row">
@@ -87,6 +91,10 @@ export function MarketCard({
                 <span className="list-price">{line.price}</span>
               </li>
             ))}
+            <li className="line-row">
+              <span className="list-title">Total</span>
+              <span className="list-price">{headline != null ? formatUsd(headline) : "—"}</span>
+            </li>
           </ul>
         ) : null}
       </section>
@@ -163,17 +171,21 @@ export function MarketCard({
         <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="quoteId" value={quoteId} />
           <input type="hidden" name="kind" value="price" />
-          <label className="block min-w-0 flex-1 text-base font-semibold">
-            Your price
-            <input
-              name="amount"
-              inputMode="decimal"
-              defaultValue={point != null ? dollarsInputValue(point) : ""}
-              className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal"
-            />
-          </label>
+          <MoneyField name="amount" label="Your price" defaultValue={point != null ? dollarsInputValue(point) : ""} />
           <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
             Save price
+          </button>
+        </form>
+        <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <input type="hidden" name="quoteId" value={quoteId} />
+          <input type="hidden" name="kind" value="line" />
+          <label className="block min-w-0 flex-1 text-base font-semibold">
+            Add a line
+            <input name="name" placeholder="Delivery" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
+          </label>
+          <MoneyField name="amount" label="Amount" defaultValue="" />
+          <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
+            Add line
           </button>
         </form>
       </section>

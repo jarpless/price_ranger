@@ -209,7 +209,7 @@ iframe[src*="vercel.live"] {
   min-width: 0;
   margin-inline: auto;
   flex: 1;
-  padding: var(--space-6) var(--gutter) calc(var(--ask-clearance) + 4.75rem);
+  padding: var(--space-6) var(--gutter) var(--space-6);
   container-type: inline-size;
   container-name: app;
 }
@@ -219,9 +219,35 @@ iframe[src*="vercel.live"] {
     max-width: none;
     margin-inline: 0;
     padding-top: var(--space-6);
-    padding-bottom: calc(var(--ask-clearance) + 4.75rem);
+    padding-bottom: var(--space-6);
     padding-inline: var(--gutter);
   }
+}
+
+/* The assistant pill sits in this lane, under the scrolling page, on phone and desktop. */
+.ask-lane {
+  height: 100dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: calc(var(--ask-clearance) + 4.75rem);
+  overflow: hidden;
+}
+
+.ask-lane > .app-main {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body[data-ask="off"] .ask-lane {
+  height: auto;
+  min-height: 100dvh;
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+body[data-ask="off"] .ask-lane > .app-main {
+  overflow: visible;
 }
 
 .primary-dock {

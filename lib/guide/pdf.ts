@@ -4,6 +4,12 @@ export interface PdfLine {
   price: string;
 }
 
+export interface PdfComparable {
+  title: string;
+  detail: string;
+  price: string;
+}
+
 export interface PdfInput {
   title: string;
   subtitle: string;
@@ -12,6 +18,22 @@ export interface PdfInput {
   jpeg?: Uint8Array | null;
   seller?: string;
   date?: string;
+  condition?: string;
+  range?: string;
+  comparables?: PdfComparable[];
+}
+
+/** A download name that stops on a word, so a long title is not cut in half. */
+export function pdfFilename(title: string, date: string): string {
+  const words = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  let slug = "";
+  for (const word of words) {
+    const next = slug ? `${slug}-${word}` : word;
+    if (next.length > 48) break;
+    slug = next;
+  }
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+  return `price-ranger-${slug || "price"}${day ? `-${day}` : ""}.pdf`;
 }
 
 /** Helvetica uses WinAnsi, not UTF-8. × is byte 0xD7; a UTF-8 write renders as ˆ. */
@@ -103,20 +125,30 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   commands.push("0.118 0.275 0.212 rg");
   commands.push("0 744 612 48 re f");
   commands.push("1 1 1 rg");
-  commands.push("BT /F1 18 Tf 48 762 Td (Price Ranger) Tj ET");
+  commands.push("48 754 18 18 re f");
+  commands.push("0.118 0.275 0.212 rg");
+  commands.push("BT /F1 9 Tf 51 759 Td (PR) Tj ET");
+  commands.push("1 1 1 rg");
+  commands.push("BT /F1 16 Tf 74 760 Td (Price Ranger) Tj ET");
   commands.push("0.118 0.275 0.212 rg");
   let y = 720;
   const stamp = ["priceranger.app", input.date].filter(Boolean).join("  ·  ").slice(0, 80);
   commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(stamp)}) Tj ET`);
   y -= 28;
-  commands.push(`BT /F1 20 Tf 48 ${y} Td (${escapePdf(input.title.slice(0, 90))}) Tj ET`);
+  commands.push(`BT /F1 20 Tf 48 ${y} Td (${escapePdf(input.title.slice(0, 72))}) Tj ET`);
   y -= 22;
+  const facts = [input.condition, input.range].filter(Boolean).join("  ·  ");
+  if (facts) {
+    commands.push(`BT /F1 11 Tf 48 ${y} Td (${escapePdf(facts.slice(0, 80))}) Tj ET`);
+    y -= 18;
+  }
   if (input.subtitle && input.subtitle.trim().toLowerCase() !== input.title.trim().toLowerCase()) {
     commands.push(`BT /F1 12 Tf 48 ${y} Td (${escapePdf(input.subtitle.slice(0, 90))}) Tj ET`);
     y -= 28;
+  } else {
+    y -= 8;
   }
-  const titleKey = input.title.trim().toLowerCase();
-  const lines = input.lines.filter((line) => line.name.trim().toLowerCase() !== titleKey);
+  const lines = input.lines;
   for (const line of lines.slice(0, 18)) {
     commands.push(`BT /F1 12 Tf 48 ${y} Td (${escapePdf(line.name.slice(0, 48))}) Tj ET`);
     commands.push(`BT /F1 12 Tf 400 ${y} Td (${escapePdf(line.price.slice(0, 24))}) Tj ET`);
@@ -126,6 +158,22 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   }
   y -= 8;
   commands.push(`BT /F1 16 Tf 48 ${y} Td (${escapePdf(`Total ${input.total}`)}) Tj ET`);
+  const comps = (input.comparables || []).slice(0, 4);
+  if (comps.length > 0) {
+    y -= 28;
+    commands.push(`BT /F1 12 Tf 48 ${y} Td (Comparables) Tj ET`);
+    y -= 18;
+    for (const comp of comps) {
+      if (y < 72) break;
+      commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(comp.title.slice(0, 52))}) Tj ET`);
+      commands.push(`BT /F1 10 Tf 430 ${y} Td (${escapePdf(comp.price.slice(0, 16))}) Tj ET`);
+      y -= 14;
+      if (comp.detail) {
+        commands.push(`BT /F1 9 Tf 48 ${y} Td (${escapePdf(comp.detail.slice(0, 70))}) Tj ET`);
+        y -= 16;
+      }
+    }
+  }
   if (size) {
     const maxW = 320;
     const room = Math.max(120, y - 48);

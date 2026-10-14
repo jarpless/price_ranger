@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { readFileSync } from "node:fs";
 
-import { buildPricePdf, jpegSize } from "./guide/pdf";
+import { buildPricePdf, jpegSize, pdfFilename } from "./guide/pdf";
 import { inspectPhoto, savePendingPhoto } from "./guide/photos";
 import {
   accessLimits,
@@ -215,6 +215,28 @@ test("a price sheet becomes a real PDF", () => {
   assert.match(text, /^%PDF-1\.4/);
   assert.match(text, /%%EOF/);
   assert.match(text, /KitchenAid stand mixer/);
+  const branded = buildPricePdf({
+    title: "Used iPhone 13 128GB unlocked",
+    subtitle: "Good",
+    condition: "Good",
+    range: "$180–$230",
+    lines: [
+      { name: "Used iPhone 13 128GB unlocked", detail: "1 × $175", price: "$175" },
+      { name: "Shipping", detail: "1 × $8", price: "$8" },
+    ],
+    total: "$183",
+    comparables: [{ title: "iPhone 13 128GB unlocked", detail: "eBay · Good · 2026-09-16", price: "$205" }],
+  });
+  const brandedText = Buffer.from(branded).toString("latin1");
+  assert.match(brandedText, /Price Ranger/);
+  assert.match(brandedText, /\$175/);
+  assert.match(brandedText, /Shipping/);
+  assert.match(brandedText, /Comparables/);
+  assert.match(brandedText, /iPhone 13 128GB unlocked/);
+  assert.ok(branded.byteLength > 1200);
+  const filename = pdfFilename("Used iPhone 13 128GB unlocked", "2026-10-14");
+  assert.equal(filename, "price-ranger-used-iphone-13-128gb-unlocked-2026-10-14.pdf");
+  assert.match(pdfFilename("A very long item title with many extra words that should stop cleanly", "2026-10-14"), /-[a-z0-9]+-2026-10-14\.pdf$/);
 });
 
 test("onboarding copy differs by group and first-time events record once", () => {

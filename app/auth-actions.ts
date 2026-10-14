@@ -24,6 +24,18 @@ import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/lib/types";
 import { isIndustryId, VOCABULARIES } from "@/lib/vocabulary";
 
+async function keepEmail(email: string) {
+  if (!isEmail(email)) return;
+  const store = await cookies();
+  store.set(PENDING_EMAIL_COOKIE, email, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 15,
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
 async function finishLocalSignIn(userId: string) {
   const current = await getSessionUser();
   if (current?.guest && current.id !== userId) {
@@ -92,7 +104,10 @@ export async function signInWithPassword(formData: FormData) {
     try {
       const supabase = await createClient();
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) redirect(authErrorPath(classifyAuthError(error), email));
+      if (error) {
+        await keepEmail(email);
+        redirect(authErrorPath(classifyAuthError(error)));
+      }
       const { data } = await supabase.auth.getUser();
       if (!data.user) redirect("/signin?notice=unavailable");
       await consumeGuestLink(data.user.id);
@@ -104,7 +119,10 @@ export async function signInWithPassword(formData: FormData) {
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await verifyLocalPassword(email, password);
-  if (!user) redirect("/signin?error=signin");
+  if (!user) {
+    await keepEmail(email);
+    redirect("/signin?error=signin");
+  }
   await finishLocalSignIn(user.id);
 }
 
@@ -130,8 +148,12 @@ export async function createPasswordAccount(formData: FormData) {
         data: current?.guest ? { link_guest: current.id } : undefined,
       },
     });
-    if (error) redirect(authErrorPath(classifyAuthError(error), email));
-    redirect(`/signin/sent?email=${encodeURIComponent(email)}`);
+    if (error) {
+      await keepEmail(email);
+      redirect(authErrorPath(classifyAuthError(error)));
+    }
+    await keepEmail(email);
+    redirect("/signin/sent");
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const created = await createLocalPasswordAccount(email, password);
@@ -145,7 +167,7 @@ export async function verifyEmailCode(formData: FormData) {
   const email = (cookieStore.get(PENDING_EMAIL_COOKIE)?.value || clip(formData.get("email"), 160)).toLowerCase();
   const code = clip(formData.get("code"), 12).replace(/\s+/g, "");
   if (!isEmail(email) || code.length < 6) {
-    redirect(`/signin/sent?error=code&email=${encodeURIComponent(email)}`);
+    redirect("/signin/sent?error=code");
   }
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
@@ -158,14 +180,14 @@ export async function verifyEmailCode(formData: FormData) {
         break;
       }
     }
-    if (!verified) redirect(authErrorPath(classifyAuthError({ code: "otp_expired", message: "Token has expired" }), email).replace("/signin?", "/signin/sent?"));
+    if (!verified) redirect("/signin/sent?error=code");
     const { data } = await supabase.auth.getUser();
     if (data.user) await consumeGuestLink(data.user.id);
     redirect("/");
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await consumeEmailCode(email, code);
-  if (!user) redirect(`/signin/sent?error=code&email=${encodeURIComponent(email)}`);
+  if (!user) redirect("/signin/sent?error=code");
   await finishLocalSignIn(user.id);
 }
 
@@ -175,15 +197,19 @@ export async function resendVerification(formData: FormData) {
   const cookieStore = await cookies();
   const last = Number(cookieStore.get("pr_resend_at")?.value || 0);
   if (Date.now() - last < 60_000) {
-    redirect(authErrorPath({ code: "rate_limit", retryAfterSeconds: Math.ceil((60_000 - (Date.now() - last)) / 1000), message: "" }, email));
+    redirect(authErrorPath({ code: "rate_limit", retryAfterSeconds: Math.ceil((60_000 - (Date.now() - last)) / 1000), message: "" }));
   }
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
     const { error } = await supabase.auth.resend({ type: "signup", email });
-    if (error) redirect(authErrorPath(classifyAuthError(error), email));
+    if (error) {
+      await keepEmail(email);
+      redirect(authErrorPath(classifyAuthError(error)));
+    }
   }
+  await keepEmail(email);
   cookieStore.set("pr_resend_at", String(Date.now()), { ...linkCookie, maxAge: 120 });
-  redirect(`/signin/sent?email=${encodeURIComponent(email)}&notice=resent`);
+  redirect("/signin/sent?notice=resent");
 }
 
 export async function chooseIndustry(formData: FormData) {

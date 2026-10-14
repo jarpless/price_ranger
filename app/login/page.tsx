@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 import { LoginForm } from "@/components/login-form";
 import { LogoLockup } from "@/components/logo";
 import { PendingLink } from "@/components/pending-link";
@@ -14,7 +16,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; reason?: string; detail?: string; notice?: string; email?: string; retry?: string }>;
 }) {
-  const { error, reason, detail, notice, email = "", retry } = await searchParams;
+  const { error, reason, detail, notice, retry } = await searchParams;
+  const remembered = (await cookies()).get("pr_pending_email")?.value || "";
   const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const passkey = passkeyConfigured();
@@ -54,14 +57,14 @@ export default async function LoginPage({
       ) : null}
       {error === "rate_limit" ? (
         <div className="mt-6">
-          <RateLimitNotice seconds={Number.isFinite(retrySeconds) ? retrySeconds : 60} email={email} />
+          <RateLimitNotice seconds={Number.isFinite(retrySeconds) ? retrySeconds : 60} email={remembered} />
         </div>
       ) : notice !== "busy" && notice !== "cookies" && authDetail ? (
         <div className="mt-6">
           <Notice code={error} detail={authDetail} />
         </div>
       ) : null}
-      <LoginForm email={email} error={error} notice={notice} showPasskey={passkey} local={local} />
+      <LoginForm email={remembered} error={error} notice={notice} showPasskey={passkey} local={local} />
       <PendingLink
         href="/auth/guest?next=/new"
         prefetch={false}

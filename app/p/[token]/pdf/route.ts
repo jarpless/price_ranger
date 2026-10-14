@@ -1,4 +1,6 @@
-import { jpegFromDataUrl, buildPricePdf } from "@/lib/guide/pdf";
+import { jpegFromDataUrl, buildPricePdf, pdfFilename } from "@/lib/guide/pdf";
+import { formatUsd } from "@/lib/money";
+import { marketPrice } from "@/lib/market";
 import { forPublic, readSharedSheet } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
@@ -10,18 +12,24 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   const sheet = forPublic(loaded);
   const option = sheet.options[0];
   const date = sheet.date || new Date().toISOString().slice(0, 10);
-  const slug = sheet.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
-  const filename = `price-ranger-${slug}-${date}.pdf`;
-  const lines = option?.lines?.length
-    ? option.lines
-    : [{ name: sheet.title, detail: "", price: option?.total ?? "" }];
+  const filename = pdfFilename(sheet.title, date);
+  const lines = option?.lines ?? [];
+  const live = marketPrice(sheet.title);
+  const comparables = (live?.comparables ?? []).slice(0, 4).map((comp) => ({
+    title: comp.title,
+    detail: [comp.source, comp.condition, comp.soldAt].filter(Boolean).join(" · "),
+    price: formatUsd(comp.priceCents),
+  }));
   const pdf = buildPricePdf({
     title: sheet.title,
-    subtitle: [sheet.condition, sheet.range, sheet.subtitle].filter(Boolean).join(" · "),
+    subtitle: sheet.subtitle || sheet.note || "",
+    condition: sheet.condition,
+    range: sheet.range,
     lines,
-    total: option?.total ?? "",
+    total: option?.total || (live ? formatUsd(live.cents) : ""),
     jpeg: jpegFromDataUrl(sheet.photo),
     date,
+    comparables,
   });
   return new Response(Buffer.from(pdf), {
     headers: {

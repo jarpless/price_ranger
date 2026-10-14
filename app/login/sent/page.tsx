@@ -15,8 +15,9 @@ export default async function SentPage({
 }: {
   searchParams: Promise<{ email?: string; error?: string; notice?: string; retry?: string }>;
 }) {
-  const { email, error, notice, retry } = await searchParams;
+  const { error, notice, retry } = await searchParams;
   const cookieStore = await cookies();
+  const email = cookieStore.get("pr_pending_email")?.value || "";
   const devLink = cookieStore.get(DEV_LINK_COOKIE)?.value;
   const devCode = cookieStore.get(DEV_CODE_COOKIE)?.value;
 

@@ -14,11 +14,12 @@ import { PhotoField } from "@/components/photo-field";
 import { PrimaryDock } from "@/components/primary-dock";
 import { ShareActions } from "@/components/share-actions";
 import { InfoTip } from "@/components/info-tip";
+import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
-import { adjustmentFromSources, lineSettlement, priceError } from "@/lib/guide/pricing";
+import { adjustmentFromSources, lineSettlement, settledTotal, priceError } from "@/lib/guide/pricing";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import { getData } from "@/lib/store";
 
@@ -51,16 +52,20 @@ export default async function GuidePage({
   const title =
     sent ? "Link ready" : row.outcome === "sold" ? "Sold" : row.outcome === "not_yet" ? "Not yet" : copy.title;
   const now = sent ? "The link is ready. Share it yourself. Nothing else is emailed." : row.outcome === "sold" ? "The sold price is saved." : row.outcome === "not_yet" ? "You can mark it sold later from home." : copy.now;
-  const price = row.priceCents != null ? formatUsd(row.priceCents) : "";
-  const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
-  const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
   const adjustment = adjustmentFromSources(row.sources);
   const byId = new Map(groups.map((group) => [group.id, group]));
-  const lines = (quote?.tiers[0]?.groupIds ?? []).flatMap((groupId) => byId.get(groupId)?.items ?? []).map((item) => {
-    const settled = lineSettlement(
-      { name: item.name, quantity: item.quantity, unitPriceCents: item.unitPriceCents },
-      adjustment,
-    );
+  const money = (quote?.tiers[0]?.groupIds ?? []).flatMap((groupId) => byId.get(groupId)?.items ?? []).map((item) => ({
+    name: item.name,
+    quantity: item.quantity,
+    unitPriceCents: item.unitPriceCents,
+  }));
+  const lineTotal = money.length ? settledTotal(money, adjustment) : null;
+  const headlineCents = lineTotal ?? row.priceCents;
+  const price = headlineCents != null ? formatUsd(headlineCents) : "";
+  const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
+  const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
+  const lines = money.map((item) => {
+    const settled = lineSettlement(item, adjustment);
     return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
   });
   return (
@@ -107,6 +112,7 @@ export default async function GuidePage({
             note={row.note}
             sources={row.sources}
             extras={lines}
+            totalCents={headlineCents}
           />
           <div className="lg:sticky lg:top-4">
             <div className="mt-4 flex items-center gap-1 lg:mt-6">
@@ -137,6 +143,10 @@ export default async function GuidePage({
                   <span className="list-price">{line.price}</span>
                 </li>
               ))}
+              <li className="line-row">
+                <span className="list-title">Total</span>
+                <span className="list-price">{price}</span>
+              </li>
             </ul>
           ) : null}
           <ShareActions href={shareHref} title={row.description || "Price Ranger"} />
@@ -149,7 +159,7 @@ export default async function GuidePage({
             </a>
             <form action={continueGuide} className="flex-1">
               <input type="hidden" name="quoteId" value={row.quoteId} />
-              <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink">
+              <button type="submit" data-spotlight="mark-sold" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink">
                 Mark sold
               </button>
             </form>
@@ -179,15 +189,11 @@ export default async function GuidePage({
               <form action={markOutcome} className="space-y-3">
                 <input type="hidden" name="quoteId" value={row.quoteId} />
                 <input type="hidden" name="outcome" value="sold" />
-                <label className="block text-base font-semibold">
-                  Sold for
-                  <input
-                    name="amount"
-                    inputMode="decimal"
-                    defaultValue={row.priceCents != null ? dollarsInputValue(row.priceCents) : ""}
-                    className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal"
-                  />
-                </label>
+                <MoneyField
+                  name="amount"
+                  label="Sold for"
+                  defaultValue={headlineCents != null ? dollarsInputValue(headlineCents) : ""}
+                />
                 <PrimaryDock>
                   <Button type="submit">{copy.primary}</Button>
                 </PrimaryDock>

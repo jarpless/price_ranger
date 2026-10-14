@@ -19,18 +19,34 @@ export function navCurrent(pathname: string, href: string) {
     return pathname === "/library" || (/^\/library\/(?!groups(?:\/|$)).+/.test(pathname));
   }
   if (href === "/library/groups") return pathname.startsWith("/library/groups");
+  if (href === "/settings") return pathname === "/settings";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const workLinks = [
-  { href: "/new", label: "New price", icon: IconCamera, spot: "nav-price" },
-  { href: "/", label: "Your prices", icon: IconHome, spot: "nav-home" },
-  { href: "/upgrade", label: "Plans", icon: IconCard, spot: "nav-plans" },
-] as const;
-
-const helpLinks = [
-  { href: "/settings", label: "Settings", icon: IconSettings, spot: "nav-settings" },
-  { href: "/install", label: "Get the app", icon: IconPhone, spot: "nav-install" },
+const menuSections = [
+  {
+    label: "Prices",
+    links: [
+      { href: "/new", label: "New price", icon: IconCamera, spot: "nav-price" },
+      { href: "/", label: "Your prices", icon: IconHome, spot: "nav-home" },
+    ],
+  },
+  {
+    label: "Account",
+    links: [
+      { href: "/upgrade", label: "Plans", icon: IconCard, spot: "nav-plans" },
+      { href: "/settings/billing", label: "Billing", icon: IconCard, spot: "nav-billing" },
+      { href: "/settings", label: "Settings", icon: IconSettings, spot: "nav-settings" },
+      { href: "/settings/delete", label: "Delete account", icon: IconInfo, spot: "nav-delete" },
+    ],
+  },
+  {
+    label: "Help",
+    links: [
+      { href: "/install", label: "Get the app", icon: IconPhone, spot: "nav-install" },
+      { href: "/feedback/new", label: "Feedback", icon: IconInfo, spot: "nav-feedback" },
+    ],
+  },
 ] as const;
 
 function sideClass(active: boolean) {
@@ -62,54 +78,40 @@ export function Sidebar({
         </span>
       </Link>
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
-        <ul className="space-y-1">
-          {workLinks.map((item) => {
-            const Icon = item.icon;
-            const active = navCurrent(pathname, item.href);
-            return (
-              <li key={item.href}>
-                <Link href={item.href} aria-current={active ? "page" : undefined} data-spotlight={item.spot} className={sideClass(active)}>
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-        <ul className="mt-4 space-y-1 border-t border-white/15 pt-4">
-          {helpLinks.map((item) => {
-            const Icon = item.icon;
-            const active = navCurrent(pathname, item.href);
-            return (
-              <li key={item.href}>
-                <Link href={item.href} aria-current={active ? "page" : undefined} data-spotlight={item.spot} className={sideClass(active)}>
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-          <li>
-            <Link
-              href="/feedback/new"
-              data-feedback-label="true"
-              data-spotlight="nav-feedback"
-              aria-current={navCurrent(pathname, "/feedback/new") ? "page" : undefined}
-              className={sideClass(navCurrent(pathname, "/feedback/new"))}
-            >
-              <IconInfo className="h-5 w-5" />
-              Feedback
-            </Link>
-          </li>
-          {owner ? (
-            <li>
-              <Link href="/admin/feedback" className={sideClass(navCurrent(pathname, "/admin/feedback"))}>
-                <IconInfo className="h-5 w-5" />
-                Feedback backlog
-              </Link>
-            </li>
-          ) : null}
-        </ul>
+        {menuSections.map((section) => (
+          <div key={section.label} className="mt-4 first:mt-0">
+            <p className="px-3 pb-1 text-caption font-semibold uppercase tracking-[0.14em] text-cream/55">{section.label}</p>
+            <ul className="space-y-1">
+              {section.links.map((item) => {
+                const Icon = item.icon;
+                const active = navCurrent(pathname, item.href);
+                const feedback = item.href === "/feedback/new";
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      data-spotlight={item.spot}
+                      data-feedback-label={feedback ? "true" : undefined}
+                      className={sideClass(active)}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+              {section.label === "Help" && owner ? (
+                <li>
+                  <Link href="/admin/feedback" className={sideClass(navCurrent(pathname, "/admin/feedback"))}>
+                    <IconInfo className="h-5 w-5" />
+                    Feedback backlog
+                  </Link>
+                </li>
+              ) : null}
+            </ul>
+          </div>
+        ))}
         <div className="mt-auto border-t border-white/15 px-0 pb-6 pt-4">
           {guest ? (
             <div className="space-y-1">
@@ -192,55 +194,41 @@ export function PhoneMenu({
             </button>
           </div>
           <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-8" aria-label="Workspace">
-            <ul className="space-y-1">
-              {workLinks.map((item) => {
-                const Icon = item.icon;
-                const active = navCurrent(pathname, item.href);
-                return (
-                  <li key={item.href}>
-                    <Link href={item.href} aria-current={active ? "page" : undefined} data-spotlight={item.spot} className={sideClass(active)} onClick={() => setOpen(false)}>
-                      <Icon className="h-5 w-5" />
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            <ul className="mt-4 space-y-1 border-t border-white/15 pt-4">
-              {helpLinks.map((item) => {
-                const Icon = item.icon;
-                const active = navCurrent(pathname, item.href);
-                return (
-                  <li key={item.href}>
-                    <Link href={item.href} aria-current={active ? "page" : undefined} data-spotlight={item.spot} className={sideClass(active)} onClick={() => setOpen(false)}>
-                      <Icon className="h-5 w-5" />
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-              <li>
-                <Link
-                  href="/feedback/new"
-                  data-feedback-label="true"
-                  data-spotlight="nav-feedback"
-                  aria-current={navCurrent(pathname, "/feedback/new") ? "page" : undefined}
-                  className={sideClass(navCurrent(pathname, "/feedback/new"))}
-                  onClick={() => setOpen(false)}
-                >
-                  <IconInfo className="h-5 w-5" />
-                  Feedback
-                </Link>
-              </li>
-              {owner ? (
-                <li>
-                  <Link href="/admin/feedback" className={sideClass(navCurrent(pathname, "/admin/feedback"))} onClick={() => setOpen(false)}>
-                    <IconInfo className="h-5 w-5" />
-                    Feedback backlog
-                  </Link>
-                </li>
-              ) : null}
-            </ul>
+            {menuSections.map((section) => (
+              <div key={section.label}>
+                <p className="sticky top-0 bg-pine px-3 pb-1 pt-4 text-caption font-semibold uppercase tracking-[0.14em] text-cream/55">{section.label}</p>
+                <ul className="space-y-1">
+                  {section.links.map((item) => {
+                    const Icon = item.icon;
+                    const active = navCurrent(pathname, item.href);
+                    const feedback = item.href === "/feedback/new";
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          data-spotlight={item.spot}
+                          data-feedback-label={feedback ? "true" : undefined}
+                          className={sideClass(active)}
+                          onClick={() => setOpen(false)}
+                        >
+                          <Icon className="h-5 w-5" />
+                          {item.label}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                  {section.label === "Help" && owner ? (
+                    <li>
+                      <Link href="/admin/feedback" className={sideClass(navCurrent(pathname, "/admin/feedback"))} onClick={() => setOpen(false)}>
+                        <IconInfo className="h-5 w-5" />
+                        Feedback backlog
+                      </Link>
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+            ))}
             <div className="mt-auto border-t border-white/15 pt-4">
               {guest ? (
                 <div className="space-y-1">

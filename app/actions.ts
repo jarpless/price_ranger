@@ -26,13 +26,6 @@ export async function sendMagicLink(formData: FormData) {
 
   const origin = siteOriginFromHeaders(await headers());
   let result: Awaited<ReturnType<typeof requestMagicLink>>;
-  try {
-    result = await requestMagicLink(email, origin);
-  } catch (error) {
-    if (isNextRedirect(error)) throw error;
-    redirect(authErrorPath(classifyAuthError(error), email));
-  }
-  if (result.error) redirect(authErrorPath(result.error, email));
   const cookieStore = await cookies();
   cookieStore.set(PENDING_EMAIL_COOKIE, email, {
     httpOnly: true,
@@ -41,6 +34,13 @@ export async function sendMagicLink(formData: FormData) {
     path: "/",
     maxAge: 60 * 15,
   });
+  try {
+    result = await requestMagicLink(email, origin);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    redirect(authErrorPath(classifyAuthError(error)));
+  }
+  if (result.error) redirect(authErrorPath(result.error));
   if (result.devLink) {
     cookieStore.set(DEV_LINK_COOKIE, result.devLink, {
       httpOnly: true,
@@ -59,7 +59,7 @@ export async function sendMagicLink(formData: FormData) {
       maxAge: 60 * 15,
     });
   }
-  redirect(`/signin/sent?email=${encodeURIComponent(email)}`);
+  redirect("/signin/sent");
 }
 
 export async function signOut() {

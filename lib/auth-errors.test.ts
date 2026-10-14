@@ -15,6 +15,8 @@ test("an email send rate limit is a countdown, not a generic failure", () => {
   assert.doesNotMatch(error.message, /something went wrong/i);
   assert.match(authErrorPath(error, "a@b.co"), /error=rate_limit/);
   assert.match(authErrorPath(error, "a@b.co"), /retry=60/);
+  assert.doesNotMatch(authErrorPath(error, "a@b.co"), /email=/);
+  assert.doesNotMatch(authErrorPath(error, "a@b.co"), /a@b\.co/);
 });
 
 test("an invalid email stays specific", () => {
