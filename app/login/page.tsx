@@ -21,7 +21,8 @@ export default async function LoginPage({
   const retrySeconds = Number(retry || 60);
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-5 py-10 lg:max-w-xl">
+    <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
+      <div className="mx-auto w-full max-w-lg lg:max-w-xl">
       <LogoLockup />
       <p className="mt-3 text-center text-body leading-6 text-muted">
         Price what you&apos;re selling, then share the number.
@@ -68,6 +69,7 @@ export default async function LoginPage({
       >
         Try it first
       </PendingLink>
+      </div>
     </main>
   );
 }

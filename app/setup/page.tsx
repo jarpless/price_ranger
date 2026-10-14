@@ -4,7 +4,8 @@ export const metadata = { title: "Setup" };
 
 export default function SetupPage() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
+    <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
+      <div className="mx-auto w-full max-w-md">
       <Logo tone="ink" width={64} height={64} className="mb-6 h-16 w-16" />
       <h1 className="font-serif text-4xl">Connect Supabase</h1>
       <p className="mt-3 text-sm leading-relaxed text-muted">
@@ -20,6 +21,7 @@ export default function SetupPage() {
       <p className="mt-6 text-sm leading-relaxed text-muted">
         The full checklist is in docs/PLAN.md.
       </p>
+      </div>
     </main>
   );
 }

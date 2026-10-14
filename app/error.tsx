@@ -16,7 +16,8 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
   const online = useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5">
+    <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
+      <div className="mx-auto w-full max-w-md">
       <h1 className="font-serif text-4xl">Something went wrong</h1>
       <p className="mt-3 text-body leading-6 text-muted">
         {online
@@ -36,6 +37,7 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
       >
         Try again
       </button>
+      </div>
     </main>
   );
 }

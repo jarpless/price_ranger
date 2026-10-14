@@ -1,6 +1,6 @@
 export default function StartLoading() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-5xl animate-pulse flex-col px-5 py-8 lg:justify-center lg:py-12" aria-busy="true">
+    <main className="page-frame page-frame-pad flex min-h-dvh animate-pulse flex-col lg:justify-center" aria-busy="true">
       <div className="h-12 w-12 rounded-2xl bg-line" />
       <div className="mt-6 h-12 w-72 max-w-full rounded-2xl bg-line" />
       <div className="mt-3 h-5 w-full max-w-xl rounded-xl bg-paper" />

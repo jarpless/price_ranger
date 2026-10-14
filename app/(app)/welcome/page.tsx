@@ -43,9 +43,9 @@ export default async function WelcomePage({
     // The intro still shows when the funnel table is unavailable.
   }
   return (
-    <>
+    <div className="page-frame page-frame-pad">
       <GuideSetupNotice />
       <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} next={safeNext(next || null)} guest={user.guest} />
-    </>
+    </div>
   );
 }

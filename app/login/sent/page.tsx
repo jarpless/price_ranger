@@ -21,7 +21,8 @@ export default async function SentPage({
   const devCode = cookieStore.get(DEV_CODE_COOKIE)?.value;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-5 py-10">
+    <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
+      <div className="mx-auto w-full max-w-lg">
       <Logo tone="ink" width={64} height={64} className="mb-6 h-16 w-16" />
       <h1 className="font-serif text-3xl">Check your email</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
@@ -67,6 +68,7 @@ export default async function SentPage({
       <Link href="/signin" className="mt-6 text-center text-sm font-semibold text-pine">
         Use a different email
       </Link>
+      </div>
     </main>
   );
 }

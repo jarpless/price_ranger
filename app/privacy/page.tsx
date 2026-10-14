@@ -4,7 +4,8 @@ export const metadata = { title: "Privacy" };
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-2xl px-5 py-10">
+    <main className="page-frame page-frame-pad">
+      <div className="mx-auto w-full max-w-2xl">
       <p className="text-sm font-semibold uppercase tracking-wide text-danger">DRAFT – pending legal review</p>
       <h1 className="mt-2 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">Privacy Policy</h1>
       <div className="mt-6 space-y-4 text-lg leading-relaxed">
@@ -27,6 +28,7 @@ export default function PrivacyPage() {
       <Link href="/welcome" className="mt-8 inline-flex h-12 items-center font-semibold text-pine">
         Back
       </Link>
+      </div>
     </main>
   );
 }

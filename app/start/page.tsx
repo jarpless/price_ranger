@@ -22,7 +22,7 @@ export default async function StartPage({
   const { error } = await searchParams;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-5 py-8 lg:justify-center lg:py-12">
+    <main className="page-frame page-frame-pad flex min-h-dvh flex-col lg:justify-center">
       <Link href="/" className="inline-flex h-12 w-12 items-center justify-center" aria-label="Back">
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none">
           <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
