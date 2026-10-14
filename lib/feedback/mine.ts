@@ -29,7 +29,7 @@ export async function myTickets(userId: string) {
 export async function feedbackAssistantText(userId: string): Promise<string> {
   const tickets = await myTickets(userId);
   if (tickets.length === 0) {
-    return "You have no feedback yet. On a computer, use the Feedback button and drag a region. On a phone, open Menu and tap Send feedback, or shake the phone.";
+    return "You have no feedback yet. Tap Feedback in the header, or open Menu and tap Send feedback. On a phone you can also shake it.";
   }
   const lines = ["Your feedback:"];
   for (const ticket of tickets.slice(0, 8)) {

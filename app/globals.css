@@ -113,6 +113,21 @@ textarea:focus-visible {
   }
 }
 
+/* Preview deploys inject a right-edge circle. It reads as a clipped, unlabeled Feedback pill. */
+vercel-live-feedback,
+[data-vercel-toolbar],
+#vercel-toolbar,
+.vercel-toolbar,
+iframe[src*="vercel.live"] {
+  display: none !important;
+}
+
+.landing-ground {
+  background-color: var(--color-cream);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72' fill='none'><path d='M-8 54c12-14 24-14 36 0s24 14 36 0 24-14 36 0' stroke='%231e4636' stroke-opacity='.09' stroke-width='1'/><path d='M-8 28c12-14 24-14 36 0s24 14 36 0 24-14 36 0' stroke='%231e4636' stroke-opacity='.06' stroke-width='1'/></svg>");
+  background-size: 72px 72px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-in {
     animation: none;

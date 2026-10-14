@@ -113,11 +113,18 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
           })}
         </ul>
       </nav>
-      <div className="mx-3 mb-2">
+      <div className="mx-3 mb-2 space-y-1">
         <button type="button" onClick={openAsk} className="flex h-12 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-base font-semibold text-cream/80 hover:bg-white/10 hover:text-cream">
           <IconChat className="h-5 w-5" />
           Ask
         </button>
+        <Link
+          href="/feedback/new"
+          data-feedback-label="true"
+          className="flex h-12 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-base font-semibold text-cream/80 hover:bg-white/10 hover:text-cream"
+        >
+          Feedback
+        </Link>
       </div>
       {guest ? (
         <div className="mx-3 mb-6 space-y-1">

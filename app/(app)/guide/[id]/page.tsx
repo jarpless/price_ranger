@@ -64,7 +64,7 @@ export default async function GuidePage({
     return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
   });
   return (
-    <div data-guide-step={row.step} className="mx-auto max-w-[40rem]">
+    <div data-guide-step={row.step} className="mx-auto w-full max-w-[40rem] lg:mx-0 lg:max-w-none">
       <GuideProgress step={row.step} />
       <h1 className="mt-6 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{title}</h1>
       <p className="mt-2 text-body text-muted">{now}</p>
@@ -99,7 +99,7 @@ export default async function GuidePage({
       ) : null}
 
       {showPrice ? (
-        <div>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-6">
           <MarketCard
             quoteId={row.quoteId}
             description={row.description}
@@ -108,16 +108,18 @@ export default async function GuidePage({
             sources={row.sources}
             extras={lines}
           />
-          <div className="mt-4 flex items-center gap-1">
-            <p className="text-caption text-muted">Send creates a link and a PDF. You share them yourself.</p>
-            <InfoTip id="share" />
+          <div className="lg:sticky lg:top-4">
+            <div className="mt-4 flex items-center gap-1 lg:mt-6">
+              <p className="text-caption text-muted">Send creates a link and a PDF. You share them yourself.</p>
+              <InfoTip id="share" />
+            </div>
+            <form action={sendQuote}>
+              <input type="hidden" name="quoteId" value={row.quoteId} />
+              <PrimaryDock>
+                <Button type="submit">Send</Button>
+              </PrimaryDock>
+            </form>
           </div>
-          <form action={sendQuote}>
-            <input type="hidden" name="quoteId" value={row.quoteId} />
-            <PrimaryDock>
-              <Button type="submit">Send</Button>
-            </PrimaryDock>
-          </form>
         </div>
       ) : null}
 
@@ -127,12 +129,12 @@ export default async function GuidePage({
           {lines.length > 0 ? (
             <ul className="rounded-2xl border border-line bg-paper p-4 shadow-card">
               {lines.map((line) => (
-                <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3 py-2">
-                  <span>
-                    <span className="block text-base font-semibold">{line.name}</span>
-                    <span className="text-caption text-muted">{line.detail}</span>
+                <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3 py-2 lg:h-10 lg:items-center lg:py-0">
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-semibold lg:text-sm">{line.name}</span>
+                    <span className="text-caption text-muted lg:hidden">{line.detail}</span>
                   </span>
-                  <span className="font-serif text-title tabular-nums">{line.price}</span>
+                  <span className="shrink-0 text-right font-serif text-title tabular-nums lg:text-base">{line.price}</span>
                 </li>
               ))}
             </ul>

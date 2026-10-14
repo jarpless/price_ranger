@@ -77,14 +77,14 @@ export function MarketCard({
         ) : null}
         {live && low != null ? <p className="mt-3 text-body leading-6">{live.note}</p> : null}
         {extras.length > 1 ? (
-          <ul className="mt-4 space-y-2 border-t border-line pt-4">
+          <ul className="mt-4 border-t border-line pt-2">
             {extras.map((line) => (
-              <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3">
-                <span>
-                  <span className="block text-base font-semibold">{line.name}</span>
-                  {line.detail ? <span className="text-caption text-muted">{line.detail}</span> : null}
+              <li key={`${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-3 py-1 lg:h-10 lg:items-center lg:py-0">
+                <span className="min-w-0">
+                  <span className="block truncate text-base font-semibold lg:text-sm">{line.name}</span>
+                  {line.detail ? <span className="text-caption text-muted lg:hidden">{line.detail}</span> : null}
                 </span>
-                <span className="shrink-0 font-serif text-title tabular-nums">{line.price}</span>
+                <span className="shrink-0 text-right font-serif text-title tabular-nums lg:text-base">{line.price}</span>
               </li>
             ))}
           </ul>

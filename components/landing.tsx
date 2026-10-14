@@ -4,11 +4,22 @@ import { Logo } from "./logo";
 
 export function Landing() {
   return (
-    <main className="min-h-dvh bg-cream text-ink">
-      <header className="mx-auto flex h-16 w-full max-w-5xl items-center gap-3 px-5">
-        <Logo tone="ink" width={32} height={32} className="h-8 w-8" />
-        <p className="font-serif text-title">Price Ranger</p>
-        <Link href="/signin" className="ml-auto inline-flex h-12 items-center whitespace-nowrap rounded-2xl px-4 text-base font-semibold text-pine">
+    <main className="landing-ground min-h-dvh text-ink">
+      <header className="mx-auto flex h-16 w-full max-w-5xl items-center gap-2 px-4 lg:px-8">
+        <div className="inline-flex min-w-0 items-center gap-2 rounded-2xl bg-paper/95 px-1.5 py-1 shadow-card ring-1 ring-line">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pine">
+            <Logo tone="light" width={28} height={28} className="h-7 w-7" alt="" />
+          </span>
+          <p className="truncate pr-1.5 font-serif text-base leading-6 text-ink lg:text-title lg:leading-8">Price Ranger</p>
+        </div>
+        <Link
+          href="/feedback/new"
+          data-feedback-label="true"
+          className="ml-auto inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-xl px-2 text-sm font-semibold text-pine"
+        >
+          Feedback
+        </Link>
+        <Link href="/signin" className="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-2xl px-3 text-base font-semibold text-pine">
           Sign in
         </Link>
       </header>

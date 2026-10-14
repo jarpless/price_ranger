@@ -140,7 +140,7 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                 ["price", "Price"],
                 ["source", "Source"],
               ] as const).map(([key, label]) => (
-                <th key={key} className="px-4 py-3 font-semibold">
+                <th key={key} className={`px-4 py-3 font-semibold lg:h-10 lg:py-0 ${key === "price" ? "text-right" : ""}`}>
                   <button type="button" className="hover:text-pine" onClick={() => toggleSort(key)}>
                     {label}
                     {sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
@@ -160,8 +160,8 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
               rows.map((item) => {
                 const open = editing === item.id;
                 return (
-                  <tr key={item.id} data-spotlight={`price-${item.id}`} className="border-t border-line hover:bg-cream/60">
-                    <td className="px-4 py-3">
+                  <tr key={item.id} data-spotlight={`price-${item.id}`} className="border-t border-line hover:bg-cream/60 lg:h-10">
+                    <td className="px-4 py-3 lg:py-0">
                       {open ? (
                         <input
                           value={draft.name}
@@ -185,7 +185,7 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                         </button>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 lg:py-0">
                       {open ? (
                         <select
                           value={draft.unit}
@@ -202,7 +202,7 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                         unitWord(item.unit, 2) || "each"
                       )}
                     </td>
-                    <td className="px-4 py-3 font-serif text-lg">
+                    <td className="px-4 py-3 text-right font-serif text-lg tabular-nums lg:py-0 lg:text-base">
                       {open ? (
                         <input
                           value={draft.price}
@@ -214,7 +214,7 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                         formatUsd(item.unitPriceCents)
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 lg:py-0">
                       {open ? (
                         <span className="flex gap-2">
                           <button

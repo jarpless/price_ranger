@@ -40,7 +40,7 @@ export default async function HomePage() {
     return (
       <div>
         <GuideSetupNotice />
-        <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-16 lg:py-16">
+        <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-10 lg:py-4">
           <div>
             <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">You&apos;re set.</h1>
             <p className="mt-3 max-w-xl text-body leading-6 text-muted">
@@ -110,7 +110,7 @@ export default async function HomePage() {
           <ul className="mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-card">
             {quotes.slice(0, 12).map((quote) => (
               <li key={quote.quoteId} className="border-b border-line last:border-b-0">
-                <Link href={`/guide/${quote.quoteId}`} className="flex min-h-16 items-center justify-between gap-3 px-4 py-3">
+                <Link href={`/guide/${quote.quoteId}`} className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 lg:h-10 lg:min-h-10 lg:py-0">
                   <span className="min-w-0">
                     <span className="block truncate text-base font-semibold">{quote.description || "Untitled"}</span>
                     <span className="text-caption text-muted">
@@ -118,7 +118,7 @@ export default async function HomePage() {
                       {statusLabel(quote)}
                     </span>
                   </span>
-                  <span className="shrink-0 font-serif text-title text-pine tabular-nums">
+                  <span className="shrink-0 text-right font-serif text-title tabular-nums text-pine lg:text-base">
                     {quote.priceCents != null ? formatUsd(quote.priceCents) : ""}
                   </span>
                 </Link>

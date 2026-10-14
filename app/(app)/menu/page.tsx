@@ -20,7 +20,7 @@ export default async function MenuPage() {
   const owner = isOwnerEmail(user.email);
 
   return (
-    <div className="mx-auto max-w-[40rem]">
+    <div className="mx-auto max-w-[40rem] lg:mx-0 lg:max-w-none">
       <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Menu</h1>
       <p className="mt-2 text-body text-muted">Prices, plans, and your account.</p>
       <ul className="mt-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-card">

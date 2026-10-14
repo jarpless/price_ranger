@@ -29,12 +29,19 @@ export function Shell({
             <Link href="/" className="min-w-0 truncate font-serif text-base tracking-tight">
               Price Ranger
             </Link>
+            <Link
+              href="/feedback/new"
+              data-feedback-label="true"
+              className="ml-auto inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-xl px-2 text-sm font-semibold text-cream"
+            >
+              Feedback
+            </Link>
             {guest ? (
-              <Link href="/signin" className="ml-auto inline-flex h-11 items-center whitespace-nowrap rounded-xl bg-cream px-3 text-sm font-semibold text-pine">
+              <Link href="/signin" className="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-xl bg-cream px-3 text-sm font-semibold text-pine">
                 Sign in
               </Link>
             ) : (
-              <form action={signOut} className="ml-auto">
+              <form action={signOut} className="shrink-0">
                 <SubmitButton pendingLabel="…" className="whitespace-nowrap px-2 text-sm font-medium text-cream/80">
                   Sign out
                 </SubmitButton>
@@ -42,8 +49,8 @@ export function Shell({
             )}
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[36rem] flex-1 px-4 pb-40 pt-6 lg:max-w-[60rem] lg:px-10 lg:pb-16 lg:pt-12">
-          <div className="mb-4 hidden lg:block">
+        <main className="mx-auto w-full max-w-[36rem] flex-1 px-4 pb-40 pt-6 lg:mx-0 lg:max-w-none lg:px-6 lg:pb-6 lg:pt-4">
+          <div className="mb-1 hidden lg:block">
             <BackButton className="text-pine" />
           </div>
           <ScreenMotion>{children}</ScreenMotion>
