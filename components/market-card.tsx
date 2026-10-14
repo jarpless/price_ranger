@@ -191,12 +191,12 @@ export function MarketCard({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={comp.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-cream object-cover" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-semibold">{comp.title}</p>
+                  <p className="line-clamp-2 text-base font-semibold">{comp.title}</p>
                   <p className="text-caption text-muted">
-                    {comp.condition} · {comp.soldAt} · {comp.listed ? "Listed" : "Sold"}
+                    {comp.source} · {comp.condition} · {comp.soldAt} · {comp.listed ? "Listed" : "Sold"}
                   </p>
                   <a href={comp.url} target="_blank" rel="noreferrer" className="text-caption font-semibold text-pine">
-                    See similar sold listings
+                    See similar sold listings on {comp.source}
                   </a>
                 </div>
                 <p className="shrink-0 font-serif text-title tabular-nums">{formatUsd(comp.priceCents)}</p>

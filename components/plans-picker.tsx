@@ -30,7 +30,7 @@ function Chip({
   );
 }
 
-export function PlansPicker({ current, ready }: { current: PlanId; ready: boolean }) {
+export function PlansPicker({ current, ready, quoteLimit = 3 }: { current: PlanId; ready: boolean; quoteLimit?: number }) {
   const [interval, setInterval] = useState<"month" | "year">("month");
   const plusPrice = interval === "year" ? PLAN_PRICES_CENTS.plusYear : PLAN_PRICES_CENTS.plusMonth;
   const plusLabel = interval === "year" ? `${formatUsd(plusPrice)}/year` : `${formatUsd(plusPrice)}/month`;
@@ -56,7 +56,7 @@ export function PlansPicker({ current, ready }: { current: PlanId; ready: boolea
           name={PLANS.free.name}
           price={PLANS.free.priceLabel}
           current={current === "free"}
-          points={["3 prices", "10 assistant messages a month", "Price Ranger mark on shared links"]}
+          points={[`${quoteLimit} prices`, "10 assistant messages a month", "Price Ranger mark on shared links"]}
         />
         <PlanCard
           name="30-day pass"

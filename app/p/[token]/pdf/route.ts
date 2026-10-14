@@ -17,7 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     : [{ name: sheet.title, detail: "", price: option?.total ?? "" }];
   const pdf = buildPricePdf({
     title: sheet.title,
-    subtitle: sheet.subtitle,
+    subtitle: [sheet.condition, sheet.range, sheet.subtitle].filter(Boolean).join(" · "),
     lines,
     total: option?.total ?? "",
     jpeg: jpegFromDataUrl(sheet.photo),

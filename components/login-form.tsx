@@ -5,6 +5,7 @@ import { useState } from "react";
 import { sendMagicLink } from "@/app/actions";
 import { createPasswordAccount, resendVerification, signInWithPassword, startOAuth } from "@/app/auth-actions";
 import { PasskeyButton } from "@/components/passkey-button";
+import { Notice } from "@/components/ui";
 
 import { IconApple, IconGoogle, IconPasskey } from "./icons";
 
@@ -14,21 +15,24 @@ type Account = "signin" | "create";
 export function LoginForm({
   email = "",
   error,
+  notice,
   showPasskey,
   local,
 }: {
   email?: string;
   error?: string;
+  notice?: string;
   showPasskey: boolean;
   local: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("code");
   const [account, setAccount] = useState<Account>("signin");
   const [value, setValue] = useState(email);
+  const [banner, setBanner] = useState(error || "");
   const action = mode === "code" ? sendMagicLink : account === "create" ? createPasswordAccount : signInWithPassword;
   const primary = mode === "code" ? "Email me a code" : account === "create" ? "Create account" : "Sign in";
 
-  const heading = account === "create" ? "Create account" : "Sign in";
+  const heading = notice === "deleted" && account === "signin" ? "Account deleted" : account === "create" ? "Create account" : "Sign in";
 
   return (
     <div className="mt-8 space-y-3">
@@ -61,7 +65,10 @@ export function LoginForm({
               type="button"
               role="tab"
               aria-selected={account === id}
-              onClick={() => setAccount(id)}
+              onClick={() => {
+                setAccount(id);
+                setBanner("");
+              }}
               className={`h-11 rounded-xl text-base font-semibold ${account === id ? "bg-paper text-ink shadow-card" : "text-muted"}`}
             >
               {label}
@@ -101,6 +108,7 @@ export function LoginForm({
           </>
         ) : null}
 
+        {banner && banner !== "rate_limit" ? <Notice code={banner} /> : null}
         <button type="submit" className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-pine text-base font-semibold text-cream">
           {primary}
         </button>

@@ -31,7 +31,7 @@ export default async function UpgradePage({
       </p>
       {canceled ? <p className="mt-4 text-body">Checkout was canceled. Your prices are still here.</p> : null}
       {error && FORM_ERRORS[error] ? <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{FORM_ERRORS[error]}</p> : null}
-      <PlansPicker current={user.plan} ready={ready} />
+      <PlansPicker current={user.plan} ready={ready} quoteLimit={access.limits.quoteLimit} />
     </div>
   );
 }

@@ -3,7 +3,8 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { cancelSubscription } from "@/app/guide-actions";
 import { readBillingProfile } from "@/lib/account/billing-profile";
 import { requireUser } from "@/lib/auth";
-import { stripeTestKey } from "@/lib/billing";
+import { readBillingDetails, stripeTestKey } from "@/lib/billing";
+import { formatUsd } from "@/lib/money";
 import { PLANS, type PlanId } from "@/lib/plans";
 
 export const metadata = { title: "Billing" };
@@ -29,9 +30,10 @@ export default async function BillingPage({
     ? new Date(profile.renewsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : null;
   const paid = user.plan === "plus" || user.plan === "pro" || user.plan === "pass";
+  const details = await readBillingDetails(profile.customerId);
 
   return (
-    <div className="mx-auto max-w-xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       <Link href="/settings" className="text-base font-semibold text-pine">
         Settings
       </Link>
@@ -42,6 +44,39 @@ export default async function BillingPage({
         <p className="mt-1 text-body text-muted">{priceLine(user.plan, profile.interval)}</p>
         {renews && profile.interval !== "once" && user.plan !== "pass" ? <p className="mt-2 text-body">Renews {renews}.</p> : null}
         {user.plan === "pass" || profile.interval === "once" ? <p className="mt-2 text-body">This pass does not renew.</p> : null}
+      </section>
+      <section className="rounded-3xl border border-line bg-paper p-5">
+        <h2 className="font-serif text-title">Payment method</h2>
+        {details.card ? (
+          <p className="mt-2 text-body capitalize">{details.card.brand} ···· {details.card.last4}</p>
+        ) : (
+          <p className="mt-2 text-body leading-6 text-muted">No card is on file for this account.</p>
+        )}
+      </section>
+      <section className="rounded-3xl border border-line bg-paper p-5">
+        <h2 className="font-serif text-title">Invoices</h2>
+        {details.invoices.length > 0 ? (
+          <ul className="mt-3 divide-y divide-line">
+            {details.invoices.map((invoice) => (
+              <li key={invoice.id} className="flex items-baseline justify-between gap-3 py-3">
+                <span>
+                  <span className="block text-base font-semibold">{invoice.number}</span>
+                  <span className="text-caption capitalize text-muted">{invoice.date} · {invoice.status}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block font-serif text-title tabular-nums">{formatUsd(invoice.amountCents)}</span>
+                  {invoice.url ? (
+                    <a href={invoice.url} className="text-caption font-semibold text-pine" target="_blank" rel="noreferrer">
+                      View
+                    </a>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-body leading-6 text-muted">No invoices yet.</p>
+        )}
       </section>
       {notice === "canceled" ? (
         <p className="rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6">The subscription is canceled. You're on the free plan.</p>

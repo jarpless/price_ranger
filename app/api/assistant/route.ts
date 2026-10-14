@@ -6,10 +6,13 @@ import { describeTool, isToolName, toolNeedsConfirm } from "@/lib/assistant/tool
 import { redactText, restoreText } from "@/lib/redact";
 import type { SessionUser } from "@/lib/types";
 import { feedbackAssistantText } from "@/lib/feedback/mine";
-import { explainPrice, guideAnswer } from "@/lib/guide/help";
+import { screenAnswer } from "@/lib/assistant/screen";
+import { explainPrice } from "@/lib/guide/help";
 import { getGuideQuote } from "@/lib/guide/store";
 import { confirmedAction, appPath } from "@/lib/assistant/intent";
-import { answerFromMarket } from "@/lib/market";
+import { answerFromMarket, conditionLabel, readMarketMeta } from "@/lib/market";
+import { PLANS } from "@/lib/plans";
+import { formatUsd } from "@/lib/money";
 import { assistantAllowance, blockedAssistantMessage, recordAssistantUse, recordLocalAssistantUse } from "@/lib/usage";
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
@@ -80,6 +83,22 @@ export async function POST(request: Request) {
     const guidePath = pathname.split("?")[0] || "";
     const quoteId = guidePath.startsWith("/guide/") ? guidePath.split("/")[2] || "" : "";
     const row = quoteId ? await getGuideQuote(user.id, quoteId) : null;
+    const meta = row ? readMarketMeta(row.sources) : null;
+    const screened = screenAnswer(latestText, {
+      pathname: guidePath,
+      planName: PLANS[user.plan].name,
+      quote: row
+        ? {
+            description: row.description,
+            priceCents: row.priceCents,
+            step: row.step,
+            note: row.note,
+            condition: conditionLabel(meta?.condition || "good"),
+            range: meta?.lowCents && meta?.highCents ? `${formatUsd(meta.lowCents)}–${formatUsd(meta.highCents)}` : "",
+          }
+        : null,
+    });
+    if (screened) return localReply(user, screened);
     const askingPrice = /how much|worth|price|re-?price|what should i (ask|charge)|fair price|sold for/i.test(latestText);
     const namesProduct = /switch|iphone|playstation|\bps5\b|airpods|xbox|macbook/i.test(latestText);
     if (row?.description && (askingPrice || namesProduct)) {
@@ -107,10 +126,6 @@ export async function POST(request: Request) {
       if (explained) {
         return localReply(user, explained);
       }
-    }
-    const guided = guideAnswer(pathname, latestText);
-    if (guided) {
-      return localReply(user, guided);
     }
   }
   const slice = await loadAccount(user.id, user.email);

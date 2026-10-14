@@ -100,19 +100,24 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   const jpeg = input.jpeg && jpegSize(input.jpeg) ? input.jpeg : null;
   const size = jpeg ? jpegSize(jpeg) : null;
   const commands: string[] = [];
-  let y = 740;
-  commands.push(`BT /F1 14 Tf 48 ${y} Td (${escapePdf("Price Ranger")}) Tj ET`);
-  y -= 16;
+  commands.push("0.118 0.275 0.212 rg");
+  commands.push("0 744 612 48 re f");
+  commands.push("1 1 1 rg");
+  commands.push("BT /F1 18 Tf 48 762 Td (Price Ranger) Tj ET");
+  commands.push("0.118 0.275 0.212 rg");
+  let y = 720;
   const stamp = ["priceranger.app", input.date].filter(Boolean).join("  ·  ").slice(0, 80);
   commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(stamp)}) Tj ET`);
   y -= 28;
   commands.push(`BT /F1 20 Tf 48 ${y} Td (${escapePdf(input.title.slice(0, 90))}) Tj ET`);
   y -= 22;
-  if (input.subtitle) {
+  if (input.subtitle && input.subtitle.trim().toLowerCase() !== input.title.trim().toLowerCase()) {
     commands.push(`BT /F1 12 Tf 48 ${y} Td (${escapePdf(input.subtitle.slice(0, 90))}) Tj ET`);
     y -= 28;
   }
-  for (const line of input.lines.slice(0, 18)) {
+  const titleKey = input.title.trim().toLowerCase();
+  const lines = input.lines.filter((line) => line.name.trim().toLowerCase() !== titleKey);
+  for (const line of lines.slice(0, 18)) {
     commands.push(`BT /F1 12 Tf 48 ${y} Td (${escapePdf(line.name.slice(0, 48))}) Tj ET`);
     commands.push(`BT /F1 12 Tf 400 ${y} Td (${escapePdf(line.price.slice(0, 24))}) Tj ET`);
     y -= 16;
@@ -122,9 +127,9 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   y -= 8;
   commands.push(`BT /F1 16 Tf 48 ${y} Td (${escapePdf(`Total ${input.total}`)}) Tj ET`);
   if (size) {
-    const maxW = 220;
-    const room = Math.max(72, y - 56);
-    const maxH = Math.min(200, room);
+    const maxW = 320;
+    const room = Math.max(120, y - 48);
+    const maxH = Math.min(280, room);
     const scale = Math.min(maxW / size.width, maxH / size.height, 1);
     const width = Math.max(1, Math.round(size.width * scale));
     const height = Math.max(1, Math.round(size.height * scale));

@@ -33,7 +33,7 @@ export default async function LoginPage({
       ) : null}
       {notice === "deleted" ? (
         <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
-          That account was deleted, and any subscription was canceled.
+          Your account was deleted, and any subscription was canceled. Create a new account when you want to start again.
         </p>
       ) : null}
       {notice === "unavailable" ? (
@@ -55,12 +55,12 @@ export default async function LoginPage({
         <div className="mt-6">
           <RateLimitNotice seconds={Number.isFinite(retrySeconds) ? retrySeconds : 60} email={email} />
         </div>
-      ) : notice !== "busy" && notice !== "cookies" && (authDetail || error) ? (
+      ) : notice !== "busy" && notice !== "cookies" && authDetail ? (
         <div className="mt-6">
           <Notice code={error} detail={authDetail} />
         </div>
       ) : null}
-      <LoginForm email={email} error={error} showPasskey={passkey} local={local} />
+      <LoginForm email={email} error={error} notice={notice} showPasskey={passkey} local={local} />
       <PendingLink
         href="/auth/guest?next=/new"
         prefetch={false}

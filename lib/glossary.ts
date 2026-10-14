@@ -26,7 +26,7 @@ export const GLOSSARY = {
   },
   limits: {
     term: "Free plan limits",
-    body: "Free includes 3 prices and about 10 assistant messages a month. A paid plan lifts the price cap.",
+    body: "Free includes the price cap shown on Plans, and about 10 assistant messages a month. A paid plan lifts the price cap.",
   },
   plans: {
     term: "Plans",

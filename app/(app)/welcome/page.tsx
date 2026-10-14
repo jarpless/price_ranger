@@ -45,7 +45,7 @@ export default async function WelcomePage({
   return (
     <>
       <GuideSetupNotice />
-      <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} next={safeNext(next || null)} />
+      <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} next={safeNext(next || null)} guest={user.guest} />
     </>
   );
 }

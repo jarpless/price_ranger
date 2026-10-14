@@ -90,7 +90,11 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
             <button
               key={item.label}
               type="submit"
-              onClick={() => setDescription(item.description)}
+              onClick={(event) => {
+                const field = event.currentTarget.form?.elements.namedItem("description");
+                if (field instanceof HTMLInputElement) field.value = item.description;
+                setDescription(item.description);
+              }}
               className="h-11 rounded-full border border-line bg-cream px-4 text-base font-semibold text-ink"
             >
               {item.label}

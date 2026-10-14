@@ -83,7 +83,26 @@ export function AssistantWidget({ signedIn, allowance: initialAllowance }: { sta
     if (pathname === "/ask") setOpen(true);
   }, [pathname]);
 
-  if (pathname.startsWith("/p/")) return null;
+  useEffect(() => {
+    function openAsk() {
+      setOpen(true);
+    }
+    window.addEventListener("pr-ask", openAsk);
+    return () => window.removeEventListener("pr-ask", openAsk);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      delete document.body.dataset.ask;
+      return;
+    }
+    document.body.dataset.ask = "open";
+    return () => {
+      delete document.body.dataset.ask;
+    };
+  }, [open]);
+
+  if (!signedIn || pathname.startsWith("/p/") || !open) return null;
 
   function stop() {
     stopRef.current = true;
@@ -271,8 +290,8 @@ export function AssistantWidget({ signedIn, allowance: initialAllowance }: { sta
             <MyFeedbackList />
             <div className="flex flex-wrap gap-2">
               {(pathname.startsWith("/guide")
-                ? ["What is this worth?", "Walk me through this step", "How do plans work?"]
-                : ["How do plans work?", "Walk me through this"]
+                ? ["What is this worth?", "How do I share this?", "How do I mark it sold?"]
+                : ["How do I share a price?", "What plan am I on?", "How do I add a photo?"]
               ).map((prompt) => (
                 <button
                   key={prompt}
@@ -354,21 +373,9 @@ export function AssistantWidget({ signedIn, allowance: initialAllowance }: { sta
 
   return (
     <>
-      {open ? (
-        <div className="fixed inset-x-0 bottom-0 z-50 h-[42dvh] rounded-t-2xl border border-line bg-paper shadow-sheet lg:inset-y-0 lg:left-auto lg:right-0 lg:h-dvh lg:w-[400px] lg:rounded-none">
-          {panel}
-        </div>
-      ) : (
-        <button
-          type="button"
-          aria-label="Ask Price Ranger"
-          data-haptic=""
-          onClick={() => setOpen(true)}
-          className="ask-fab flex h-12 w-12 items-center justify-center rounded-full bg-pine shadow-card"
-        >
-          <Logo tone="light" width={28} height={28} className="h-7 w-7" />
-        </button>
-      )}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 flex max-h-[min(42dvh,calc(100dvh-8rem))] flex-col overflow-hidden rounded-t-2xl border border-line bg-paper shadow-sheet lg:bottom-0 lg:left-auto lg:right-0 lg:top-0 lg:h-dvh lg:max-h-none lg:w-[24rem] lg:rounded-none">
+        {panel}
+      </div>
       {spotlight && (running || pending) ? (
         <Spotlight selector={spotlight.selector} caption={spotlight.caption} onStop={stop} />
       ) : null}

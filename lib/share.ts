@@ -24,6 +24,8 @@ export interface SharedSheet {
   note?: string;
   seller?: string;
   date?: string;
+  condition?: string;
+  range?: string;
   options: SheetOption[];
 }
 
@@ -145,6 +147,8 @@ export function forPublic(sheet: SharedSheet): SharedSheet {
     photo: sheet.photo ?? null,
     note: note && note !== title ? note : "",
     date: sheet.date,
+    condition: stripContact(sheet.condition || ""),
+    range: stripContact(sheet.range || ""),
     options,
   };
 }

@@ -38,11 +38,11 @@ export function ShareActions({ href, title }: { href: string; title: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2">
         <button
           type="button"
           onClick={() => void copy()}
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold"
+          className="inline-flex h-12 min-h-12 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold"
         >
           <IconLink className="h-5 w-5" />
           {copied ? "Copied" : "Copy link"}
@@ -50,7 +50,7 @@ export function ShareActions({ href, title }: { href: string; title: string }) {
         <button
           type="button"
           onClick={() => void share()}
-          className="inline-flex h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
+          className="inline-flex h-12 min-h-12 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
         >
           <IconShare className="h-5 w-5" />
           Share

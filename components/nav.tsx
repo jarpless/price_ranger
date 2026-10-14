@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { signOut } from "@/app/actions";
 
-import { NavIcon } from "./icons";
+import { IconChat, NavIcon } from "./icons";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
 import { APP_CODENAME } from "@/lib/version";
@@ -29,12 +29,40 @@ export function navCurrent(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function openAsk() {
+  window.dispatchEvent(new Event("pr-ask"));
+}
+
 export function BottomNav({ quotesLabel }: { quotesLabel: string }) {
   const pathname = usePathname();
+  const items = navItems(quotesLabel);
+  const before = items.slice(0, 2);
+  const after = items.slice(2);
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <ul className="grid h-16 grid-cols-3">
-        {navItems(quotesLabel).map((item) => {
+    <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <ul className="grid h-16 grid-cols-4">
+        {before.map((item) => {
+          const active = navCurrent(pathname, item.href);
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex h-16 flex-col items-center justify-center whitespace-nowrap text-sm font-semibold ${active ? "text-pine" : "text-muted"}`}
+              >
+                <NavIcon name={item.spot as "home" | "price" | "menu"} className="mb-0.5 h-6 w-6" />
+                {item.short}
+              </Link>
+            </li>
+          );
+        })}
+        <li>
+          <button type="button" onClick={openAsk} className="flex h-16 w-full flex-col items-center justify-center whitespace-nowrap text-sm font-semibold text-muted">
+            <IconChat className="mb-0.5 h-6 w-6" />
+            Ask
+          </button>
+        </li>
+        {after.map((item) => {
           const active = navCurrent(pathname, item.href);
           return (
             <li key={item.href}>
@@ -85,6 +113,12 @@ export function Sidebar({ quotesLabel, guest }: { quotesLabel: string; guest: bo
           })}
         </ul>
       </nav>
+      <div className="mx-3 mb-2">
+        <button type="button" onClick={openAsk} className="flex h-12 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-base font-semibold text-cream/80 hover:bg-white/10 hover:text-cream">
+          <IconChat className="h-5 w-5" />
+          Ask
+        </button>
+      </div>
       {guest ? (
         <div className="mx-3 mb-6 space-y-1">
           <Link href="/signin" className="flex h-12 items-center whitespace-nowrap rounded-xl bg-cream px-3 text-base font-semibold text-pine">

@@ -6,21 +6,33 @@ import { PrimaryDock } from "@/components/primary-dock";
 import { Button } from "@/components/ui";
 import type { OnboardingCopy } from "@/lib/guide/flow";
 
-export function WelcomeSlides({ copy, error, next = "" }: { copy: OnboardingCopy; error: boolean; next?: string }) {
+export function WelcomeSlides({
+  copy,
+  error,
+  next = "",
+  guest = true,
+}: {
+  copy: OnboardingCopy;
+  error: boolean;
+  next?: string;
+  guest?: boolean;
+}) {
   return (
     <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-12 lg:py-10">
       <div>
         <div className="flex items-center justify-between gap-3">
           <p className="text-caption font-semibold text-pine">Get started</p>
-          <PendingLink href="/signin" className="inline-flex h-11 items-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">
-            Sign in
-          </PendingLink>
+          {guest ? (
+            <PendingLink href="/signin" className="inline-flex h-11 items-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">
+              Sign in
+            </PendingLink>
+          ) : null}
         </div>
         <div className="mt-3 h-1 rounded-full bg-pine" aria-hidden="true" />
         <h1 className="mt-6 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{copy.welcomeTitle}</h1>
         <p className="mt-3 max-w-xl text-body leading-6 text-muted">{copy.welcomeBody}</p>
         <p className="mt-3 max-w-xl text-body leading-6 text-muted">{copy.stepsBody}</p>
-        <p className="mt-2 text-caption text-muted">Already have an account? Sign in.</p>
+        {guest ? <p className="mt-2 text-caption text-muted">Already have an account? Sign in.</p> : null}
         <form action={acceptTerms} className="mt-6 space-y-4">
           <input type="hidden" name="next" value={next} />
           <label className="flex items-start gap-3 rounded-2xl border border-line bg-paper p-4 text-body leading-6 shadow-card">

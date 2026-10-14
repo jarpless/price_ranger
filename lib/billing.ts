@@ -201,6 +201,52 @@ export async function findCustomerId(email: string): Promise<string | null> {
   return payload.data?.[0]?.id || null;
 }
 
+export interface BillingCard {
+  brand: string;
+  last4: string;
+}
+
+export interface BillingInvoice {
+  id: string;
+  number: string;
+  amountCents: number;
+  status: string;
+  url: string | null;
+  date: string;
+}
+
+export async function readBillingDetails(customerId: string | null): Promise<{ card: BillingCard | null; invoices: BillingInvoice[] }> {
+  if (!customerId || !stripeTestKey()) return { card: null, invoices: [] };
+  const [cards, invoices] = await Promise.all([
+    stripeFetch(`payment_methods?customer=${encodeURIComponent(customerId)}&type=card&limit=1`).catch(() => null),
+    stripeFetch(`invoices?customer=${encodeURIComponent(customerId)}&limit=6`).catch(() => null),
+  ]);
+  let card: BillingCard | null = null;
+  if (cards?.ok) {
+    const payload = (await cards.json()) as { data?: { card?: { brand?: string; last4?: string } }[] };
+    const row = payload.data?.[0]?.card;
+    if (row?.last4) card = { brand: row.brand || "Card", last4: row.last4 };
+  }
+  const list: BillingInvoice[] = [];
+  if (invoices?.ok) {
+    const payload = (await invoices.json()) as {
+      data?: { id?: string; number?: string | null; amount_paid?: number; status?: string; hosted_invoice_url?: string | null; created?: number }[];
+    };
+    for (const row of payload.data || []) {
+      if (!row.id) continue;
+      list.push({
+        id: row.id,
+        number: row.number || row.id,
+        amountCents: row.amount_paid || 0,
+        status: row.status || "",
+        url: row.hosted_invoice_url || null,
+        date: row.created ? new Date(row.created * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+      });
+    }
+  }
+  return { card, invoices: list };
+}
+
 /** Cancels every active or trialing test-mode subscription for this customer. */
 export async function cancelActiveSubscriptions(customerId: string): Promise<number> {
   const response = await stripeFetch(`subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=20`);

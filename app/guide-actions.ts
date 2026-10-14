@@ -24,8 +24,8 @@ import {
   saveGuideUser,
   type GuideQuote as StoredGuideQuote,
 } from "@/lib/guide/store";
-import { readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById } from "@/lib/market";
-import { parseDollarsToCents } from "@/lib/money";
+import { readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById, conditionLabel } from "@/lib/market";
+import { formatUsd, parseDollarsToCents } from "@/lib/money";
 import { isPlanId, PLAN_PRICES_CENTS, type PlanId } from "@/lib/plans";
 import { buyerSheet, publishSheet } from "@/lib/share";
 import { getData } from "@/lib/store";
@@ -427,16 +427,16 @@ export async function sendQuote(formData: FormData) {
   if (!quote) redirect("/");
   const groups = await data.listGroups(user.id);
   const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
-  const token = await publishSheet(
-    user.id,
-    quoteId,
-    buyerSheet(quote, groups, {
-      sources: row.sources,
-      note: row.note,
-      photo: photo ? photoDataUrl(photo) : null,
-      date: new Date().toISOString().slice(0, 10),
-    }),
-  );
+  const meta = readMarketMeta(row.sources);
+  const sheet = buyerSheet(quote, groups, {
+    sources: row.sources,
+    note: row.note,
+    photo: photo ? photoDataUrl(photo) : null,
+    date: new Date().toISOString().slice(0, 10),
+  });
+  sheet.condition = conditionLabel(meta.condition);
+  sheet.range = meta.lowCents && meta.highCents ? `${formatUsd(meta.lowCents)}–${formatUsd(meta.highCents)}` : "";
+  const token = await publishSheet(user.id, quoteId, sheet);
   if (!token) redirect(`/guide/${quoteId}?error=share`);
   const guide = await ensureGuideUser(user.id);
   await saveGuideQuote({
