@@ -1,10 +1,11 @@
 "use client";
 
-import { PendingLink as Link } from "@/components/pending-link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 
+import { chatTitle, readChats, upsertChat, writeChats, type SavedChat } from "@/lib/assistant/history";
+import { inferAssistantMode } from "@/lib/assistant/intent";
 import {
   ASSISTANT_CHANNEL,
   ASSISTANT_STORAGE_KEY,
@@ -19,11 +20,8 @@ import {
   writeSnapshot,
 } from "@/lib/assistant/presence";
 
-import { inferAssistantMode } from "@/lib/assistant/intent";
-
-import { InfoTip } from "./info-tip";
+import { AssistantChat } from "./assistant-chat";
 import { Logo } from "./logo";
-import { MyFeedbackList } from "./my-feedback-list";
 import { Spotlight } from "./spotlight";
 
 interface Allowance {
@@ -53,21 +51,6 @@ const HOST_KEY = "pr-assistant-host";
 const HOST_AT = "pr-assistant-host-at";
 const POPOUT_NAME = "pr-assistant";
 const MOBILE_QUERY = "(max-width: 63.99rem)";
-
-function renderText(text: string) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
-  return parts.map((part, index) => {
-    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (!match) return <span key={index}>{part}</span>;
-    const href = match[2];
-    if (!href.startsWith("/")) return <span key={index}>{match[1]}</span>;
-    return (
-      <Link key={index} href={href} className="font-semibold text-pine underline">
-        {match[1]}
-      </Link>
-    );
-  });
-}
 
 async function wait(ms: number, stop: () => boolean) {
   const started = Date.now();
@@ -128,6 +111,9 @@ export function AssistantWidget({
   const [allowance, setAllowance] = useState<Allowance | null>(initialAllowance ?? null);
   const [popoutAlive, setPopoutAlive] = useState(false);
   const [turnVersion, setTurnVersion] = useState(0);
+  const [chatId, setChatId] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [chats, setChats] = useState<SavedChat[]>([]);
 
   const stopRef = useRef(false);
   const turnsRef = useRef<ChatTurn[]>([]);
@@ -141,7 +127,8 @@ export function AssistantWidget({
   const popoutWindowRef = useRef<Window | null>(null);
   const lastPingRef = useRef(0);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const chatIdRef = useRef("");
   const modeRef = useRef<AskMode>("ask");
   const runningRef = useRef(false);
   const popoutRef = useRef(popout);
@@ -153,6 +140,7 @@ export function AssistantWidget({
   const dockWidthRef = useRef(380);
 
   modeRef.current = mode;
+  chatIdRef.current = chatId;
   runningRef.current = running;
   popoutRef.current = popout;
   popoutAliveRef.current = popoutAlive;
@@ -170,6 +158,8 @@ export function AssistantWidget({
     setLines(picked.lines);
     setChrome(picked.chrome);
     setDockWidth(picked.dockWidth);
+    chatIdRef.current = picked.chatId;
+    setChatId(picked.chatId);
   }
 
   function post(message: AssistantMessage) {
@@ -204,6 +194,23 @@ export function AssistantWidget({
     setLines(snap.lines);
     setChrome(snap.chrome);
     setDockWidth(snap.dockWidth);
+    const id = snap.chatId || (snap.lines.length > 0 ? newId() : "");
+    chatIdRef.current = id;
+    setChatId(id);
+    if (snap.lines.length > 0 && id) {
+      const saved = upsertChat(readChats(), {
+        id,
+        title: chatTitle(snap.lines),
+        updatedAt: new Date().toISOString(),
+        lines: snap.lines,
+        turns: snap.turns,
+        mode: snap.mode,
+      });
+      writeChats(saved);
+      setChats(saved);
+    } else {
+      setChats(readChats());
+    }
     setReady(true);
   }, [signedIn]);
 
@@ -268,6 +275,7 @@ export function AssistantWidget({
         setMode(modeRef.current);
         turnsRef.current = Array.isArray(message.turns) ? message.turns : [];
         if (runningRef.current) {
+          currentChatId();
           const hint = "Still working on the last request.";
           turnsRef.current = [
             ...turnsRef.current,
@@ -309,19 +317,33 @@ export function AssistantWidget({
       skipPublish.current = false;
       return;
     }
+    const id = chatIdRef.current;
     const next = writeSnapshot(snapRef.current, {
       mode,
       lines,
       turns: turnsRef.current,
       chrome,
       dockWidth,
+      chatId: id,
     });
     snapRef.current = next;
     revRef.current = next.rev;
     post({ type: "snapshot", snapshot: next, from: clientId.current });
+    if (lines.length > 0 && id) {
+      const saved = upsertChat(readChats(), {
+        id,
+        title: chatTitle(lines),
+        updatedAt: new Date().toISOString(),
+        lines,
+        turns: turnsRef.current,
+        mode,
+      });
+      writeChats(saved);
+      setChats(saved);
+    }
     // post is stable enough for this publish; including it would resubscribe every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, mode, lines, chrome, dockWidth, turnVersion]);
+  }, [ready, mode, lines, chrome, dockWidth, turnVersion, chatId]);
 
   useEffect(() => {
     if (!popout || !signedIn) return;
@@ -376,7 +398,7 @@ export function AssistantWidget({
     const panel = panelRef.current;
     if (!panel) return;
     const prior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    inputRef.current?.focus();
+    if (!mobile) inputRef.current?.focus();
     const previousOverflow = document.body.style.overflow;
     if (!popout) document.body.style.overflow = "hidden";
     function onKey(event: KeyboardEvent) {
@@ -405,7 +427,31 @@ export function AssistantWidget({
       if (!popout) document.body.style.overflow = previousOverflow;
       if (!popoutRef.current) prior?.focus();
     };
-  }, [modal, popout]);
+  }, [modal, popout, mobile]);
+
+  useEffect(() => {
+    if (!panelVisible || !mobile) return;
+    const frame = panelRef.current;
+    const viewport = window.visualViewport;
+    if (!frame || !viewport) return;
+    function place() {
+      if (!frame || !viewport) return;
+      const keyboard = window.innerHeight - viewport.height - viewport.offsetTop > 80;
+      frame.style.top = `${viewport.offsetTop}px`;
+      frame.style.height = `${viewport.height}px`;
+      frame.dataset.keyboard = keyboard ? "open" : "closed";
+    }
+    place();
+    viewport.addEventListener("resize", place);
+    viewport.addEventListener("scroll", place);
+    return () => {
+      viewport.removeEventListener("resize", place);
+      viewport.removeEventListener("scroll", place);
+      frame.style.top = "";
+      frame.style.height = "";
+      delete frame.dataset.keyboard;
+    };
+  }, [panelVisible, mobile]);
 
   function stop() {
     stopRef.current = true;
@@ -434,7 +480,7 @@ export function AssistantWidget({
   }
 
   async function play(step: Step, confirmed = false) {
-    setLines((current) => [...current, { role: "assistant", text: step.caption }]);
+    setLines((current) => [...current, { role: "assistant", text: step.caption, kind: "step" }]);
     turnsRef.current.push({ role: "assistant", content: step.caption });
     setTurnVersion((value) => value + 1);
     setSpotlight({ selector: step.spotlight, caption: step.caption });
@@ -515,7 +561,7 @@ export function AssistantWidget({
         turnsRef.current.push({ role: "assistant", content: payload.text || "" });
         break;
       }
-      if (payload.text) {
+      if (payload.text && !(payload.steps || []).some((step) => step.caption === payload.text)) {
         setLines((current) => [...current, { role: "assistant", text: payload.text || "" }]);
       }
       if (popoutRef.current && (payload.steps || []).length > 0) {
@@ -570,9 +616,18 @@ export function AssistantWidget({
     });
   }
 
+  function currentChatId() {
+    if (chatIdRef.current) return chatIdRef.current;
+    const id = newId();
+    chatIdRef.current = id;
+    setChatId(id);
+    return id;
+  }
+
   async function send(preset?: string, fromHost = false) {
     const text = (preset ?? draft).trim();
     if (!text || runningRef.current) return;
+    currentChatId();
     if (!fromHost) {
       const chosen = inferAssistantMode(text, pathnameRef.current);
       modeRef.current = chosen;
@@ -603,7 +658,7 @@ export function AssistantWidget({
   sendRef.current = send;
 
   function popOut() {
-    const opened = window.open("/assistant", POPOUT_NAME, "popup,width=440,height=760");
+    const opened = window.open("/assistant", POPOUT_NAME, "popup,width=880,height=900");
     if (!opened) {
       setNote("The browser blocked the new window. Allow pop-ups for this site, then try again.");
       return;
@@ -628,6 +683,8 @@ export function AssistantWidget({
     turnsRef.current = next.turns;
     setMode(next.mode);
     setLines(next.lines);
+    chatIdRef.current = next.chatId;
+    setChatId(next.chatId);
     setChrome("floating");
     setDockWidth(next.dockWidth);
     setPopoutAlive(false);
@@ -657,6 +714,52 @@ export function AssistantWidget({
     handle.addEventListener("pointerup", up);
   }
 
+  function newChat() {
+    const id = newId();
+    chatIdRef.current = id;
+    turnsRef.current = [];
+    playedRef.current = [];
+    setChatId(id);
+    setLines([]);
+    setMode("ask");
+    setDraft("");
+    setPending(null);
+    setNote("");
+    setTourHref("");
+    setSpotlight(null);
+    setHistoryOpen(false);
+    setTurnVersion((value) => value + 1);
+  }
+
+  function openSaved(id: string) {
+    const chat = readChats().find((item) => item.id === id);
+    if (!chat) return;
+    chatIdRef.current = chat.id;
+    turnsRef.current = chat.turns;
+    setChatId(chat.id);
+    setLines(chat.lines);
+    setMode(chat.mode);
+    setDraft("");
+    setPending(null);
+    setNote("");
+    setSpotlight(null);
+    setHistoryOpen(false);
+    setTurnVersion((value) => value + 1);
+  }
+
+  function confirmPending() {
+    if (!pending) return;
+    const step = pending;
+    setPending(null);
+    setRunning(true);
+    void (async () => {
+      await play(step, true);
+      setSpotlight(null);
+      setRunning(false);
+      await saveTour();
+    })();
+  }
+
   const suppressPill = pathname.startsWith("/signin") || pathname.startsWith("/login") || pathname.startsWith("/settings/delete");
   const laneOff = suppressPill || (!popout && !mobile && chrome === "docked" && panelVisible);
   useEffect(() => {
@@ -671,148 +774,46 @@ export function AssistantWidget({
 
   const dockTarget = !popout && !mobile && chrome === "docked" && panelVisible ? document.getElementById("assistant-dock") : null;
   const docked = Boolean(dockTarget);
-  const showLauncher = !popout && !docked;
+  const showLauncher = !popout && !panelVisible;
   const launcherLabel = popoutAlive ? "Assistant open in another window, click to bring it back" : "Price Ranger";
 
   const panel = (
-    <div className="flex min-h-0 flex-1 flex-col bg-paper text-ink">
-      <div className="border-b border-line">
-        <div className="flex items-center gap-2 px-4 py-3">
-          <Logo tone="ink" width={28} height={28} className="h-7 w-7" />
-          <div className="min-w-0">
-            <p className="font-serif text-lg leading-none">Price Ranger</p>
-            <p className="text-[11px] uppercase tracking-wide text-muted">Assistant</p>
-          </div>
-          <button
-            type="button"
-            className="ml-auto inline-flex h-12 items-center whitespace-nowrap px-3 text-base font-semibold text-ink"
-            onClick={() => {
-              if (popout) window.close();
-              else setOpen(false);
-            }}
-          >
-            {popout ? "Close window" : "Close"}
-          </button>
-        </div>
-        {!popout && !mobile ? (
-          <div className="flex flex-wrap gap-2 px-4 pb-3">
-            <button type="button" className="h-10 rounded-xl border border-line px-3 text-sm font-semibold text-ink" onClick={popOut}>
-              Open in new window
-            </button>
-            {chrome === "docked" ? (
-              <button type="button" className="h-10 rounded-xl border border-line px-3 text-sm font-semibold text-ink" onClick={() => setChrome("floating")}>
-                Float
-              </button>
-            ) : (
-              <button type="button" className="h-10 rounded-xl border border-line px-3 text-sm font-semibold text-ink" onClick={() => setChrome("docked")}>
-                Open in side panel
-              </button>
-            )}
-          </div>
-        ) : null}
-      </div>
-      {allowance ? (
-        <p className="flex items-center px-4 text-caption text-muted">
-          {allowance.used} of {allowance.cap} used this month
-          <InfoTip id="messages" />
-          {allowance.remaining <= 2 ? (
-            <Link href="/upgrade" className="ml-2 font-semibold text-pine">
-              Upgrade
-            </Link>
-          ) : null}
-        </p>
-      ) : null}
-      {note ? <p className="px-4 text-xs leading-relaxed text-muted">{note}</p> : null}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {lines.length === 0 ? (
-          <div className="space-y-3">
-            <p className="text-sm leading-relaxed text-muted">
-              Ask about a price, or say what to do. Price Ranger answers, and it walks the screen when you tell it to act. Press Stop any time. Deletes wait for you to confirm.
-            </p>
-            <MyFeedbackList />
-            <div className="flex flex-wrap gap-2">
-              {(pathname.startsWith("/guide")
-                ? ["What is this worth?", "How do I share this?", "How do I mark it sold?"]
-                : ["How do I share a price?", "What plan am I on?", "How do I add a photo?"]
-              ).map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="h-11 rounded-full border border-line px-3 text-sm font-semibold text-ink"
-                  onClick={() => void send(prompt)}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          lines.map((line, index) => (
-            <p
-              key={`${line.role}-${index}`}
-              className={`whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${line.role === "user" ? "bg-cream" : "bg-[#e7f0ea]"}`}
-            >
-              {renderText(line.text)}
-            </p>
-          ))
-        )}
-        {tourHref ? (
-          <Link href={tourHref} className="block text-sm font-semibold text-pine">
-            Replay this as a guided tour
-          </Link>
-        ) : null}
-        {pending ? (
-          <div className="rounded-2xl border border-line p-3">
-            <p className="text-sm leading-relaxed">{pending.caption}</p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-xl bg-pine px-3 text-sm font-semibold text-cream"
-                onClick={() => {
-                  const step = pending;
-                  setPending(null);
-                  setRunning(true);
-                  void (async () => {
-                    await play(step, true);
-                    setSpotlight(null);
-                    setRunning(false);
-                    await saveTour();
-                  })();
-                }}
-              >
-                Confirm
-              </button>
-              <button type="button" className="h-10 rounded-xl px-3 text-sm font-semibold text-muted" onClick={() => setPending(null)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
-      <form
-        className="flex gap-2 border-t border-line p-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void send();
-        }}
-      >
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Ask or tell Price Ranger what to do"
-          aria-label="Message Price Ranger"
-          className="h-12 min-w-0 flex-1 rounded-2xl border border-line px-3 text-base outline-none focus:border-pine"
-        />
-        {running ? (
-          <button type="button" onClick={stop} className="h-12 rounded-2xl bg-[#8d3b32] px-4 text-sm font-semibold text-cream">
-            Stop
-          </button>
-        ) : (
-          <button className="h-12 whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">Send</button>
-        )}
-      </form>
-    </div>
+    <AssistantChat
+      mobile={mobile}
+      popout={popout}
+      docked={docked}
+      chatId={chatId}
+      lines={lines}
+      draft={draft}
+      running={running}
+      pending={pending}
+      allowance={allowance}
+      note={note}
+      tourHref={tourHref}
+      pathname={pathname}
+      historyOpen={historyOpen}
+      chats={chats}
+      composerRef={inputRef}
+      onDraft={setDraft}
+      onSend={(text) => void send(text)}
+      onStop={stop}
+      onClose={() => {
+        if (popout) window.close();
+        else setOpen(false);
+      }}
+      onNewChat={newChat}
+      onToggleHistory={() => setHistoryOpen((value) => !value)}
+      onOpenChat={openSaved}
+      onConfirm={confirmPending}
+      onCancel={() => {
+        setPending(null);
+        setSpotlight(null);
+      }}
+      onRetry={(text) => void send(text)}
+      onPopOut={popOut}
+      onDock={() => setChrome("docked")}
+      onFloat={() => setChrome("floating")}
+    />
   );
 
   const frame = panelVisible ? (
