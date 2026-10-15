@@ -1,12 +1,22 @@
 import { PendingLink as Link } from "@/components/pending-link";
 import { Fragment, type ReactNode } from "react";
 
+import { markdownBlocks } from "@/lib/assistant/markdown";
+
 function inline(text: string, key: string): ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, index) => {
     const id = `${key}-${index}`;
     const bold = part.match(/^\*\*([^*]+)\*\*$/);
     if (bold) return <strong key={id}>{bold[1]}</strong>;
+    const code = part.match(/^`([^`]+)`$/);
+    if (code) {
+      return (
+        <code key={id} className="rounded bg-cream px-1">
+          {code[1]}
+        </code>
+      );
+    }
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (link && link[2].startsWith("/") && !link[2].startsWith("//")) {
       return (
@@ -20,53 +30,26 @@ function inline(text: string, key: string): ReactNode[] {
 }
 
 export function AssistantMarkdown({ text }: { text: string }) {
-  const lines = text.split("\n");
-  const blocks: ReactNode[] = [];
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index] ?? "";
-    if (/^\s*[-*]\s+/.test(line)) {
-      const items: string[] = [];
-      const start = index;
-      while (index < lines.length && /^\s*[-*]\s+/.test(lines[index] ?? "")) {
-        items.push((lines[index] ?? "").replace(/^\s*[-*]\s+/, ""));
-        index += 1;
-      }
-      blocks.push(
-        <ul key={`ul-${start}`} className="list-disc space-y-1 pl-5">
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{inline(item, `ul-${start}-${itemIndex}`)}</li>
-          ))}
-        </ul>,
-      );
-      continue;
-    }
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      const start = index;
-      while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index] ?? "")) {
-        items.push((lines[index] ?? "").replace(/^\s*\d+\.\s+/, ""));
-        index += 1;
-      }
-      blocks.push(
-        <ol key={`ol-${start}`} className="list-decimal space-y-1 pl-5">
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{inline(item, `ol-${start}-${itemIndex}`)}</li>
-          ))}
-        </ol>,
-      );
-      continue;
-    }
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-    blocks.push(
-      <p key={`p-${index}`} className="whitespace-pre-wrap">
-        {inline(line, `p-${index}`)}
-      </p>,
-    );
-    index += 1;
-  }
-  return <div className="space-y-3">{blocks}</div>;
+  const blocks = markdownBlocks(text);
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, index) => {
+        if (block.type === "p") {
+          return (
+            <p key={`p-${index}`} className="whitespace-pre-wrap">
+              {inline(block.text, `p-${index}`)}
+            </p>
+          );
+        }
+        const Tag = block.type === "ol" ? "ol" : "ul";
+        return (
+          <Tag key={`${block.type}-${index}`} className={`${block.type === "ol" ? "list-decimal" : "list-disc"} space-y-1 pl-5`}>
+            {block.items.map((item, itemIndex) => (
+              <li key={itemIndex}>{inline(item, `${block.type}-${index}-${itemIndex}`)}</li>
+            ))}
+          </Tag>
+        );
+      })}
+    </div>
+  );
 }

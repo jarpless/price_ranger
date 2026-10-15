@@ -89,7 +89,7 @@ export function AssistantChat({
   lines: ChatLine[];
   draft: string;
   running: boolean;
-  pending: { caption: string } | null;
+  pending: { caption: string; choices?: { label: string; args: Record<string, string> }[] } | null;
   allowance: Allowance | null;
   note: string;
   tourHref: string;
@@ -104,7 +104,7 @@ export function AssistantChat({
   onNewChat: () => void;
   onToggleHistory: () => void;
   onOpenChat: (id: string) => void;
-  onConfirm: () => void;
+  onConfirm: (args?: Record<string, string>) => void;
   onCancel: () => void;
   onRetry: (text: string) => void;
   onPopOut: () => void;
@@ -464,10 +464,27 @@ export function AssistantChat({
                   {pending ? (
                     <div className="rounded-3xl border border-line bg-paper p-4">
                       <p className="text-base leading-7">{pending.caption}</p>
-                      <div className="mt-3 flex gap-2">
-                        <button type="button" className="h-11 rounded-full bg-pine px-4 text-base font-semibold text-cream" onClick={onConfirm}>
-                          Confirm
-                        </button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(pending.choices || []).length > 1 ? (
+                          pending.choices?.map((choice) => (
+                            <button
+                              key={choice.label}
+                              type="button"
+                              className="h-11 rounded-full bg-pine px-4 text-base font-semibold text-cream"
+                              onClick={() => onConfirm(choice.args)}
+                            >
+                              {choice.label}
+                            </button>
+                          ))
+                        ) : (
+                          <button
+                            type="button"
+                            className="h-11 rounded-full bg-pine px-4 text-base font-semibold text-cream"
+                            onClick={() => onConfirm(pending.choices?.[0]?.args)}
+                          >
+                            Confirm
+                          </button>
+                        )}
                         <button type="button" className="h-11 rounded-full px-4 text-base font-semibold text-muted" onClick={onCancel}>
                           Cancel
                         </button>

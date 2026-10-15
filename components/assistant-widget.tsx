@@ -37,6 +37,7 @@ interface Step {
   href: string;
   spotlight: string;
   needsConfirm: boolean;
+  choices?: { label: string; args: Record<string, string> }[];
 }
 
 type AssistantMessage =
@@ -747,9 +748,9 @@ export function AssistantWidget({
     setTurnVersion((value) => value + 1);
   }
 
-  function confirmPending() {
+  function confirmPending(extra?: Record<string, string>) {
     if (!pending) return;
-    const step = pending;
+    const step = { ...pending, args: { ...pending.args, ...extra } };
     setPending(null);
     setRunning(true);
     void (async () => {
