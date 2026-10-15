@@ -210,6 +210,12 @@ export async function choosePath(formData: FormData) {
   redirect(`/guide/${quoteId}`);
 }
 
+/** Photo upload from the assistant. A full form uses startAndPrice and shows the limit on the page. */
+export async function startAndPriceDirect(formData: FormData) {
+  const result = await startAndPrice("", formData);
+  if (result === "limit") redirect("/upgrade");
+}
+
 export async function startAndPrice(_previous: string, formData: FormData): Promise<string> {
   const user = await requireUser();
   const access = await pricingAccess(user);

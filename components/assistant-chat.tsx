@@ -1,6 +1,6 @@
 "use client";
 
-import { startAndPrice } from "@/app/guide-actions";
+import { startAndPriceDirect } from "@/app/guide-actions";
 import { PendingLink as Link } from "@/components/pending-link";
 import { assistantGreeting, assistantSuggestions, stepLabel, type SavedChat } from "@/lib/assistant/history";
 import type { ChatLine } from "@/lib/assistant/presence";
@@ -515,7 +515,7 @@ export function AssistantChat({
             <div className="ask-composer">
               {note ? <p className="mb-2 px-2 text-sm leading-6 text-muted">{note}</p> : null}
               {photoNote ? <p className="mb-2 rounded-2xl bg-[#f8e8e4] px-3 py-2 text-sm text-danger">{photoNote}</p> : null}
-              <form ref={photoForm} action={startAndPrice} className="hidden">
+              <form ref={photoForm} action={startAndPriceDirect} className="hidden">
                 <input type="hidden" name="path" value="item" />
                 <input
                   ref={fileRef}
