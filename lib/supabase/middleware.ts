@@ -28,16 +28,17 @@ export async function refreshSupabaseSession(request: NextRequest) {
     },
   });
 
+  const prior = request.cookies.getAll();
   try {
-    const prior = request.cookies.getAll();
     const { data, error } = await supabase.auth.getUser();
     if (!error && data.user) return { response, user: data.user };
     const cookieUser = readSupabaseCookieUser(prior);
-    if (cookieUser) return { response: NextResponse.next({ request }), user: cookieUser };
+    // A failed refresh must not send the cleared cookies back to the browser.
+    if (cookieUser) return { response: NextResponse.next(), user: cookieUser };
     return { response, user: null };
   } catch {
-    const cookieUser = readSupabaseCookieUser(request.cookies.getAll());
-    if (cookieUser) return { response: NextResponse.next({ request }), user: cookieUser };
+    const cookieUser = readSupabaseCookieUser(prior);
+    if (cookieUser) return { response: NextResponse.next(), user: cookieUser };
     return { response, user: null };
   }
 }

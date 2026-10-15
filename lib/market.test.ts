@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { answerFromMarket, comparablesForTitle, MARKET_REGRESSION, marketPrice, pictureFor } from "./market";
+import { answerFromMarket, comparablesForTitle, MARKET_REGRESSION, marketPrice, pictureFor, priceFarFromRange } from "./market";
 
 test("a bare Nintendo Switch is the docked model, not the OLED", () => {
   const quote = marketPrice("Nintendo Switch");
@@ -55,6 +55,14 @@ test("a table without a catalog listing still has sold comps and a picture", () 
   const picture = pictureFor("Oak dining table");
   assert.ok(picture.startsWith("data:image/svg+xml"));
   assert.notEqual(picture, pictureFor("iPhone 13"));
+});
+
+test("a price far outside the sold range is called out", () => {
+  assert.equal(priceFarFromRange(125000, 15000, 20000), true);
+  assert.equal(priceFarFromRange(17500, 15000, 20000), false);
+  assert.equal(priceFarFromRange(22000, 15000, 20000), false);
+  assert.equal(priceFarFromRange(5000, 15000, 20000), true);
+  assert.equal(priceFarFromRange(null, 15000, 20000), false);
 });
 
 test("the assistant does not repeat a $40 Switch price", () => {

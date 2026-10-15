@@ -466,6 +466,12 @@ export function namesForAutocomplete(): string[] {
   return QUICK_ITEMS.map((item) => item.description);
 }
 
+/** $1,250 against a $150–$200 sold range is far enough to warn. A few dollars outside is not. */
+export function priceFarFromRange(cents: number | null, lowCents: number | null, highCents: number | null): boolean {
+  if (cents == null || lowCents == null || highCents == null || lowCents <= 0 || highCents <= 0) return false;
+  return cents > highCents * 2 || cents * 2 < lowCents;
+}
+
 /**
  * Prices from sold listings. A stored figure outside the range is called out
  * and is not repeated as the answer.

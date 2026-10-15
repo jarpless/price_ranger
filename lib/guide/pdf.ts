@@ -1,3 +1,7 @@
+import { MARK_JPEG_HEX } from "./mark-jpeg";
+
+const MARK_JPEG = Uint8Array.from(Buffer.from(MARK_JPEG_HEX, "hex"));
+
 export interface PdfLine {
   name: string;
   detail: string;
@@ -156,15 +160,13 @@ function writeRows(
 export function buildPricePdf(input: PdfInput): Uint8Array {
   const jpeg = input.jpeg && jpegSize(input.jpeg) ? input.jpeg : null;
   const size = jpeg ? jpegSize(jpeg) : null;
+  const logo = jpegSize(MARK_JPEG) ? MARK_JPEG : null;
   const commands: string[] = [];
   commands.push("0.118 0.275 0.212 rg");
   commands.push("0 744 612 48 re f");
+  if (logo) commands.push("q 32 0 0 32 40 752 cm /ImLogo Do Q");
   commands.push("1 1 1 rg");
-  commands.push("48 754 18 18 re f");
-  commands.push("0.118 0.275 0.212 rg");
-  commands.push("BT /F1 9 Tf 51 759 Td (PR) Tj ET");
-  commands.push("1 1 1 rg");
-  commands.push("BT /F1 16 Tf 74 760 Td (Price Ranger) Tj ET");
+  commands.push("BT /F1 16 Tf 82 760 Td (Price Ranger) Tj ET");
   commands.push("0.118 0.275 0.212 rg");
   let y = 720;
   const stamp = ["priceranger.app", input.date].filter(Boolean).join("  ·  ").slice(0, 80);
@@ -225,7 +227,12 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   const objects: (string | Uint8Array)[] = [];
   objects.push("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
   objects.push("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n");
-  const imageRef = jpeg ? " /XObject << /Im1 6 0 R >>" : "";
+  const logoSize = logo ? jpegSize(logo) : null;
+  const xobjects = [
+    logo && logoSize ? "/ImLogo 6 0 R" : "",
+    jpeg && size ? `/Im1 ${logo && logoSize ? 7 : 6} 0 R` : "",
+  ].filter(Boolean);
+  const imageRef = xobjects.length ? ` /XObject << ${xobjects.join(" ")} >>` : "";
   objects.push(
     `3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >>${imageRef} >> >> endobj\n`,
   );
@@ -237,17 +244,23 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   streamObject.set(streamFooter, streamHeader.length + streamBytes.length);
   objects.push(streamObject);
   objects.push("5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n");
-  if (jpeg && size) {
+  function imageObject(id: number, bytes: Uint8Array, dimensions: { width: number; height: number }) {
     const header = new TextEncoder().encode(
-      `6 0 obj << /Type /XObject /Subtype /Image /Width ${size.width} /Height ${size.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >> stream\n`,
+      `${id} 0 obj << /Type /XObject /Subtype /Image /Width ${dimensions.width} /Height ${dimensions.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.length} >> stream\n`,
     );
     const footer = new TextEncoder().encode("\nendstream endobj\n");
-    const combined = new Uint8Array(header.length + jpeg.length + footer.length);
+    const combined = new Uint8Array(header.length + bytes.length + footer.length);
     combined.set(header, 0);
-    combined.set(jpeg, header.length);
-    combined.set(footer, header.length + jpeg.length);
-    objects.push(combined);
+    combined.set(bytes, header.length);
+    combined.set(footer, header.length + bytes.length);
+    return combined;
   }
+  let nextId = 6;
+  if (logo && logoSize) {
+    objects.push(imageObject(nextId, logo, logoSize));
+    nextId += 1;
+  }
+  if (jpeg && size) objects.push(imageObject(nextId, jpeg, size));
 
   const encoder = new TextEncoder();
   const chunks: Uint8Array[] = [encoder.encode("%PDF-1.4\n")];
@@ -259,7 +272,7 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
     chunks.push(bytes);
     cursor += bytes.length;
   }
-  const count = jpeg ? 6 : 5;
+  const count = objects.length;
   let xref = `xref\n0 ${count + 1}\n0000000000 65535 f \n`;
   for (let index = 1; index <= count; index += 1) {
     xref += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;

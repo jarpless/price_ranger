@@ -87,7 +87,7 @@ function userFromParsed(
   };
 }
 
-function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expiresAt: number | null } | null {
+function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expiresAt: number | null; linkGuest: string | null } | null {
   const key = authCookieKey(cookies);
   if (!key) return null;
   const raw = combinedCookie(cookies, key);
@@ -97,7 +97,7 @@ function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expi
     const parsed = JSON.parse(raw.startsWith("base64-") ? decodeBase64Url(encoded) : raw) as {
       expires_at?: unknown;
       access_token?: unknown;
-      user?: { id?: unknown; email?: unknown; is_anonymous?: unknown };
+      user?: { id?: unknown; email?: unknown; is_anonymous?: unknown; user_metadata?: { link_guest?: unknown } };
     };
     const accessToken = typeof parsed.access_token === "string" ? parsed.access_token : null;
     const user = userFromParsed(parsed.user, accessToken);
@@ -108,7 +108,8 @@ function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expi
         : typeof parsed.access_token === "string"
           ? tokenExpiry(parsed.access_token)
           : null;
-    return { user, expiresAt };
+    const linkGuest = parsed.user?.user_metadata?.link_guest;
+    return { user, expiresAt, linkGuest: typeof linkGuest === "string" ? linkGuest : null };
   } catch {
     return null;
   }
@@ -117,6 +118,11 @@ function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expi
 /** The user stored in the auth cookie, including a token that is near expiry. */
 export function readSupabaseCookieUser(cookies: CookiePair[]): CookieSessionUser | null {
   return parseAuthCookie(cookies)?.user ?? null;
+}
+
+/** Guest id stashed on the account when a guest saved an email. */
+export function readSupabaseLinkGuest(cookies: CookiePair[]): string | null {
+  return parseAuthCookie(cookies)?.linkGuest ?? null;
 }
 
 /**

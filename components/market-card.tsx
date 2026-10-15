@@ -1,4 +1,5 @@
 import { applyAdjustment } from "@/app/guide-actions";
+import { AskingLineTotal, AskingTotal, publishAskingDraft } from "@/components/asking-price";
 import { InfoTip } from "@/components/info-tip";
 import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
@@ -48,6 +49,7 @@ export function MarketCard({
   const condition = (meta.condition || live?.condition || "good") as ConditionId;
   const point = priceCents ?? live?.cents ?? null;
   const headline = totalCents ?? point;
+  const extraCents = point != null && headline != null ? headline - point : 0;
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
   const comparables = live?.comparables.length
     ? live.comparables
@@ -64,9 +66,13 @@ export function MarketCard({
           <InfoTip id="condition" />
         </div>
         <p className="mt-2 text-caption font-semibold uppercase tracking-wide text-muted">Total</p>
-        <p data-spotlight="asking-price" className="font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">
-          {headline != null ? formatUsd(headline) : "—"}
-        </p>
+        <AskingTotal
+          itemCents={point}
+          extraCents={extraCents}
+          lowCents={low}
+          highCents={high}
+          className="font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]"
+        />
         {low != null && high != null ? (
           <p className="mt-1 flex items-center text-body text-muted">
             <span className="tabular-nums">
@@ -98,7 +104,9 @@ export function MarketCard({
             ))}
             <li className="line-row">
               <span className="list-title">Total</span>
-              <span className="list-price">{headline != null ? formatUsd(headline) : "—"}</span>
+              <span className="list-price">
+                <AskingLineTotal itemCents={point} extraCents={extraCents} />
+              </span>
             </li>
           </ul>
         ) : null}
@@ -176,7 +184,7 @@ export function MarketCard({
         <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="quoteId" value={quoteId} />
           <input type="hidden" name="kind" value="price" />
-          <MoneyField key={point ?? "empty"} name="amount" label="Your price" submitOnBlur defaultValue={point != null ? dollarsInputValue(point) : ""} />
+          <MoneyField key={point ?? "empty"} name="amount" label="Your price" submitOnBlur onDraft={publishAskingDraft} defaultValue={point != null ? dollarsInputValue(point) : ""} />
           <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
             Save price
           </button>

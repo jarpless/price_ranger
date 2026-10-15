@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { emailScreenHasCode, isCompleteEmailCode, normalizeEmailCode } from "./auth-code";
@@ -11,6 +12,16 @@ test("an email code is eight digits and a shorter paste is not submitted as comp
   assert.equal(emailScreenHasCode({ backend: "supabase", kind: "signin" }), true);
   assert.equal(emailScreenHasCode({ backend: "supabase", kind: "signup" }), false);
   assert.equal(emailScreenHasCode({ backend: "local", kind: "signup" }), true);
+});
+
+test("a signup fragment is stored by the browser client before the next page loads", () => {
+  const callback = readFileSync(new URL("../app/auth/callback/route.ts", import.meta.url), "utf8");
+  const recover = readFileSync(new URL("../components/recover-session.tsx", import.meta.url), "utf8");
+  const session = readFileSync(new URL("../app/auth/callback/session/route.ts", import.meta.url), "utf8");
+  assert.match(callback, /\/auth\/recover/);
+  assert.match(recover, /setSession\(\{ access_token: accessToken, refresh_token: refreshToken \}\)/);
+  assert.match(session, /readSupabaseCookieUser/);
+  assert.doesNotMatch(callback, /\/auth\/callback\/session/);
 });
 
 test("a sign-in link stays on the browser host that holds the cookie", () => {

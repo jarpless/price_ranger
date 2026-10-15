@@ -27,17 +27,7 @@ const HASH_PAGE = `<!doctype html>
         location.replace("/signin?error=link");
         return;
       }
-      fetch("/auth/callback/session", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ access_token: access, refresh_token: refresh })
-      }).then(function (response) {
-        return response.json().then(function (body) {
-          location.replace(response.ok && body && body.next ? body.next : "/signin?error=link");
-        });
-      }).catch(function () {
-        location.replace("/signin?error=link");
-      });
+      location.replace("/auth/recover" + location.hash);
     })();
   </script>
 </body>

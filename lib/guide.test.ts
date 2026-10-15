@@ -247,6 +247,8 @@ test("a price sheet becomes a real PDF", () => {
   });
   const brandedText = Buffer.from(branded).toString("latin1");
   assert.match(brandedText, /Price Ranger/);
+  assert.match(brandedText, /\/ImLogo Do/);
+  assert.doesNotMatch(brandedText, /\(PR\) Tj/);
   assert.match(brandedText, /\$175/);
   assert.match(brandedText, /Shipping/);
   assert.match(brandedText, /Comparables/);

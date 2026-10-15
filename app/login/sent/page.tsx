@@ -40,7 +40,9 @@ export default async function SentPage({
           : email
             ? `If ${email} can receive mail, a message is on the way. `
             : "A message is on the way. "}
-        If the email includes an {codeLabel}, enter it below. If it only has a link, open the link.
+        {hasCode
+          ? `If the email includes an ${codeLabel}, enter it below. If it only has a link, open the link.`
+          : "Open the link in that email."}
         {notice === "resent" ? " We sent another one." : ""}
       </p>
       <p className="mt-3 text-body leading-6">If this inbox cannot receive mail, your draft is still on this device.</p>
