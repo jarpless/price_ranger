@@ -156,6 +156,9 @@ test("the buyer sheet keeps the seller discount", () => {
   assert.equal(sheet.options[0].lines[0].price, "$765");
   assert.equal(sheet.options[0].lines[1].detail, "1 × $450");
   assert.equal(sheet.options[0].lines[2].price, "$75");
+  const saved = buyerSheet(quote, groups, { sources, askingCents: 125000 });
+  assert.equal(saved.options[0].total, "$1,250");
+  assert.equal(saved.options[0].lines[0].price, "$725");
   const shared = forPublic({
     ...sheet,
     seller: "ada@example.com",
@@ -187,6 +190,32 @@ test("the buyer sheet keeps the seller discount", () => {
     total: sheet.options[0].total,
   });
   assert.match(Buffer.from(pdf).toString("latin1"), /Total \$1,290/);
+});
+
+test("the share sheet uses a saved price instead of the suggestion", () => {
+  const quote = {
+    id: "quote-oak",
+    title: "Oak dining table",
+    customerName: "Buyer",
+    tiers: [{ id: "tier-1", quoteId: "quote-oak", name: "Price", note: "", sortOrder: 0, recommended: true, groupIds: ["group-oak"] }],
+  } as QuoteRecord;
+  const groups = [
+    {
+      id: "group-oak",
+      items: [{ name: "Oak dining table", quantity: 1, unitPriceCents: 18000 }],
+    },
+  ] as ItemGroup[];
+  const sheet = buyerSheet(quote, groups, { askingCents: 125000 });
+  assert.equal(sheet.options[0].total, "$1,250");
+  assert.equal(sheet.options[0].lines[0].detail, "1 × $1,250");
+  assert.equal(sheet.options[0].lines[0].price, "$1,250");
+  const pdf = buildPricePdf({
+    title: sheet.title,
+    subtitle: sheet.subtitle,
+    lines: sheet.options[0].lines,
+    total: sheet.options[0].total,
+  });
+  assert.match(Buffer.from(pdf).toString("latin1"), /Total \$1,250/);
 });
 
 test("a photo that cannot be read does not throw, and HEIC is not treated as JPEG", async () => {

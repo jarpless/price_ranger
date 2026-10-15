@@ -44,6 +44,25 @@ export function settledTotal(lines: MoneyLine[], adjustment: Adjustment): number
   return lines.reduce((sum, line) => sum + lineSettlement(line, adjustment).cents, 0);
 }
 
+/**
+ * The saved asking price wins over the suggested line.
+ * A $1,250 save must not leave the share, the PDF, or the line at the suggestion.
+ */
+export function linesAtAsking(lines: MoneyLine[], askingCents: number | null, adjustment: Adjustment): MoneyLine[] {
+  if (askingCents == null) return lines;
+  if (lines.length === 0) return [{ name: "Asking price", quantity: 1, unitPriceCents: askingCents }];
+  if (settledTotal(lines, adjustment) === askingCents) return lines;
+  const rest = lines.slice(1);
+  const restTotal = settledTotal(rest, adjustment);
+  const first = lines[0];
+  const quantity = first.quantity > 0 ? first.quantity : 1;
+  const discounted = adjustment.percent > 0 && (adjustment.includeFees || !isPassThrough(first.name));
+  const target = askingCents - restTotal;
+  const base = discounted ? target / (1 - adjustment.percent / 100) : target;
+  const unit = Math.max(0, Math.round(base / quantity));
+  return [{ ...first, quantity, unitPriceCents: unit }, ...rest];
+}
+
 const DISCOUNT = /^meta:discount=(\d{1,3})$/;
 
 /** Slider percent is applied to the original suggestion, and 0% returns that suggestion. */

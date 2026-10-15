@@ -19,11 +19,19 @@ async function canvasShot(canvas: HTMLCanvasElement): Promise<{ blob: Blob; prev
 
 /** Full page, with the selected box stroked in red. The live chrome is left out of the image. */
 export async function captureAnnotated(box: DragBox): Promise<{ blob: Blob; preview: string }> {
+  const width = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, window.innerWidth);
+  const height = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, window.innerHeight);
+  const pageBox = { ...box, x: box.x + window.scrollX, y: box.y + window.scrollY };
   try {
     const { toPng } = await import("html-to-image");
-    const dataUrl = await toPng(document.body, {
+    const dataUrl = await toPng(document.documentElement, {
       pixelRatio: 1,
       cacheBust: true,
+      width,
+      height,
+      canvasWidth: width,
+      canvasHeight: height,
+      style: { overflow: "visible", height: `${height}px` },
       filter: (node) => !(node instanceof HTMLElement && node.dataset.feedbackChrome === "true"),
     });
     const image = new Image();
@@ -35,9 +43,9 @@ export async function captureAnnotated(box: DragBox): Promise<{ blob: Blob; prev
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Could not take a screenshot.");
     context.drawImage(image, 0, 0);
-    const scaleX = image.width / Math.max(1, window.innerWidth);
-    const scaleY = image.height / Math.max(1, window.innerHeight);
-    strokeBox(context, box, scaleX, scaleY);
+    const scaleX = image.width / Math.max(1, width);
+    const scaleY = image.height / Math.max(1, height);
+    strokeBox(context, pageBox, scaleX, scaleY);
     return canvasShot(canvas);
   } catch {
     const canvas = document.createElement("canvas");

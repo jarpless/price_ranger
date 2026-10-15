@@ -1,10 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { acceptTerms } from "@/app/guide-actions";
 import { PendingLink } from "@/components/pending-link";
 import { PrimaryDock } from "@/components/primary-dock";
 import { Button } from "@/components/ui";
 import type { OnboardingCopy } from "@/lib/guide/flow";
+
+const TERMS_KEY = "pr_terms_checked";
 
 export function WelcomeSlides({
   copy,
@@ -18,6 +22,14 @@ export function WelcomeSlides({
   account: "member" | "guest";
 }) {
   const guest = account === "guest";
+  const [accepted, setAccepted] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(TERMS_KEY) === "1") setAccepted(true);
+    } catch {
+      // sessionStorage can be unavailable.
+    }
+  }, []);
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
@@ -38,7 +50,22 @@ export function WelcomeSlides({
           <form action={acceptTerms} className="mt-6 space-y-4">
             <input type="hidden" name="next" value={next} />
             <label className="flex items-start gap-3 rounded-2xl border border-line bg-paper p-4 text-body leading-6 shadow-card">
-              <input name="acceptTerms" type="checkbox" required className="mt-1 h-6 w-6 shrink-0" />
+              <input
+                name="acceptTerms"
+                type="checkbox"
+                required
+                checked={accepted}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  setAccepted(next);
+                  try {
+                    window.sessionStorage.setItem(TERMS_KEY, next ? "1" : "0");
+                  } catch {
+                    // The checkbox still submits with the form.
+                  }
+                }}
+                className="mt-1 h-6 w-6 shrink-0"
+              />
               <span>
                 I agree to the <a className="font-semibold text-pine underline" href="/terms">Terms</a> and{" "}
                 <a className="font-semibold text-pine underline" href="/privacy">Privacy Policy</a>. This draft stays on

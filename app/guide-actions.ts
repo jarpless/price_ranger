@@ -53,14 +53,44 @@ async function settledPrice(userId: string, quoteId: string, adjustment: Adjustm
   return settledTotal(await quoteLines(userId, quoteId), adjustment);
 }
 
-async function setFirstLinePrice(userId: string, quoteId: string, cents: number) {
+async function quoteGroup(userId: string, quoteId: string) {
   const data = await getData();
   const quote = await data.getQuote(userId, quoteId);
-  const groups = await data.listGroups(userId);
-  const group = quote?.tiers[0]?.groupIds.map((id) => groups.find((item) => item.id === id)).find(Boolean);
+  const groupId = quote?.tiers[0]?.groupIds[0];
+  if (!groupId) return { data, quote, group: null };
+  const group = await data.getGroup(userId, groupId);
+  return { data, quote, group };
+}
+
+async function setFirstLinePrice(userId: string, quoteId: string, cents: number) {
+  const { data, group } = await quoteGroup(userId, quoteId);
   const line = group?.items[0];
-  if (!line) return;
-  await data.updateGroupItem(userId, line.id, { quantity: 1, unitPriceCents: cents });
+  if (!line || !group) return false;
+  return data.updateGroupItem(userId, line.id, { quantity: line.quantity > 0 ? line.quantity : 1, unitPriceCents: cents });
+}
+
+/** Writes the saved asking price onto the line the share link and the PDF read. */
+async function setAskingOnLines(userId: string, quoteId: string, askingCents: number, adjustment: Adjustment) {
+  const { data, group } = await quoteGroup(userId, quoteId);
+  if (!group) return false;
+  const items = group.items;
+  if (!items[0]) {
+    const itemId = await data.createCustomItem(userId, { name: "Price", unit: "each", unitPriceCents: askingCents });
+    return data.addGroupItem(userId, group.id, itemId);
+  }
+  const rest = items.slice(1).map((item) => ({
+    name: item.name,
+    quantity: item.quantity,
+    unitPriceCents: item.unitPriceCents,
+  }));
+  const restTotal = settledTotal(rest, adjustment);
+  const first = items[0];
+  const quantity = first.quantity > 0 ? first.quantity : 1;
+  const discounted = adjustment.percent > 0 && !/\b(dumpster|haul|hauling|fee|fees|permit|disposal|tax|delivery)\b/i.test(first.name);
+  const target = askingCents - restTotal;
+  const base = discounted ? target / (1 - adjustment.percent / 100) : target;
+  const unit = Math.max(0, Math.round(base / quantity));
+  return data.updateGroupItem(userId, first.id, { quantity, unitPriceCents: unit });
 }
 
 async function addExtraLine(userId: string, quoteId: string, name: string, amount: number) {
@@ -190,9 +220,10 @@ export async function choosePath(formData: FormData) {
   redirect(`/guide/${quoteId}`);
 }
 
-export async function startAndPrice(formData: FormData) {
+export async function startAndPrice(_previous: string, formData: FormData): Promise<string> {
   const user = await requireUser();
-  await blockNewPrice(user);
+  const access = await pricingAccess(user);
+  if (!access.ok) return "limit";
   const path = clip(formData.get("path"), 20);
   if (!isGuidePath(path)) redirect("/new");
   const description = clip(formData.get("description"), 280);
@@ -206,6 +237,13 @@ export async function startAndPrice(formData: FormData) {
     visionNote = identified.note;
   }
   if (!text || looksLikeFilename(text)) redirect("/new?error=photo");
+  const recent = (await listGuideQuotes(user.id)).find((quote) => {
+    if (quote.sample || quote.sharedAt) return false;
+    if (quote.description.trim() !== text.trim()) return false;
+    const age = Date.now() - Date.parse(quote.updatedAt);
+    return Number.isFinite(age) && age >= 0 && age < 20_000;
+  });
+  if (recent) redirect(`/guide/${recent.quoteId}`);
   const suggestion = suggestPrice(text, path);
   if (visionNote) suggestion.note = visionNote;
   const guide = await ensureGuideUser(user.id);
@@ -396,7 +434,7 @@ export async function applyAdjustment(formData: FormData) {
     const amount = rawAmount;
     if (amount == null) redirect(`/guide/${quoteId}?error=price`);
     sources = withOverride(sources, amount);
-    await setFirstLinePrice(user.id, quoteId, amount);
+    await setAskingOnLines(user.id, quoteId, amount, adjustmentFromSources(sources));
   } else if (kind === "preset") {
     const preset = clip(formData.get("value"), 20);
     if (preset === "off10" || preset === "off20") {
@@ -432,7 +470,10 @@ export async function applyAdjustment(formData: FormData) {
     const itemId = await data.createCustomItem(user.id, { name, unit: "each", unitPriceCents: amount });
     await data.addGroupItem(user.id, groupId, itemId);
   }
-  const priceCents = await settledPrice(user.id, quoteId, adjustmentFromSources(sources));
+  const adjustment = adjustmentFromSources(sources);
+  const settled = await settledPrice(user.id, quoteId, adjustment);
+  const saved = readMarketMeta(sources).overrideCents;
+  const priceCents = saved != null ? saved : settled;
   await saveGuideQuote({ ...row, sources, priceCents, step: "adjust" });
   refresh();
 }
@@ -447,11 +488,13 @@ export async function sendQuote(formData: FormData) {
   const groups = await data.listGroups(user.id);
   const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
   const meta = readMarketMeta(row.sources);
+  const askingCents = meta.overrideCents ?? row.priceCents;
   const sheet = buyerSheet(quote, groups, {
     sources: row.sources,
     note: row.note,
     photo: photo ? photoDataUrl(photo) : null,
     date: new Date().toISOString().slice(0, 10),
+    askingCents,
   });
   const live = marketPrice(row.description) || marketPrice(quote.title);
   sheet.condition = conditionLabel(meta.condition || live?.condition || "good");

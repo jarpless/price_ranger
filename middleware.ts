@@ -136,6 +136,18 @@ async function supabaseGate(request: NextRequest): Promise<{
 }
 
 export async function middleware(request: NextRequest) {
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": request.headers.get("origin") || "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers") || "Content-Type",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
+
   const backend = dataBackend();
   const { pathname } = request.nextUrl;
 

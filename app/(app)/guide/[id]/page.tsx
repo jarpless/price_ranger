@@ -20,8 +20,9 @@ import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
-import { adjustmentFromSources, lineSettlement, settledTotal, priceError } from "@/lib/guide/pricing";
+import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, priceError } from "@/lib/guide/pricing";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
+import { readMarketMeta } from "@/lib/market";
 import { getData } from "@/lib/store";
 
 export const metadata = { title: "Your price" };
@@ -55,13 +56,15 @@ export default async function GuidePage({
   const now = sent ? "The link is ready. Share it yourself. Nothing else is emailed." : row.outcome === "sold" ? "The sold price is saved." : row.outcome === "not_yet" ? "You can mark it sold later from home." : copy.now;
   const adjustment = adjustmentFromSources(row.sources);
   const byId = new Map(groups.map((group) => [group.id, group]));
-  const money = (quote?.tiers[0]?.groupIds ?? []).flatMap((groupId) => byId.get(groupId)?.items ?? []).map((item) => ({
+  const stored = (quote?.tiers[0]?.groupIds ?? []).flatMap((groupId) => byId.get(groupId)?.items ?? []).map((item) => ({
     name: item.name,
     quantity: item.quantity,
     unitPriceCents: item.unitPriceCents,
   }));
+  const asking = readMarketMeta(row.sources).overrideCents ?? row.priceCents;
+  const money = linesAtAsking(stored, asking, adjustment);
   const lineTotal = money.length ? settledTotal(money, adjustment) : null;
-  const headlineCents = lineTotal ?? row.priceCents;
+  const headlineCents = lineTotal ?? asking;
   const price = headlineCents != null ? formatUsd(headlineCents) : "";
   const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
   const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
@@ -109,7 +112,7 @@ export default async function GuidePage({
           <MarketCard
             quoteId={row.quoteId}
             description={row.description}
-            priceCents={row.priceCents}
+            priceCents={headlineCents}
             note={row.note}
             sources={row.sources}
             extras={lines}

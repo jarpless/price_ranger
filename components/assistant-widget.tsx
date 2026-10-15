@@ -351,7 +351,8 @@ export function AssistantWidget({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.repeat) return;
-      if (event.key.toLowerCase() !== "k" || event.altKey || event.shiftKey) return;
+      const key = typeof event.key === "string" ? event.key.toLowerCase() : "";
+      if (key !== "k" || event.altKey || event.shiftKey) return;
       if (!event.metaKey && !event.ctrlKey) return;
       if (popoutRef.current) return;
       if (pathnameRef.current.startsWith("/p/") || pathnameRef.current.includes("/present")) return;

@@ -43,6 +43,7 @@ export function FeedbackMode() {
   const [title, setTitle] = useState("");
   const [titleEdited, setTitleEdited] = useState(false);
   const [status, setStatus] = useState("");
+  const [savedHref, setSavedHref] = useState("");
   const [busy, setBusy] = useState(false);
   const [spot, setSpot] = useState({ left: 16, top: 72 });
   const origin = useRef<{ x: number; y: number } | null>(null);
@@ -66,6 +67,7 @@ export function FeedbackMode() {
     setTitle("");
     setTitleEdited(false);
     setStatus("");
+    setSavedHref("");
     setShot(null);
     setDrag(null);
     setSelecting(false);
@@ -101,62 +103,95 @@ export function FeedbackMode() {
     return () => window.removeEventListener("keydown", onKey);
   }, [phase]);
 
+  function beginDrag(x: number, y: number) {
+    origin.current = { x, y };
+    const next = { x, y, w: 0, h: 0 };
+    liveBox.current = next;
+    setDrag(next);
+  }
+
+  function moveDrag(x: number, y: number) {
+    if (!origin.current) return;
+    const next = boxFrom(origin.current, x, y);
+    liveBox.current = next;
+    setDrag(next);
+  }
+
+  async function finishDrag() {
+    const start = origin.current;
+    if (!start) return;
+    origin.current = null;
+    const box = liveBox.current;
+    if (!box || box.w < 8 || box.h < 8) {
+      liveBox.current = null;
+      setDrag(null);
+      setPhase("armed");
+      return;
+    }
+    setSelecting(false);
+    setPhase("composing");
+    const width = Math.min(352, Math.max(280, window.innerWidth - 16));
+    const height = 420;
+    setSpot(window.innerWidth < 1024 ? { left: 8, top: 8 } : placePopover(box, width, height));
+    try {
+      const captured = await captureAnnotated(box);
+      setShot(captured);
+      setStatus("");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not capture that area.");
+      setShot(null);
+    }
+  }
+
   useEffect(() => {
     if (phase !== "armed") return;
     function onDown(event: PointerEvent) {
-      if (event.button !== 0) return;
+      if (event.button !== 0 && event.pointerType !== "touch") return;
       if (event.target instanceof Element && event.target.closest("[data-feedback-chrome]")) return;
       const modifier = event.metaKey || event.ctrlKey;
       if (!selectingRef.current && !modifier) return;
       event.preventDefault();
-      origin.current = { x: event.clientX, y: event.clientY };
-      const next = { x: event.clientX, y: event.clientY, w: 0, h: 0 };
-      liveBox.current = next;
-      setDrag(next);
+      beginDrag(event.clientX, event.clientY);
     }
     function onMove(event: PointerEvent) {
       if (!origin.current) return;
-      const next = boxFrom(origin.current, event.clientX, event.clientY);
-      liveBox.current = next;
-      setDrag(next);
+      if (event.cancelable) event.preventDefault();
+      moveDrag(event.clientX, event.clientY);
     }
-    async function onUp() {
-      const start = origin.current;
-      origin.current = null;
-      if (!start) return;
-      const box = liveBox.current;
-      if (!box || box.w < 8 || box.h < 8) {
-        liveBox.current = null;
-        setDrag(null);
-        setPhase("armed");
-        return;
-      }
-      setSelecting(false);
-      setPhase("composing");
-      try {
-        const captured = await captureAnnotated(box);
-        setShot(captured);
-        setStatus("");
-        const width = 352;
-        const height = 420;
-        setSpot(placePopover(box, width, height));
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Could not capture that area.");
-        setPhase("armed");
-      }
+    function onEnd(event: PointerEvent) {
+      if (!origin.current) return;
+      if (event.cancelable) event.preventDefault();
+      if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) moveDrag(event.clientX, event.clientY);
+      void finishDrag();
+    }
+    function onTouchEnd(event: TouchEvent) {
+      if (!origin.current) return;
+      const touch = event.changedTouches[0];
+      if (touch) moveDrag(touch.clientX, touch.clientY);
+      void finishDrag();
     }
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointermove", onMove, true);
-    window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointerup", onEnd, true);
+    window.addEventListener("pointercancel", onEnd, true);
+    window.addEventListener("touchend", onTouchEnd, true);
+    window.addEventListener("touchcancel", onTouchEnd, true);
     return () => {
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointermove", onMove, true);
-      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointerup", onEnd, true);
+      window.removeEventListener("pointercancel", onEnd, true);
+      window.removeEventListener("touchend", onTouchEnd, true);
+      window.removeEventListener("touchcancel", onTouchEnd, true);
     };
   }, [phase]);
 
   useEffect(() => {
     if (phase !== "composing" || !drag) return;
+    if (window.innerWidth < 1024) {
+      setSpot({ left: 8, top: 8 });
+      return;
+    }
     const node = popover.current;
     if (!node) return;
     setSpot(placePopover(drag, node.offsetWidth, node.offsetHeight));
@@ -190,10 +225,20 @@ export function FeedbackMode() {
     form.set("deviceId", deviceId());
     form.set("screenshot", shot.blob, "page.png");
     const response = await fetch("/api/feedback", { method: "POST", body: form });
-    const payload = (await response.json().catch(() => ({}))) as { error?: string; href?: string };
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      href?: string;
+      githubIssueUrl?: string | null;
+      githubError?: string | null;
+    };
     setBusy(false);
     if (!response.ok || !payload.href) {
       setStatus(payload.error || "Could not save that note.");
+      return;
+    }
+    if (!payload.githubIssueUrl) {
+      setSavedHref(payload.href);
+      setStatus(payload.githubError || "Saved your note, but no GitHub issue was created.");
       return;
     }
     const href = payload.href;
@@ -212,7 +257,11 @@ export function FeedbackMode() {
           data-feedback-toast="true"
           className="fixed left-1/2 top-3 z-[130] flex w-[min(40rem,calc(100%-1rem))] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-full bg-[#1c1917] px-3 py-2 text-sm font-semibold text-cream shadow-card"
         >
-          <p className="min-w-0 text-center leading-5">Feedback mode activated, hold ⌘ to highlight an area of the screen</p>
+          <p className="min-w-0 text-center leading-5">
+            {narrow
+              ? "Feedback mode activated. Tap Select area, then drag."
+              : "Feedback mode activated, hold ⌘ to highlight an area of the screen"}
+          </p>
           {narrow ? (
             <button
               type="button"
@@ -228,6 +277,33 @@ export function FeedbackMode() {
           </button>
         </div>
       ) : null}
+      {narrow && selecting && phase === "armed" ? (
+        <div
+          data-feedback-chrome="true"
+          data-feedback-overlay="true"
+          className="fixed inset-0 z-[115] cursor-crosshair"
+          style={{ touchAction: "none" }}
+          onPointerDown={(event) => {
+            if (event.button !== 0 && event.pointerType !== "touch") return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            beginDrag(event.clientX, event.clientY);
+          }}
+          onPointerMove={(event) => {
+            if (!origin.current) return;
+            if (event.cancelable) event.preventDefault();
+            moveDrag(event.clientX, event.clientY);
+          }}
+          onPointerUp={(event) => {
+            moveDrag(event.clientX, event.clientY);
+            void finishDrag();
+          }}
+          onPointerCancel={(event) => {
+            moveDrag(event.clientX, event.clientY);
+            void finishDrag();
+          }}
+        />
+      ) : null}
       {drag && (phase === "armed" || phase === "composing") ? (
         <div
           data-feedback-chrome="true"
@@ -242,7 +318,7 @@ export function FeedbackMode() {
           data-feedback-chrome="true"
           data-feedback-popover="true"
           className="fixed z-[120] w-[min(22rem,calc(100vw-1rem))] overflow-y-auto rounded-2xl bg-[#1c1917] p-3 text-cream shadow-card"
-          style={{ left: spot.left, top: spot.top, maxHeight: "min(34rem, calc(100dvh - 1rem))" }}
+          style={{ left: spot.left, top: spot.top, maxHeight: `calc(100dvh - ${spot.top}px - 8px)` }}
           onSubmit={(event) => {
             event.preventDefault();
             void send();
@@ -296,6 +372,11 @@ export function FeedbackMode() {
             />
           </label>
           {status ? <p className="mt-2 text-sm text-[#ffb4a8]">{status}</p> : null}
+          {savedHref ? (
+            <a href={savedHref} className="mt-2 block text-sm font-semibold text-white underline">
+              Open the saved note
+            </a>
+          ) : null}
           <div className="mt-3 flex gap-2">
             <button
               type="button"

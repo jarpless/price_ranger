@@ -182,7 +182,9 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
     body: note,
     hasShot: Boolean(input.png),
   });
-  if (process.env.GITHUB_FEEDBACK_TOKEN) {
+  if (!process.env.GITHUB_FEEDBACK_TOKEN) {
+    githubError = "Saved your note, but GitHub feedback is not configured on this server.";
+  } else {
     try {
       if (classified.duplicateOf) {
         const canonical = (await listAllFeedback()).find((item) => item.id === classified.duplicateOf);
@@ -206,6 +208,9 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
       }
     } catch (error) {
       githubError = error instanceof Error ? error.message : "GitHub issue was not created.";
+    }
+    if (!githubIssueUrl && !githubError) {
+      githubError = "Saved your note, but no GitHub issue was created.";
     }
   }
 

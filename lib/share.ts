@@ -1,6 +1,6 @@
 import { dataBackend } from "./env";
 import { sendSupportEmail } from "./feedback/mail";
-import { adjustmentFromSources, lineSettlement, settledTotal, type Adjustment } from "./guide/pricing";
+import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, type Adjustment } from "./guide/pricing";
 import { formatUsd } from "./money";
 import { publishLocalSheet, readLocalSheet } from "./store/local";
 import { createClient } from "./supabase/server";
@@ -37,6 +37,8 @@ export interface SheetExtras {
   note?: string;
   sources?: string[];
   adjustment?: Adjustment;
+  /** Saved asking price, in cents. Replaces a stale suggested line. */
+  askingCents?: number | null;
   seller?: string;
   date?: string;
 }
@@ -48,12 +50,16 @@ export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: Shee
     const included = tier.groupIds
       .map((id) => byId.get(id))
       .filter((group): group is ItemGroup => Boolean(group));
-    const money = included.flatMap((group) =>
-      group.items.map((item) => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPriceCents: item.unitPriceCents,
-      })),
+    const money = linesAtAsking(
+      included.flatMap((group) =>
+        group.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPriceCents: item.unitPriceCents,
+        })),
+      ),
+      extras.askingCents ?? null,
+      adjustment,
     );
     const lines = money.map((item) => {
       const settled = lineSettlement(item, adjustment);
@@ -78,7 +84,14 @@ export function buildSheet(quote: QuoteRecord, groups: ItemGroup[], extras: Shee
 export function buyerSheet(
   quote: QuoteRecord,
   groups: ItemGroup[],
-  guide: { sources?: string[] | null; note?: string | null; photo?: string | null; seller?: string; date?: string } = {},
+  guide: {
+    sources?: string[] | null;
+    note?: string | null;
+    photo?: string | null;
+    seller?: string;
+    date?: string;
+    askingCents?: number | null;
+  } = {},
 ): SharedSheet {
   return buildSheet(quote, groups, {
     sources: guide.sources ?? [],
@@ -86,6 +99,7 @@ export function buyerSheet(
     photo: guide.photo ?? null,
     seller: guide.seller,
     date: guide.date,
+    askingCents: guide.askingCents,
   });
 }
 

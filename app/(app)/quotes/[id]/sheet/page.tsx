@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { siteOriginFromHeaders } from "@/lib/env";
 import { photoDataUrl, readQuotePhoto } from "@/lib/guide/photos";
 import { getGuideQuote } from "@/lib/guide/store";
+import { readMarketMeta } from "@/lib/market";
 import { buyerSheet, publishSheet } from "@/lib/share";
 import { getData } from "@/lib/store";
 
@@ -27,6 +28,7 @@ export default async function SheetPage({ params }: { params: Promise<{ id: stri
     sources: guide?.sources,
     note: guide?.note,
     photo: photo ? photoDataUrl(photo) : null,
+    askingCents: guide ? readMarketMeta(guide.sources).overrideCents ?? guide.priceCents : null,
   });
   const token = await publishSheet(user.id, id, sheet);
   const origin = siteOriginFromHeaders(await headers());

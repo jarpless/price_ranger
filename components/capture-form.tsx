@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
+import { useActionState } from "react";
 
 import { startAndPrice } from "@/app/guide-actions";
 import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS } from "@/lib/market";
@@ -13,6 +15,7 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
   const [category, setCategory] = useState<(typeof CATEGORIES)[number] | null>(null);
   const [description, setDescription] = useState(initial);
   const [barcode, setBarcode] = useState("");
+  const [error, submit, pending] = useActionState(startAndPrice, "");
   const names = useMemo(() => namesForAutocomplete(), []);
   const items = QUICK_ITEMS.filter((item) => !category || item.category === category);
 
@@ -33,7 +36,7 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
       setBarcode(`Barcode ${raw}. If you know the item, tap it.`);
       const named = QUICK_ITEMS.find((item) => raw.toLowerCase().includes(item.label.toLowerCase()));
       if (named) {
-        setDescription(named.description);
+        flushSync(() => setDescription(named.description));
         form.requestSubmit();
       }
     } catch {
@@ -42,9 +45,8 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
   }
 
   return (
-    <form action={startAndPrice} className="space-y-5">
+    <form action={submit} className="space-y-5">
       <input type="hidden" name="path" value="item" />
-      <input type="hidden" name="description" value={description} />
       <div className="rounded-3xl border border-line bg-paper p-4 shadow-card">
         <p className="font-serif text-title">Take a photo</p>
         <p className="mt-1 text-body text-muted">A clear shot of the item is enough. You don't have to type.</p>
@@ -90,12 +92,14 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
             <button
               key={item.label}
               type="submit"
+              disabled={pending}
               onClick={(event) => {
-                const field = event.currentTarget.form?.elements.namedItem("description");
-                if (field instanceof HTMLInputElement) field.value = item.description;
-                setDescription(item.description);
+                event.preventDefault();
+                const form = event.currentTarget.form;
+                flushSync(() => setDescription(item.description));
+                form?.requestSubmit();
               }}
-              className="h-11 rounded-full border border-line bg-cream px-4 text-base font-semibold text-ink"
+              className="h-11 rounded-full border border-line bg-cream px-4 text-base font-semibold text-ink disabled:opacity-60"
             >
               {item.label}
             </button>
@@ -107,6 +111,7 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
         <span className="mb-1.5 block text-sm font-medium">Search, if it isn't listed</span>
         <input
           id="item-search"
+          name="description"
           list="item-names"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
@@ -120,9 +125,16 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
         </datalist>
       </label>
 
+      {error === "limit" ? (
+        <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
+          You&apos;ve used all your free prices. <a className="font-semibold underline" href="/upgrade">See plans</a> to add more.
+        </p>
+      ) : error ? (
+        <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">Add a few words, or a photo.</p>
+      ) : null}
       <PrimaryDock>
-        <button type="submit" className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-pine text-base font-semibold text-cream lg:w-auto lg:min-w-48 lg:px-6">
-          See price
+        <button type="submit" disabled={pending} className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-pine text-base font-semibold text-cream disabled:opacity-60 lg:w-auto lg:min-w-48 lg:px-6">
+          {pending ? "Pricing" : "See price"}
         </button>
       </PrimaryDock>
     </form>
