@@ -38,7 +38,7 @@ export function stepLabel(caption: string): string {
   const opened = caption.match(/^Open\s+([^.?!]+)/i);
   if (opened) return `Opened ${opened[1].trim()}`;
   const sentence = caption.split(/[.!?]/)[0]?.trim() || caption.trim();
-  if (sentence.length <= 72) return sentence;
+  if (sentence.length <= 72 || /\(total\s+\$/i.test(sentence)) return sentence;
   return `${sentence.slice(0, 72).trim()}…`;
 }
 

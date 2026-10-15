@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSessionUser } from "@/lib/auth";
 import { executeTool } from "@/lib/assistant/execute";
 import { isToolName, toolLeavesApp, toolNeedsConfirm } from "@/lib/assistant/tools";
+import { assistantAllowance, recordLocalAssistantUse } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,5 +31,9 @@ export async function POST(request: Request) {
 
   const effect = await executeTool(user.id, name, args);
   revalidatePath("/", "layout");
+  if (body?.confirmed === true && effect.ok) {
+    await recordLocalAssistantUse(user.id);
+    return Response.json({ ...effect, allowance: await assistantAllowance(user) });
+  }
   return Response.json(effect);
 }

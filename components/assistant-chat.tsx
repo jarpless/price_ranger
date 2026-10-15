@@ -418,7 +418,7 @@ export function AssistantChat({
                           <span className="ask-step-mark" aria-hidden="true">
                             <CheckIcon />
                           </span>
-                          <span>{stepLabel(line.text)}</span>
+                          <span className="ask-step-label">{stepLabel(line.text)}</span>
                         </div>
                       );
                     }
@@ -470,7 +470,7 @@ export function AssistantChat({
                             <button
                               key={choice.label}
                               type="button"
-                              className="h-11 rounded-full bg-pine px-4 text-base font-semibold text-cream"
+                              className="h-auto min-h-11 max-w-full whitespace-normal rounded-full bg-pine px-4 py-2 text-center text-base font-semibold leading-6 text-cream"
                               onClick={() => onConfirm(choice.args)}
                             >
                               {choice.label}

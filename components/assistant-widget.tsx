@@ -506,7 +506,7 @@ export function AssistantWidget({
     }
     const stayed = await wait(700, () => stopRef.current);
     if (!stayed) return false;
-    if (step.name === "navigate") {
+    if (step.name === "navigate" && !confirmed) {
       playedRef.current.push({ caption: step.caption, href: step.href, spotlight: step.spotlight });
       return true;
     }
@@ -521,7 +521,9 @@ export function AssistantWidget({
       href?: string;
       spotlight?: string;
       error?: string;
+      allowance?: Allowance;
     };
+    if (effect.allowance) setAllowance(effect.allowance);
     if (!response.ok || effect.ok === false) {
       setLines((current) => [...current, { role: "assistant", text: effect.error || effect.summary || "That step did not run." }]);
       return false;

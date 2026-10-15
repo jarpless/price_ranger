@@ -30,6 +30,14 @@ test("a finished price change reads as a short step", () => {
   );
 });
 
+test("a confirmed line keeps the total on the card", () => {
+  const label = "Change Oak dining table from $180 to $150 (total $180)";
+  assert.equal(stepLabel(label), label);
+  const long = "Change the antique carved oak dining table from $180 to $150 (total $180)";
+  assert.equal(stepLabel(long), long);
+  assert.match(stepLabel(long), /\(total \$180\)$/);
+});
+
 test("opening a chat again moves it to the top", () => {
   const older: SavedChat = {
     id: "a",
