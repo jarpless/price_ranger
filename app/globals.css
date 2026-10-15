@@ -234,6 +234,7 @@ iframe[src*="vercel.live"] {
 }
 
 .ask-lane > .app-main {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -255,14 +256,18 @@ body[data-ask="off"] .ask-lane > .app-main {
     display: none;
   }
 
-  .ask-lane {
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
+  body[data-ask="on"] .ask-lane {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: calc(var(--ask-clearance) + 4.75rem);
   }
 
-  .ask-lane > .app-main {
-    overflow: visible;
+  body[data-ask="on"] .ask-lane > .app-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 }
 
@@ -475,7 +480,7 @@ body[data-ask="off"] .ask-lane > .app-main {
 
 .ask-float {
   position: fixed;
-  z-index: 64;
+  z-index: 72;
   left: 50%;
   bottom: calc(var(--ask-clearance) + 3.75rem);
   display: flex;

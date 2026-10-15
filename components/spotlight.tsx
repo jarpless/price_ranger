@@ -29,7 +29,7 @@ export function Spotlight({
   }, [selector]);
 
   return (
-    <div className="fixed inset-0 z-[80]">
+    <div className="fixed inset-0 z-[55]">
       <div className="absolute inset-0 bg-pine-deep/45" />
       {rect ? (
         <div
@@ -43,7 +43,7 @@ export function Spotlight({
           }}
         />
       ) : null}
-      <div className="absolute inset-x-4 bottom-24 z-[81] mx-auto max-w-lg rounded-3xl bg-paper p-4 text-ink shadow-2xl lg:bottom-8">
+      <div className="absolute inset-x-4 bottom-24 z-[56] mx-auto max-w-lg rounded-3xl bg-paper p-4 text-ink shadow-2xl lg:bottom-8">
         <p className="text-caption font-semibold uppercase tracking-wide text-pine">Price Ranger</p>
         <p className="mt-1 text-sm leading-relaxed">{caption}</p>
         <button

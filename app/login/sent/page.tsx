@@ -7,6 +7,7 @@ import { OtpInput } from "@/components/otp-input";
 import { RateLimitNotice } from "@/components/rate-limit-notice";
 import { Button, Notice } from "@/components/ui";
 import { emailCodeLabel } from "@/lib/auth-code";
+import { dataBackend } from "@/lib/env";
 import { DEV_CODE_COOKIE, DEV_LINK_COOKIE } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,9 @@ export default async function SentPage({
   const devCode = cookieStore.get(DEV_CODE_COOKIE)?.value;
   const codeLabel = emailCodeLabel();
   const unverified = notice === "unverified";
+  const hasCode = Boolean(devCode) || dataBackend() === "local";
+  const retrySeconds = Number(retry);
+  const wait = Number.isFinite(retrySeconds) && retrySeconds > 0 ? retrySeconds : 900;
 
   return (
     <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
@@ -31,14 +35,13 @@ export default async function SentPage({
       <h1 className="font-serif text-3xl">Check your email</h1>
       {unverified ? (
         <p className="mt-3 text-base leading-relaxed text-muted">
-          Password sign-in waits until {email || "this email"} is verified. That&apos;s why this screen is asking for a code.
-          Enter the {codeLabel} from the email, or open the link in that message.
+          Password sign-in waits until {email || "this email"} is verified. Open the link in that email
+          {hasCode ? `, or enter the ${codeLabel} below` : ""}. The message {hasCode ? "also includes that code" : "does not include a code"}.
         </p>
       ) : (
         <p className="mt-3 text-base leading-relaxed text-muted">
-          {email
-            ? `If ${email} can receive mail, it has an ${codeLabel} and a link to verify your account.`
-            : `Your email has an ${codeLabel} and a link to verify your account.`}
+          {email ? `If ${email} can receive mail, open the link in that email` : "Open the link in your email"}
+          {hasCode ? `. It also has an ${codeLabel}` : ". That message has a link and does not include a code"}.
           {notice === "resent" ? " We sent another one." : ""}
         </p>
       )}
@@ -51,20 +54,26 @@ export default async function SentPage({
       </Link>
       {error === "rate_limit" ? (
         <div className="mt-6">
-          <RateLimitNotice seconds={Number(retry || 60)} email={email || ""} />
+          <RateLimitNotice seconds={wait} email={email || ""} />
         </div>
       ) : null}
-      <form action={verifyEmailCode} className="mt-6 space-y-3">
-        {error && error !== "rate_limit" ? <Notice code={error} /> : null}
-        <input type="hidden" name="email" value={email || ""} />
-        <OtpInput />
-        <Button type="submit" pendingLabel="Checking the code…">Use the code</Button>
-      </form>
+      {hasCode ? (
+        <form action={verifyEmailCode} className="mt-6 space-y-3">
+          {error && error !== "rate_limit" ? <Notice code={error} /> : null}
+          <input type="hidden" name="email" value={email || ""} />
+          <OtpInput />
+          <Button type="submit" pendingLabel="Checking the code…">Use the code</Button>
+        </form>
+      ) : error && error !== "rate_limit" ? (
+        <div className="mt-6">
+          <Notice code={error} />
+        </div>
+      ) : null}
       {unverified ? (
         <form action={resendVerification} className="mt-3">
           <input type="hidden" name="email" value={email} />
           <button type="submit" className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-line bg-paper text-base font-semibold text-ink">
-            Resend the code
+            Resend the email
           </button>
         </form>
       ) : null}

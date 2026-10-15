@@ -17,22 +17,24 @@ export default async function WelcomePage({
 }) {
   const { error, next } = await searchParams;
   const user = await requireUser();
-  let guide;
-  try {
-    guide = await ensureGuideUser(user.id);
-  } catch {
-    redirect("/signin?notice=unavailable");
-  }
+  const guide = await ensureGuideUser(user.id);
   const stamped = (await cookies()).get("pr_tos_at")?.value || "";
   if (!guide.tosAcceptedAt && stamped) {
-    guide.tosAcceptedAt = stamped;
-    guide.tosVersion = TOS_VERSION;
-    guide.introCompletedAt = guide.introCompletedAt || stamped;
-    guide.trialStartedAt = guide.trialStartedAt || stamped;
+    const stampedGuide = {
+      ...guide,
+      tosAcceptedAt: stamped,
+      tosVersion: TOS_VERSION,
+      introCompletedAt: guide.introCompletedAt || stamped,
+      trialStartedAt: guide.trialStartedAt || stamped,
+    };
     try {
-      await saveGuideUser(guide);
+      await saveGuideUser(stampedGuide);
+      guide.tosAcceptedAt = stampedGuide.tosAcceptedAt;
+      guide.tosVersion = stampedGuide.tosVersion;
+      guide.introCompletedAt = stampedGuide.introCompletedAt;
+      guide.trialStartedAt = stampedGuide.trialStartedAt;
     } catch {
-      redirect("/signin?notice=unavailable");
+      // The account is still signed in. A missed stamp is not a deleted account.
     }
   }
   if (guide.tosAcceptedAt) redirect(safeNext(next || null));
@@ -45,6 +47,11 @@ export default async function WelcomePage({
   return (
     <div className="page-frame page-frame-pad">
       <GuideSetupNotice />
+      {error === "save" ? (
+        <p className="mb-4 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6">
+          We couldn&apos;t save that yet. Your account is still here. Try again.
+        </p>
+      ) : null}
       <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} next={safeNext(next || null)} guest={user.guest} />
     </div>
   );

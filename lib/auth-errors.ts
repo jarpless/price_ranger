@@ -31,17 +31,41 @@ function asRecord(error: unknown): { code: string; message: string; status: numb
   };
 }
 
-function secondsFrom(message: string): number {
-  const match = message.match(/(\d+)\s*second/i);
-  if (!match) return 0;
-  const seconds = Number(match[1]);
-  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 3600) return 0;
-  return seconds;
+function boundedSeconds(seconds: number): number {
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 86_400) return 0;
+  return Math.round(seconds);
+}
+
+/** Seconds named in an auth error. Zero when the message does not name a wait. */
+export function durationSeconds(message: string): number {
+  const hour = message.match(/(\d+)\s*hours?/i);
+  if (hour) return boundedSeconds(Number(hour[1]) * 3600);
+  const minute = message.match(/(\d+)\s*minutes?/i);
+  if (minute) return boundedSeconds(Number(minute[1]) * 60);
+  const second = message.match(/(\d+)\s*seconds?/i);
+  if (second) return boundedSeconds(Number(second[1]));
+  if (/\bhours?\b/i.test(message)) return 3600;
+  return 0;
+}
+
+/** The sentence shown while another email is blocked. An hour-long limit says so. */
+export function rateLimitCopy(seconds: number): string {
+  const wait = boundedSeconds(seconds);
+  if (wait >= 3600) {
+    const hours = Math.max(1, Math.round(wait / 3600));
+    const span = hours === 1 ? "about an hour" : `about ${hours} hours`;
+    return `You can request another email in ${span}. Password sign-in still works if this inbox is already verified.`;
+  }
+  if (wait >= 120) {
+    const minutes = Math.ceil(wait / 60);
+    return `You can request another email in ${minutes} minutes.`;
+  }
+  if (wait > 1) return `You can request another email in ${wait} seconds.`;
+  return "You can request another email now.";
 }
 
 export function classifyAuthError(error: unknown): ClassifiedAuthError {
   const { code, message, status } = asRecord(error);
-  const wait = secondsFrom(message) || 60;
   const rate =
     code === "over_email_send_rate_limit" ||
     code === "over_sms_send_rate_limit" ||
@@ -50,11 +74,12 @@ export function classifyAuthError(error: unknown): ClassifiedAuthError {
     /over_email_send_rate_limit|rate limit|only request this after|once every/i.test(`${code} ${message}`);
 
   if (rate) {
-    const seconds = secondsFrom(message) || wait;
+    const parsed = durationSeconds(message);
+    const seconds = parsed || (code === "over_email_send_rate_limit" ? 3600 : 900);
     return {
       code: "rate_limit",
       retryAfterSeconds: seconds,
-      message: `You can request another code in ${seconds} seconds.`,
+      message: rateLimitCopy(seconds),
     };
   }
   if (code === "email_address_invalid" || code === "email_address_not_authorized" || (code === "validation_failed" && /email/i.test(message))) {
@@ -64,7 +89,7 @@ export function classifyAuthError(error: unknown): ClassifiedAuthError {
     return { code: "taken", retryAfterSeconds: 0, message: "That email already has an account. Sign in instead." };
   }
   if (code === "email_not_confirmed" || code === "provider_email_needs_verification") {
-    return { code: "unverified", retryAfterSeconds: 0, message: "That email isn't verified yet. Password sign-in waits until you enter the 8-digit code, or open the link." };
+    return { code: "unverified", retryAfterSeconds: 0, message: "That email isn't verified yet. Open the link in the email, then sign in with your password." };
   }
   if (code === "otp_expired" || code === "otp_disabled" || code === "flow_state_expired" || code === "flow_state_not_found") {
     return { code: "code", retryAfterSeconds: 0, message: "That code isn't valid anymore. Request a new one." };

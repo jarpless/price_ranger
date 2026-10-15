@@ -232,13 +232,21 @@ function quoteToRow(quote: GuideQuote): Record<string, unknown> {
   };
 }
 
+function duplicateRow(error: { code?: string; message?: string }): boolean {
+  return error.code === "23505" || /duplicate key|unique constraint/i.test(error.message || "");
+}
+
+function freshGuideUser(userId: string): GuideUser {
+  return { ...blankUser(userId), signedUpAt: nowIso() };
+}
+
 export async function ensureGuideUser(userId: string): Promise<GuideUser> {
   if (dataBackend() !== "supabase" || degraded()) {
     return withLock(async () => {
       const file = await loadMutable();
       let user = file.users.find((item) => item.userId === userId);
       if (!user) {
-        user = { ...blankUser(userId), signedUpAt: nowIso() };
+        user = freshGuideUser(userId);
         file.users.push(user);
         await storeMutable(file);
       }
@@ -249,14 +257,20 @@ export async function ensureGuideUser(userId: string): Promise<GuideUser> {
   const existing = await supabase.from("guide_users").select("*").eq("user_id", userId).maybeSingle();
   if (existing.error) {
     if (rememberMissing(existing.error)) return ensureGuideUser(userId);
-    throw new Error(existing.error.message);
+    console.error(`Guide profile could not be read: ${existing.error.message}`);
+    return freshGuideUser(userId);
   }
   if (existing.data) return mapUser(existing.data as Record<string, unknown>);
-  const created = { ...blankUser(userId), signedUpAt: nowIso() };
+  const created = freshGuideUser(userId);
   const inserted = await supabase.from("guide_users").insert(userToRow(created));
   if (inserted.error) {
     if (rememberMissing(inserted.error)) return ensureGuideUser(userId);
-    throw new Error(inserted.error.message);
+    if (duplicateRow(inserted.error)) {
+      const again = await supabase.from("guide_users").select("*").eq("user_id", userId).maybeSingle();
+      if (again.data) return mapUser(again.data as Record<string, unknown>);
+    }
+    console.error(`Guide profile could not be saved: ${inserted.error.message}`);
+    return created;
   }
   return created;
 }

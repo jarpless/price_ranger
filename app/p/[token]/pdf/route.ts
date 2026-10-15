@@ -13,7 +13,9 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   const option = sheet.options[0];
   const date = sheet.date || new Date().toISOString().slice(0, 10);
   const filename = pdfFilename(sheet.title, date);
-  const lines = option?.lines ?? [];
+  const lines = option?.lines.length
+    ? option.lines
+    : [{ name: sheet.title, detail: sheet.range || "", price: option?.total || "" }];
   const live = marketPrice(sheet.title);
   const comparables = (live?.comparables ?? []).slice(0, 4).map((comp) => ({
     title: comp.title,

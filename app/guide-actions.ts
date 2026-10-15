@@ -24,7 +24,7 @@ import {
   saveGuideUser,
   type GuideQuote as StoredGuideQuote,
 } from "@/lib/guide/store";
-import { readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById, conditionLabel } from "@/lib/market";
+import { readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById, conditionLabel, marketPrice } from "@/lib/market";
 import { formatUsd, parseDollarsToCents } from "@/lib/money";
 import { isPlanId, PLAN_PRICES_CENTS, type PlanId } from "@/lib/plans";
 import { buyerSheet, publishSheet } from "@/lib/share";
@@ -129,7 +129,11 @@ export async function acceptTerms(formData: FormData) {
   guide.tosAcceptedAt = now;
   guide.introCompletedAt = now;
   guide.trialStartedAt = guide.trialStartedAt || now;
-  await saveGuideUser(guide);
+  try {
+    await saveGuideUser(guide);
+  } catch {
+    redirect("/welcome?error=save");
+  }
   const cookieStore = await cookies();
   cookieStore.set("pr_tos_at", now, {
     httpOnly: true,
@@ -440,8 +444,14 @@ export async function sendQuote(formData: FormData) {
     photo: photo ? photoDataUrl(photo) : null,
     date: new Date().toISOString().slice(0, 10),
   });
-  sheet.condition = conditionLabel(meta.condition);
-  sheet.range = meta.lowCents && meta.highCents ? `${formatUsd(meta.lowCents)}–${formatUsd(meta.highCents)}` : "";
+  const live = marketPrice(row.description) || marketPrice(quote.title);
+  sheet.condition = conditionLabel(meta.condition || live?.condition || "good");
+  sheet.range = meta.lowCents && meta.highCents
+    ? `${formatUsd(meta.lowCents)}–${formatUsd(meta.highCents)}`
+    : live
+      ? `${formatUsd(live.lowCents)}–${formatUsd(live.highCents)}`
+      : "";
+  if (!sheet.photo && live?.comparables[0]) sheet.photo = live.comparables[0].thumbnail;
   const token = await publishSheet(user.id, quoteId, sheet);
   if (!token) redirect(`/guide/${quoteId}?error=share`);
   const guide = await ensureGuideUser(user.id);
@@ -522,7 +532,7 @@ export async function startCheckout(formData?: FormData) {
 
 export async function startPortal() {
   const user = await requireUser();
-  if (!stripeTestKey()) redirect("/settings?billing=unavailable");
+  if (!stripeTestKey()) redirect("/settings/billing?notice=unavailable");
   const { readBillingProfile } = await import("@/lib/account/billing-profile");
   const { createPortal, findCustomerId } = await import("@/lib/billing");
   const profile = await readBillingProfile(user.id);
@@ -531,8 +541,9 @@ export async function startPortal() {
   const origin = siteOriginFromHeaders(await headers());
   try {
     redirect(await createPortal({ customerId, origin }));
-  } catch {
-    redirect("/settings?billing=unavailable");
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    redirect("/settings/billing?notice=unavailable");
   }
 }
 

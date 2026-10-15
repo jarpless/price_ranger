@@ -1,4 +1,5 @@
 import { dataBackend } from "./env";
+import { sendSupportEmail } from "./feedback/mail";
 import { adjustmentFromSources, lineSettlement, settledTotal, type Adjustment } from "./guide/pricing";
 import { formatUsd } from "./money";
 import { publishLocalSheet, readLocalSheet } from "./store/local";
@@ -138,7 +139,7 @@ export function forPublic(sheet: SharedSheet): SharedSheet {
         detail: /[×x]|%|=/.test(line.detail) ? "" : stripContact(line.detail),
         price: line.price,
       }))
-      .filter((line) => line.name && line.name.toLowerCase() !== title.toLowerCase());
+      .filter((line) => line.name);
     return { ...option, name: /asking price/i.test(option.name) ? "Asking price" : stripContact(option.name), lines };
   });
   return {
@@ -151,6 +152,45 @@ export function forPublic(sheet: SharedSheet): SharedSheet {
     range: stripContact(sheet.range || ""),
     options,
   };
+}
+
+async function sellerEmail(token: string): Promise<string | null> {
+  if (dataBackend() !== "supabase") {
+    const { readLocalShareSeller } = await import("./store/local");
+    return readLocalShareSeller(token);
+  }
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const quote = await service.from("quotes").select("user_id").eq("share_token", token).maybeSingle();
+  const userId = (quote.data as { user_id?: string } | null)?.user_id;
+  if (!userId) return null;
+  const user = await service.auth.admin.getUserById(userId);
+  const email = user.data.user?.email || "";
+  return email.includes("@") ? email : null;
+}
+
+/** Sends a buyer's note to the seller. The address never comes back to the page. */
+export async function deliverShareNote(
+  token: string,
+  note: { name: string; message: string },
+): Promise<"sent" | "held" | "missing"> {
+  if (!token || token.length > 80) return "missing";
+  const sheet = await readSharedSheet(token);
+  if (!sheet) return "missing";
+  const email = await sellerEmail(token).catch(() => null);
+  const message = note.message.replace(/\s+/g, " ").trim().slice(0, 1000);
+  if (!message) return "held";
+  if (!email) return "held";
+  const name = note.name.replace(/\s+/g, " ").trim().slice(0, 80) || "Someone";
+  const result = await sendSupportEmail({
+    to: email,
+    subject: `A note about ${sheet.title}`.slice(0, 180),
+    text: `${name} wrote about a Price Ranger price:\n\n${message}\n`,
+  });
+  return result.sent ? "sent" : "held";
 }
 
 export async function readSharedSheet(token: string): Promise<SharedSheet | null> {

@@ -21,7 +21,8 @@ export default async function LoginPage({
   const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const passkey = passkeyConfigured();
-  const retrySeconds = Number(retry || 60);
+  const parsedRetry = Number(retry);
+  const retrySeconds = Number.isFinite(parsedRetry) && parsedRetry > 0 ? parsedRetry : 900;
 
   return (
     <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
@@ -57,7 +58,7 @@ export default async function LoginPage({
       ) : null}
       {error === "rate_limit" ? (
         <div className="mt-6">
-          <RateLimitNotice seconds={Number.isFinite(retrySeconds) ? retrySeconds : 60} email={remembered} />
+          <RateLimitNotice seconds={retrySeconds} email={remembered} />
         </div>
       ) : notice !== "busy" && notice !== "cookies" && authDetail ? (
         <div className="mt-6">

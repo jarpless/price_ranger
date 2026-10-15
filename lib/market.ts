@@ -51,11 +51,14 @@ interface VariantSeed {
   comps: { title: string; priceCents: number; condition: string; soldAt: string }[];
 }
 
+type ThumbShape = "console" | "phone" | "headphones" | "laptop";
+
 interface ItemSeed {
   id: string;
   title: string;
   test: RegExp;
   color: string;
+  shape: ThumbShape;
   variants: VariantSeed[];
 }
 
@@ -63,12 +66,20 @@ function soldSearch(query: string): string {
   return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=1&LH_Complete=1&rt=nc`;
 }
 
-function thumb(color: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${color}"/><rect x="58" y="28" width="44" height="104" rx="8" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><circle cx="80" cy="118" r="4" fill="#1c1915"/></svg>`;
+function thumb(color: string, shape: ThumbShape): string {
+  const mark =
+    shape === "phone"
+      ? `<rect x="58" y="24" width="44" height="112" rx="10" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="70" y="36" width="20" height="4" rx="2" fill="#1c1915"/>`
+      : shape === "headphones"
+        ? `<path d="M46 90c0-30 16-52 34-52s34 22 34 52" fill="none" stroke="#1c1915" stroke-width="8" stroke-linecap="round"/><rect x="32" y="78" width="24" height="44" rx="10" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="104" y="78" width="24" height="44" rx="10" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
+        : shape === "laptop"
+          ? `<rect x="36" y="36" width="88" height="58" rx="6" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><path d="M28 108h104l-10-14H38z" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
+          : `<rect x="24" y="52" width="112" height="56" rx="12" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="36" y="64" width="40" height="28" rx="4" fill="${color}"/><circle cx="108" cy="72" r="6" fill="#1c1915"/><circle cx="108" cy="90" r="6" fill="#1c1915"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${color}"/>${mark}</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-function compsFor(variant: VariantSeed, color: string): Comparable[] {
+function compsFor(variant: VariantSeed, item: ItemSeed): Comparable[] {
   return variant.comps.map((comp) => ({
     title: comp.title,
     priceCents: comp.priceCents,
@@ -77,7 +88,7 @@ function compsFor(variant: VariantSeed, color: string): Comparable[] {
     url: soldSearch(comp.title),
     soldAt: comp.soldAt,
     listed: false,
-    thumbnail: thumb(color),
+    thumbnail: thumb(item.color, item.shape),
   }));
 }
 
@@ -87,6 +98,7 @@ const ITEMS: ItemSeed[] = [
     title: "Nintendo Switch",
     test: /nintendo\s+switch|\bswitch\s+(oled|lite|v2|console)|\bjoy-?cons?\b/i,
     color: "#d7e4dc",
+    shape: "console",
     variants: [
       {
         id: "oled",
@@ -140,6 +152,7 @@ const ITEMS: ItemSeed[] = [
     title: "iPhone 13",
     test: /iphone\s*13\b/i,
     color: "#e7e2d8",
+    shape: "phone",
     variants: [
       {
         id: "128",
@@ -162,6 +175,7 @@ const ITEMS: ItemSeed[] = [
     title: "PlayStation 5",
     test: /\bps5\b|playstation\s*5/i,
     color: "#e4e7f2",
+    shape: "console",
     variants: [
       {
         id: "disc",
@@ -184,6 +198,7 @@ const ITEMS: ItemSeed[] = [
     title: "AirPods Pro",
     test: /airpods?\s*pro/i,
     color: "#f3ebe3",
+    shape: "headphones",
     variants: [
       {
         id: "pro2",
@@ -206,6 +221,7 @@ const ITEMS: ItemSeed[] = [
     title: "Xbox Series X",
     test: /xbox\s+series\s+x/i,
     color: "#e5eadf",
+    shape: "console",
     variants: [
       {
         id: "series-x",
@@ -228,6 +244,7 @@ const ITEMS: ItemSeed[] = [
     title: "MacBook Air",
     test: /macbook\s+air/i,
     color: "#ece7df",
+    shape: "laptop",
     variants: [
       {
         id: "m1",
@@ -303,7 +320,7 @@ function buildQuote(item: ItemSeed, variant: VariantSeed, condition: ConditionId
     highCents,
     confidence: ambiguous ? "medium" : "high",
     note: `Sold listings for a ${label} ${item.title}${modelBit} cluster around ${formatUsd(cents)}, from ${formatUsd(lowCents)} to ${formatUsd(highCents)}.`,
-    comparables: compsFor(variant, item.color),
+    comparables: compsFor(variant, item),
     sources: [
       `meta:item=${item.id}`,
       `meta:variant=${variant.id}`,

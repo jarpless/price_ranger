@@ -1,5 +1,13 @@
 "use client";
 
+import { useRef } from "react";
+
+function shownMoney(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.startsWith("$") ? trimmed : `$${trimmed}`;
+}
+
 /** Select the current amount on focus so the next digits replace it. */
 export function MoneyField({
   name,
@@ -12,20 +20,35 @@ export function MoneyField({
   label?: string;
   className?: string;
 }) {
+  const replaceNext = useRef(true);
   const field = (
     <input
       name={name}
       inputMode="decimal"
-      defaultValue={defaultValue}
+      defaultValue={shownMoney(defaultValue)}
       onPointerDown={(event) => {
         const input = event.currentTarget;
         if (document.activeElement === input) return;
-        // Stop the tap from dropping a caret, which makes the next digits append.
         event.preventDefault();
         input.focus();
         input.select();
       }}
-      onFocus={(event) => event.currentTarget.select()}
+      onMouseUp={(event) => event.preventDefault()}
+      onFocus={(event) => {
+        replaceNext.current = true;
+        const input = event.currentTarget;
+        input.select();
+        requestAnimationFrame(() => input.select());
+      }}
+      onBlur={() => {
+        replaceNext.current = true;
+      }}
+      onBeforeInput={(event) => {
+        const input = event.currentTarget;
+        if (!replaceNext.current) return;
+        replaceNext.current = false;
+        if (input.selectionStart === input.selectionEnd) input.select();
+      }}
       className={className}
     />
   );

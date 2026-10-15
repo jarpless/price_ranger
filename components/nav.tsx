@@ -2,7 +2,7 @@
 
 import { PendingLink as Link } from "@/components/pending-link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { signOut } from "@/app/actions";
 
@@ -58,6 +58,44 @@ function sideClass(active: boolean) {
   return `flex h-12 w-full items-center gap-3 whitespace-nowrap rounded-xl px-3 text-left text-base font-semibold ${active ? "bg-cream text-pine shadow-[inset_3px_0_0_#132e24]" : "text-cream/80 hover:bg-white/10 hover:text-cream"}`;
 }
 
+function sectionOpen(label: string, pathname: string, chosen: Record<string, boolean>): boolean {
+  if (label in chosen) return chosen[label];
+  const current = menuSections.some((item) => item.links.some((link) => navCurrent(pathname, link.href)));
+  if (!current) return label === "Prices";
+  const section = menuSections.find((item) => item.label === label);
+  return Boolean(section?.links.some((link) => navCurrent(pathname, link.href)));
+}
+
+function FolderSection({
+  label,
+  pathname,
+  chosen,
+  onToggle,
+  children,
+}: {
+  label: string;
+  pathname: string;
+  chosen: Record<string, boolean>;
+  onToggle: (label: string) => void;
+  children: ReactNode;
+}) {
+  const open = sectionOpen(label, pathname, chosen);
+  return (
+    <div className="mt-2 first:mt-0">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => onToggle(label)}
+        className="flex h-11 w-full items-center justify-between rounded-xl px-3 text-left text-caption font-semibold uppercase tracking-[0.14em] text-cream/70 hover:bg-white/10"
+      >
+        {label}
+        <span aria-hidden="true">{open ? "–" : "+"}</span>
+      </button>
+      {open ? children : null}
+    </div>
+  );
+}
+
 export function Sidebar({
   quotesLabel,
   guest,
@@ -71,8 +109,12 @@ export function Sidebar({
 }) {
   void quotesLabel;
   const pathname = usePathname();
+  const [folders, setFolders] = useState<Record<string, boolean>>({});
   const signInActive = pathname === "/signin" || pathname.startsWith("/signin/");
   const sections = sectionsFor(guest);
+  const toggleFolder = (label: string) => {
+    setFolders((current) => ({ ...current, [label]: !sectionOpen(label, pathname, current) }));
+  };
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-stretch overflow-y-auto border-r border-pine-deep bg-pine text-cream lg:flex">
@@ -85,8 +127,7 @@ export function Sidebar({
       </Link>
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
         {sections.map((section) => (
-          <div key={section.label} className="mt-4 first:mt-0">
-            <p className="px-3 pb-1 text-caption font-semibold uppercase tracking-[0.14em] text-cream/55">{section.label}</p>
+          <FolderSection key={section.label} label={section.label} pathname={pathname} chosen={folders} onToggle={toggleFolder}>
             <ul className="space-y-1">
               {section.links.map((item) => {
                 const Icon = item.icon;
@@ -116,7 +157,7 @@ export function Sidebar({
                 </li>
               ) : null}
             </ul>
-          </div>
+          </FolderSection>
         ))}
         <div className="mt-auto border-t border-white/15 px-0 pb-6 pt-4">
           {guest ? (
@@ -158,8 +199,12 @@ export function PhoneMenu({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [folders, setFolders] = useState<Record<string, boolean>>({});
   const signInActive = pathname === "/signin" || pathname.startsWith("/signin/");
   const sections = sectionsFor(guest);
+  const toggleFolder = (label: string) => {
+    setFolders((current) => ({ ...current, [label]: !sectionOpen(label, pathname, current) }));
+  };
 
   useEffect(() => {
     setOpen(false);
@@ -202,8 +247,7 @@ export function PhoneMenu({
           </div>
           <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-8" aria-label="Workspace">
             {sections.map((section) => (
-              <div key={section.label}>
-                <p className="sticky top-0 bg-pine px-3 pb-1 pt-4 text-caption font-semibold uppercase tracking-[0.14em] text-cream/55">{section.label}</p>
+              <FolderSection key={section.label} label={section.label} pathname={pathname} chosen={folders} onToggle={toggleFolder}>
                 <ul className="space-y-1">
                   {section.links.map((item) => {
                     const Icon = item.icon;
@@ -234,7 +278,7 @@ export function PhoneMenu({
                     </li>
                   ) : null}
                 </ul>
-              </div>
+              </FolderSection>
             ))}
             <div className="mt-auto border-t border-white/15 pt-4">
               {guest ? (

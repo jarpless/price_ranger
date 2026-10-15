@@ -148,6 +148,20 @@ export async function quickCreateGroup(name: string) {
   return { ok: true as const, id };
 }
 
+export async function deleteLibraryPrice(id: string) {
+  const user = await requireUser();
+  const ok = await (await getData()).deleteLibraryItem(user.id, id);
+  refresh();
+  return ok;
+}
+
+export async function removeQuoteLine(itemId: string) {
+  const user = await requireUser();
+  const ok = await (await getData()).removeGroupItem(user.id, itemId);
+  refresh();
+  return ok;
+}
+
 export async function patchGroupLine(input: { itemId: string; quantity: string; price: string }) {
   const user = await requireUser();
   const quantity = parseQuantity(input.quantity);

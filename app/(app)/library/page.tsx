@@ -39,7 +39,7 @@ export default async function LibraryPage({
         <h2 className="font-serif text-title">Add your own</h2>
         <form action={createCustomItem} className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] lg:items-end">
           <TextField label="Name" name="name" required placeholder="Tear-off and haul" />
-          <SelectField label="Unit" name="unit" defaultValue="square">
+          <SelectField label="Unit" name="unit" defaultValue="each">
             {UNIT_OPTIONS.map((unit) => (
               <option key={unit.value} value={unit.value}>
                 {unit.label}

@@ -161,7 +161,21 @@ test("the buyer sheet keeps the seller discount", () => {
   assert.equal(shared.seller, undefined);
   assert.doesNotMatch(JSON.stringify(shared), /ada@example.com/);
   assert.equal(shared.options[0].lines.find((line) => line.name === "Dumpster haul")?.detail, "");
-  assert.equal(shared.options[0].lines.some((line) => line.name === "Small roof repair"), false);
+  assert.equal(shared.options[0].lines.some((line) => line.name === "Small roof repair"), true);
+  assert.equal(shared.options[0].lines.find((line) => line.name === "Small roof repair")?.price, "$765");
+  assert.equal(shared.photo, null);
+  const kept = buildPricePdf({
+    title: shared.title,
+    subtitle: shared.subtitle,
+    lines: shared.options[0].lines,
+    total: shared.options[0].total,
+    condition: "Good",
+    range: "$1,000–$1,400",
+  });
+  const keptText = Buffer.from(kept).toString("latin1");
+  assert.match(keptText, /Small roof repair/);
+  assert.match(keptText, /Total \$1,290/);
+  assert.match(keptText, /\$1,000/);
   const pdf = buildPricePdf({
     title: sheet.title,
     subtitle: sheet.subtitle,

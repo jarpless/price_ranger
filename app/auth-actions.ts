@@ -131,7 +131,7 @@ export async function signInWithPassword(formData: FormData) {
       await consumeGuestLink(data.user.id);
     } catch (error) {
       if (isNextRedirect(error)) throw error;
-      redirect("/signin?notice=unavailable");
+      redirect("/signin?error=auth");
     }
     redirect("/");
   }
@@ -155,7 +155,7 @@ export async function createPasswordAccount(formData: FormData) {
   if (password.length < 8) redirect("/signin?error=password");
 
   if (dataBackend() === "supabase") {
-    const supabase = await createClient();
+    const supabase = await createClient({ allowAuthClear: true });
     const current = await getSessionUser();
     const origin = siteOriginFromHeaders(await headers());
     if (current?.guest) {

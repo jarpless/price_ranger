@@ -4,11 +4,12 @@ import { useMemo, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { addTier, presentQuote, updateQuote, useGoodBetterBest } from "@/app/actions";
-import { dropGroupOnTier, dropPriceOnGroup, patchGroupLine, quickCreateGroup } from "@/app/basecamp-actions";
-import { dollarsInputValue, formatUsd } from "@/lib/money";
+import { dropGroupOnTier, dropPriceOnGroup, patchGroupLine, quickCreateGroup, removeQuoteLine } from "@/app/basecamp-actions";
+import { dollarsInputValue, formatUsd, lineTotalCents } from "@/lib/money";
 import { groupCents } from "@/lib/project";
 import { customerSummary } from "@/lib/summary";
 import type { ItemGroup, LibraryItem, QuoteRecord } from "@/lib/types";
+import { unitWord } from "@/lib/units";
 import { SubmitButton } from "./ui";
 
 export function QuoteBuilder({
@@ -204,7 +205,7 @@ export function QuoteBuilder({
                 {selected.items.map((item) => (
                   <li key={item.id} className="border-b border-line last:border-b-0">
                     <form
-                      className="grid h-10 grid-cols-[minmax(0,1fr)_4.25rem_5.25rem_4.25rem] items-center gap-2 px-3"
+                      className="grid h-10 grid-cols-[minmax(0,1.4fr)_3.5rem_4.75rem_4.75rem_8.5rem] items-center gap-2 px-3"
                       onSubmit={(event) => {
                         event.preventDefault();
                         const form = new FormData(event.currentTarget);
@@ -218,26 +219,45 @@ export function QuoteBuilder({
                         });
                       }}
                     >
-                      <span className="truncate text-sm font-semibold">{item.name}</span>
+                      <span className="truncate text-sm font-semibold">
+                        {item.name}
+                        <span className="ml-2 text-xs font-normal text-muted">{unitWord(item.unit, item.quantity) || "each"}</span>
+                      </span>
                       <input
                         name="quantity"
                         aria-label={`Quantity for ${item.name}`}
                         defaultValue={item.quantity}
-                        className="h-8 rounded-lg border border-line px-2 text-right text-sm tabular-nums"
+                        className="h-8 w-full rounded-lg border border-line px-2 text-right text-sm tabular-nums"
                       />
                       <input
                         name="price"
                         aria-label={`Price for ${item.name}`}
                         defaultValue={dollarsInputValue(item.unitPriceCents)}
-                        className="h-8 rounded-lg border border-line px-2 text-right text-sm tabular-nums"
+                        className="h-8 w-full rounded-lg border border-line px-2 text-right text-sm tabular-nums"
                       />
-                      <button
-                        disabled={savingLine}
-                        aria-busy={savingLine}
-                        className="h-8 whitespace-nowrap rounded-lg border border-line text-sm font-semibold disabled:opacity-60"
-                      >
-                        {savingLine ? "…" : "Save"}
-                      </button>
+                      <span className="text-right text-sm tabular-nums">{formatUsd(lineTotalCents(item.quantity, item.unitPriceCents))}</span>
+                      <span className="flex justify-end gap-1">
+                        <button
+                          disabled={savingLine}
+                          aria-busy={savingLine}
+                          className="h-8 whitespace-nowrap rounded-lg border border-line px-2 text-sm font-semibold disabled:opacity-60"
+                        >
+                          {savingLine ? "…" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${item.name}`}
+                          className="h-8 whitespace-nowrap rounded-lg px-2 text-sm font-semibold text-danger"
+                          onClick={() => {
+                            startSaveLine(async () => {
+                              await removeQuoteLine(item.id);
+                              router.refresh();
+                            });
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </span>
                     </form>
                   </li>
                 ))}

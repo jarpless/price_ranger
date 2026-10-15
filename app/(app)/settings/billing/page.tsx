@@ -1,6 +1,6 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
-import { cancelSubscription } from "@/app/guide-actions";
+import { cancelSubscription, startPortal } from "@/app/guide-actions";
 import { readBillingProfile } from "@/lib/account/billing-profile";
 import { requireUser } from "@/lib/auth";
 import { readBillingDetails, stripeTestKey } from "@/lib/billing";
@@ -89,17 +89,26 @@ export default async function BillingPage({
           Billing isn't available from this server yet. Test payments use a Stripe test key.
         </p>
       ) : null}
-      {paid ? (
-        <form action={cancelSubscription}>
-          <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-danger sm:w-auto">
-            Cancel subscription
-          </button>
-        </form>
-      ) : (
-        <Link href="/upgrade" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">
-          See plans
-        </Link>
-      )}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {stripeTestKey() ? (
+          <form action={startPortal}>
+            <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream sm:w-auto">
+              Manage billing
+            </button>
+          </form>
+        ) : null}
+        {paid ? (
+          <form action={cancelSubscription}>
+            <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-danger sm:w-auto">
+              Cancel subscription
+            </button>
+          </form>
+        ) : (
+          <Link href="/upgrade" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
+            See plans
+          </Link>
+        )}
+      </div>
       {stripeTestKey() ? null : <p className="text-caption text-muted">Payments stay in Stripe test mode when a test key is set.</p>}
     </div>
   );

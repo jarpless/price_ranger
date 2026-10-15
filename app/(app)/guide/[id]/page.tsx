@@ -150,10 +150,10 @@ export default async function GuidePage({
             </ul>
           ) : null}
           <ShareActions href={shareHref} title={row.description || "Price Ranger"} />
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2">
             <a
               href={`${shareHref}/pdf`}
-              className="inline-flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper text-base font-semibold text-ink"
+              className="inline-flex h-12 min-h-12 w-full shrink-0 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink"
             >
               Download PDF
             </a>

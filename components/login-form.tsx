@@ -30,7 +30,8 @@ export function LoginForm({
   const [value, setValue] = useState(email);
   const [banner, setBanner] = useState(error || "");
   const action = mode === "code" ? sendMagicLink : account === "create" ? createPasswordAccount : signInWithPassword;
-  const primary = mode === "code" ? "Email me a code" : account === "create" ? "Create account" : "Sign in";
+  const linkLabel = local ? "Email me a code" : "Email me a link";
+  const primary = mode === "code" ? linkLabel : account === "create" ? "Create account" : "Sign in";
 
   const heading = notice === "deleted" && account === "signin" ? "Account deleted" : account === "create" ? "Create account" : "Sign in";
 
@@ -114,7 +115,7 @@ export function LoginForm({
         </button>
         {mode === "password" ? (
           <button type="button" onClick={() => setMode("code")} className="h-12 w-full text-base font-semibold text-pine">
-            Email me a code instead
+            {local ? "Email me a code instead" : "Email me a link instead"}
           </button>
         ) : (
           <button type="button" onClick={() => setMode("password")} className="h-12 w-full text-base font-semibold text-muted">
@@ -127,7 +128,7 @@ export function LoginForm({
         <form action={resendVerification}>
           <input type="hidden" name="email" value={value} />
           <button type="submit" className="h-12 w-full rounded-2xl border border-line bg-paper text-base font-semibold text-ink">
-            Resend verification code
+            Resend the email
           </button>
         </form>
       ) : null}

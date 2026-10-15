@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { importPriceCsv, patchLibraryItem } from "@/app/basecamp-actions";
+import { deleteLibraryPrice, importPriceCsv, patchLibraryItem } from "@/app/basecamp-actions";
 import { PRICE_CSV_TEMPLATE } from "@/lib/csv";
-import { dollarsInputValue, formatUsd } from "@/lib/money";
+import { dollarsInputValue, formatUsd, sumCents } from "@/lib/money";
 import type { LibraryItem } from "@/lib/types";
 import { UNIT_OPTIONS, unitWord } from "@/lib/units";
 
@@ -131,7 +131,14 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
       </div>
       {message ? <p className="text-sm text-muted">{message}</p> : null}
       <div className="scroll-x rounded-2xl border border-line bg-paper">
-        <table data-spotlight="price-table" className="w-full min-w-[640px] text-left text-sm">
+        <table data-spotlight="price-table" className="w-full min-w-[720px] table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[16%]" />
+            <col className="w-[16%]" />
+            <col className="w-[14%]" />
+            <col className="w-[20%]" />
+          </colgroup>
           <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
             <tr>
               {([
@@ -140,19 +147,20 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                 ["price", "Price"],
                 ["source", "Source"],
               ] as const).map(([key, label]) => (
-                <th key={key} className={`px-5 py-4 font-semibold ${key === "price" ? "text-right" : ""}`}>
+                <th key={key} className={`px-3 py-4 font-semibold ${key === "price" ? "text-right" : ""}`}>
                   <button type="button" className="hover:text-pine" onClick={() => toggleSort(key)}>
                     {label}
                     {sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
                   </button>
                 </th>
               ))}
+              <th className="px-3 py-4 font-semibold"> </th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-muted">
+                <td colSpan={5} className="px-4 py-8 text-muted">
                   No prices match. Add one above, import a CSV, or connect a sample catalog.
                 </td>
               </tr>
@@ -161,10 +169,11 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                 const open = editing === item.id;
                 return (
                   <tr key={item.id} data-spotlight={`price-${item.id}`} className="border-t border-line hover:bg-cream/60">
-                    <td className="px-5 py-4">
+                    <td className="px-3 py-3">
                       {open ? (
                         <input
                           value={draft.name}
+                          aria-label={`Name for ${item.name}`}
                           onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                           className="h-10 w-full rounded-xl border border-line px-2"
                         />
@@ -185,12 +194,13 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                         </button>
                       )}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-3 py-3">
                       {open ? (
                         <select
                           value={draft.unit}
+                          aria-label={`Unit for ${item.name}`}
                           onChange={(event) => setDraft({ ...draft, unit: event.target.value })}
-                          className="h-10 rounded-xl border border-line px-2"
+                          className="h-10 w-full rounded-xl border border-line px-2"
                         >
                           {UNIT_OPTIONS.map((unit) => (
                             <option key={unit.value} value={unit.value}>
@@ -202,43 +212,74 @@ export function PriceTable({ items }: { items: LibraryItem[] }) {
                         unitWord(item.unit, 2) || "each"
                       )}
                     </td>
-                    <td className="list-price px-5 py-4 text-right">
+                    <td className="list-price px-3 py-3 text-right">
                       {open ? (
                         <input
                           value={draft.price}
+                          aria-label={`Price for ${item.name}`}
                           onChange={(event) => setDraft({ ...draft, price: event.target.value })}
-                          className="h-10 w-28 rounded-xl border border-line px-2"
+                          className="h-10 w-full rounded-xl border border-line px-2 text-right"
                           inputMode="decimal"
                         />
                       ) : (
                         formatUsd(item.unitPriceCents)
                       )}
                     </td>
-                    <td className="px-5 py-4">
-                      {open ? (
-                        <span className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            aria-busy={saving}
-                            className="font-semibold text-pine disabled:opacity-60"
-                            onClick={() => save(item.id)}
-                          >
-                            {saving ? "Saving…" : "Save"}
-                          </button>
-                          <button type="button" className="text-muted" onClick={() => setEditing(null)}>
-                            Cancel
-                          </button>
-                        </span>
-                      ) : (
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted">{sourceLabel(item)}</span>
-                      )}
+                    <td className="px-3 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted">{sourceLabel(item)}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="flex h-10 items-center gap-2">
+                        {open ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={saving}
+                              aria-busy={saving}
+                              className="font-semibold text-pine disabled:opacity-60"
+                              onClick={() => save(item.id)}
+                            >
+                              {saving ? "Saving…" : "Save"}
+                            </button>
+                            <button type="button" className="text-muted" onClick={() => setEditing(null)}>
+                              Cancel
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="font-semibold text-danger"
+                          onClick={() => {
+                            startSave(async () => {
+                              const ok = await deleteLibraryPrice(item.id);
+                              setMessage(ok ? "Deleted." : "That price is still here.");
+                              if (ok) {
+                                setEditing(null);
+                                router.refresh();
+                              }
+                            });
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 );
               })
             )}
           </tbody>
+          {rows.length > 0 ? (
+            <tfoot>
+              <tr className="border-t border-line">
+                <td className="px-3 py-4 font-semibold" colSpan={2}>
+                  Total
+                </td>
+                <td className="list-price px-3 py-4 text-right">{formatUsd(sumCents(rows.map((item) => ({ quantity: 1, unitPriceCents: item.unitPriceCents }))))}</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
     </div>

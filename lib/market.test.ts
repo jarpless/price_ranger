@@ -36,6 +36,17 @@ test("regression items stay inside their sold ranges", () => {
   }
 });
 
+test("comparables draw the kind of item, not one phone for everything", () => {
+  const deck = marketPrice("Nintendo Switch");
+  const phone = marketPrice("iPhone 13 128GB unlocked");
+  const buds = marketPrice("AirPods Pro 2");
+  const laptop = marketPrice("MacBook Air M1");
+  assert.ok(deck && phone && buds && laptop);
+  const thumbs = [deck, phone, buds, laptop].map((quote) => quote.comparables[0]?.thumbnail || "");
+  assert.equal(new Set(thumbs).size, 4);
+  assert.ok(thumbs.every((thumb) => thumb.startsWith("data:image/svg+xml")));
+});
+
 test("the assistant does not repeat a $40 Switch price", () => {
   const answer = answerFromMarket("used Nintendo Switch with dock and Joy-Cons", 4000);
   assert.ok(answer);

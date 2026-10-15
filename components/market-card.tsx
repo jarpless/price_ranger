@@ -59,7 +59,8 @@ export function MarketCard({
           </p>
           <InfoTip id="condition" />
         </div>
-        <p data-spotlight="asking-price" className="mt-2 font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">
+        <p className="mt-2 text-caption font-semibold uppercase tracking-wide text-muted">Total</p>
+        <p data-spotlight="asking-price" className="font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]">
           {headline != null ? formatUsd(headline) : "—"}
         </p>
         {low != null && high != null ? (

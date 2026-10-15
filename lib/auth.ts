@@ -99,26 +99,21 @@ async function readSessionUser(): Promise<SessionUser | null> {
     let email = "";
     let guest = false;
 
-    // A fresh cookie is enough. Calling Auth here rotates the refresh token, and that
-    // write is dropped on the welcome Continue redirect, which then looks signed out.
-    if (fresh.status === "known" && fresh.user) {
-      id = fresh.user.id;
-      email = fresh.user.email || "";
-      guest = fresh.user.is_anonymous;
+    // A readable auth cookie is the session. Calling Auth from a Server Component
+    // rotates or clears that cookie, and the welcome page then looks signed out.
+    const cookieUser = readSupabaseCookieUser(pairs);
+    if (cookieUser) {
+      id = cookieUser.id;
+      email = cookieUser.email || "";
+      guest = cookieUser.is_anonymous;
+    } else if (fresh.status === "known") {
+      return null;
     } else {
       const { data, error } = await supabase.auth.getUser();
-      const cookieUser = readSupabaseCookieUser(pairs);
-      if (!error && data.user?.id) {
-        id = data.user.id;
-        email = data.user.email || "";
-        guest = Boolean(data.user.is_anonymous) || !data.user.email;
-      } else if (cookieUser) {
-        id = cookieUser.id;
-        email = cookieUser.email || "";
-        guest = cookieUser.is_anonymous;
-      } else {
-        return null;
-      }
+      if (error || !data.user?.id) return null;
+      id = data.user.id;
+      email = data.user.email || "";
+      guest = Boolean(data.user.is_anonymous) || !data.user.email;
     }
 
     const profile = await profileFor(supabase, id).catch(() => ({
@@ -159,7 +154,7 @@ export async function requestMagicLink(
 ): Promise<{ devLink?: string; devCode?: string; error?: ClassifiedAuthError }> {
   const backend = dataBackend();
   if (backend === "supabase") {
-    const supabase = await createClient();
+    const supabase = await createClient({ allowAuthClear: true });
     const current = await getSessionUser();
     if (current?.guest) {
       const cookieStore = await cookies();
@@ -189,7 +184,7 @@ export async function signOutUser() {
   const cookieStore = await cookies();
   cookieStore.set(LINK_COOKIE, "", { ...cookieOptions, maxAge: 0 });
   if (dataBackend() === "supabase") {
-    const supabase = await createClient();
+    const supabase = await createClient({ allowAuthClear: true });
     await supabase.auth.signOut();
     return;
   }
