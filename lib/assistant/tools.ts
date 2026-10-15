@@ -153,7 +153,7 @@ export function describeTool(name: ToolName, args: Record<string, string>, pathn
       return {
         href: id ? `/guide/${id}` : "/",
         spotlight: "asking-price",
-        caption: `Set the quote total to $${args.amount || "the new amount"}? Nothing in your price library changes until you confirm.`,
+        caption: `Change this price to $${args.amount || "the new amount"}? Nothing in your price library changes until you confirm.`,
       };
     }
     case "mark_sold": {

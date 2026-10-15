@@ -12,29 +12,33 @@ export interface PriceChoice {
   lineId?: string;
 }
 
-/** "Change the price" means the total on screen, unless the seller picks one line. */
+function changeLine(name: string, fromCents: number, amountCents: number, totalCents: number): string {
+  return `Change ${name} from ${formatUsd(fromCents)} to ${formatUsd(amountCents)} (total ${formatUsd(totalCents)})`;
+}
+
+/** Name the item that changes, and put the resulting total in parentheses. */
 export function priceChoices(lines: PriceLine[], amountCents: number, currentTotal: number): { caption: string; choices: PriceChoice[] } {
   const amount = formatUsd(amountCents);
-  const now = formatUsd(currentTotal);
-  const total = { label: `Set the quote total to ${amount}`, target: "total" as const };
-  if (lines.length <= 1) {
-    const name = lines[0]?.name;
+  if (lines.length === 0) {
+    const now = formatUsd(currentTotal);
     return {
-      caption: name
-        ? `Set the quote total to ${amount}? It's ${now} now, from ${name}.`
-        : `Set the quote total to ${amount}? It's ${now} now.`,
-      choices: [total],
+      caption: `Change this price from ${now} to ${amount} (total ${amount}).`,
+      choices: [{ label: `Change this price to ${amount}`, target: "total" }],
     };
   }
+  const choices = lines.map((line) => {
+    const next = lines.reduce((sum, item) => sum + (item.id === line.id ? amountCents : item.cents), 0);
+    return {
+      label: changeLine(line.name, line.cents, amountCents, next),
+      target: "line" as const,
+      lineId: line.id,
+    };
+  });
+  if (choices.length === 1) {
+    return { caption: `${choices[0].label}.`, choices: [choices[0]] };
+  }
   return {
-    caption: `Which price should become ${amount}? The quote total is ${now} now.`,
-    choices: [
-      total,
-      ...lines.map((line) => ({
-        label: `Set ${line.name} to ${amount}`,
-        target: "line" as const,
-        lineId: line.id,
-      })),
-    ],
+    caption: `Which item should become ${amount}?`,
+    choices,
   };
 }

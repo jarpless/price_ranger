@@ -527,7 +527,7 @@ export function AssistantChat({
                   onChange={(event) => onPhoto(event.target.files?.[0])}
                 />
               </form>
-              <div className="relative flex items-end gap-1 rounded-[1.75rem] border border-line bg-paper px-1.5 py-1.5 shadow-card">
+              <div className="ask-composer-shell relative flex items-end gap-1 rounded-[1.75rem] border border-line bg-paper px-1.5 py-1.5 shadow-card">
                 <button
                   type="button"
                   className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink"
@@ -555,7 +555,7 @@ export function AssistantChat({
                   placeholder="Ask Price Ranger..."
                   aria-label="Ask Price Ranger"
                   enterKeyHint="enter"
-                  className="max-h-48 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-6 outline-none"
+                  className="ask-composer-input max-h-48 min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-6"
                   onChange={(event) => onDraft(event.target.value)}
                   onKeyDown={onComposerKey}
                 />

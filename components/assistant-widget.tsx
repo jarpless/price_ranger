@@ -104,6 +104,7 @@ export function AssistantWidget({
   const [dockWidth, setDockWidth] = useState(380);
   const [draft, setDraft] = useState("");
   const [lines, setLines] = useState<ChatLine[]>([]);
+  const linesRef = useRef<ChatLine[]>([]);
   const [running, setRunning] = useState(false);
   const [note, setNote] = useState("");
   const [pending, setPending] = useState<Step | null>(null);
@@ -314,6 +315,7 @@ export function AssistantWidget({
 
   useEffect(() => {
     if (!ready) return;
+    linesRef.current = lines;
     if (skipPublish.current) {
       skipPublish.current = false;
       return;
@@ -480,8 +482,21 @@ export function AssistantWidget({
     playedRef.current = [];
   }
 
+  function rememberLines(next: ChatLine[]) {
+    linesRef.current = next;
+    setLines(next);
+    const snap = writeSnapshot(snapRef.current, {
+      mode: modeRef.current,
+      lines: next,
+      turns: turnsRef.current,
+      chatId: chatIdRef.current,
+    });
+    snapRef.current = snap;
+    revRef.current = snap.rev;
+  }
+
   async function play(step: Step, confirmed = false) {
-    setLines((current) => [...current, { role: "assistant", text: step.caption, kind: "step" }]);
+    rememberLines([...linesRef.current, { role: "assistant", text: step.caption, kind: "step" }]);
     turnsRef.current.push({ role: "assistant", content: step.caption });
     setTurnVersion((value) => value + 1);
     setSpotlight({ selector: step.spotlight, caption: step.caption });
@@ -507,9 +522,15 @@ export function AssistantWidget({
       spotlight?: string;
       error?: string;
     };
-    if (!response.ok) {
-      setLines((current) => [...current, { role: "assistant", text: effect.error || "That step did not run." }]);
+    if (!response.ok || effect.ok === false) {
+      setLines((current) => [...current, { role: "assistant", text: effect.error || effect.summary || "That step did not run." }]);
       return false;
+    }
+    if (confirmed && effect.summary) {
+      const summary = effect.summary;
+      turnsRef.current.push({ role: "assistant", content: summary });
+      rememberLines([...linesRef.current, { role: "assistant", text: summary }]);
+      setTurnVersion((value) => value + 1);
     }
     if (effect.href) router.push(effect.href);
     router.refresh();
@@ -750,7 +771,14 @@ export function AssistantWidget({
 
   function confirmPending(extra?: Record<string, string>) {
     if (!pending) return;
-    const step = { ...pending, args: { ...pending.args, ...extra } };
+    const picked = pending.choices?.find((choice) =>
+      Object.entries(choice.args).every(([key, value]) => extra?.[key] === value),
+    );
+    const step = {
+      ...pending,
+      caption: picked?.label || pending.caption,
+      args: { ...pending.args, ...extra },
+    };
     setPending(null);
     setRunning(true);
     void (async () => {
@@ -807,6 +835,10 @@ export function AssistantWidget({
       onOpenChat={openSaved}
       onConfirm={confirmPending}
       onCancel={() => {
+        const text = "Okay. I left that as it is.";
+        turnsRef.current.push({ role: "assistant", content: text });
+        rememberLines([...linesRef.current, { role: "assistant", text }]);
+        setTurnVersion((value) => value + 1);
         setPending(null);
         setSpotlight(null);
       }}

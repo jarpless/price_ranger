@@ -208,8 +208,8 @@ export async function executeTool(
       return {
         ok: true,
         summary: named
-          ? `Set ${named} to ${formatUsd(amount)}. The quote total is ${formatUsd(priceCents)}.`
-          : `Set the quote total to ${formatUsd(priceCents)}.`,
+          ? `Done. ${named} is now ${formatUsd(amount)}; quote total ${formatUsd(priceCents)}.`
+          : `Done. The total is now ${formatUsd(priceCents)}.`,
         href: `/guide/${quoteId}`,
         spotlight: "asking-price",
       };

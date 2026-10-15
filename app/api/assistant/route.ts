@@ -105,6 +105,7 @@ export async function POST(request: Request) {
   if (commanded?.type === "reply") return localReply(user, commanded.text);
   if (commanded?.type === "step") {
     const step = await enrichPriceStep(user.id, commanded.step);
+    await recordLocalAssistantUse(user.id);
     return Response.json({
       type: "plan",
       configured: llmProvider() != null,
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
   }
   const confirmed = confirmedAction(latestIntent, pathname);
   if (confirmed) {
+    await recordLocalAssistantUse(user.id);
     return Response.json({
       type: "plan",
       configured: llmProvider() != null,
@@ -162,12 +164,8 @@ export async function POST(request: Request) {
       }
     }
     if (/my feedback|my ticket|my bug|feedback status/.test(latestText.toLowerCase())) {
-      return Response.json({
-        type: "message",
-        configured: llmProvider() != null,
-        text: await feedbackAssistantText(user.id),
-        allowance: await assistantAllowance(user),
-      });
+      const text = await feedbackAssistantText(user.id);
+      return localReply(user, text);
     }
     if (row) {
       const explained = explainPrice(latestText, row);
@@ -192,7 +190,7 @@ export async function POST(request: Request) {
 
   if (body.mode === "ask") {
     if (!configured) {
-      return Response.json({ type: "message", configured: false, text: localAskAnswer(slice) });
+      return localReply(user, localAskAnswer(slice));
     }
     const { json, redaction } = redactedContext(slice, pathname);
     const redactedTurns = turns.map((turn) => ({
@@ -222,23 +220,25 @@ export async function POST(request: Request) {
         type: "message",
         configured: false,
         text: "Done. What I created is still editable.",
+        allowance: await assistantAllowance(user),
       });
     }
     const latest = [...turns].reverse().find((turn) => turn.role === "user")?.content || "";
     const steps = planLocally(latest, pathname);
     if (!steps) {
-      return Response.json({
-        type: "message",
-        configured: false,
-        text: "No model key is set. On this machine you can say “Add a price called Ridge vent at 40 each”, “Create a group called Ridge cap”, “New quote for a customer about a job”, or “Open prices”. Set OPENAI_API_KEY or ANTHROPIC_API_KEY for anything broader.",
-      });
+      return localReply(
+        user,
+        "No model key is set. On this machine you can say “Add a price called Ridge vent at 40 each”, “Create a group called Ridge cap”, “New quote for a customer about a job”, or “Open prices”. Set OPENAI_API_KEY or ANTHROPIC_API_KEY for anything broader.",
+      );
     }
+    await recordLocalAssistantUse(user.id);
     return Response.json({
       type: "plan",
       configured: false,
       note: "No model key is set, so this run stays on this machine and only uses in-app actions.",
       steps,
       continue: false,
+      allowance: await assistantAllowance(user),
     });
   }
 

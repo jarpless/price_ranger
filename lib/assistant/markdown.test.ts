@@ -21,7 +21,7 @@ test("an unfinished bold marker is closed so the asterisks stay hidden", () => {
   assert.equal(blocks[0].items[0], "**Re**");
 });
 
-test("several lines make the confirm name the total and each line", () => {
+test("several lines name the item and the total after the change", () => {
   const described = priceChoices(
     [
       { id: "oak", name: "Oak dining table", cents: 18000 },
@@ -31,18 +31,16 @@ test("several lines make the confirm name the total and each line", () => {
     22500,
   );
   assert.match(described.caption, /\$150/);
-  assert.match(described.caption, /\$225/);
-  assert.deepEqual(
-    described.choices.map((choice) => choice.label),
-    ["Set the quote total to $150", "Set Oak dining table to $150", "Set Shipping to $150"],
-  );
-  assert.equal(described.choices[0]?.target, "total");
-  assert.equal(described.choices[1]?.lineId, "oak");
+  assert.equal(described.choices[0]?.label, "Change Oak dining table from $180 to $150 (total $195)");
+  assert.equal(described.choices[1]?.label, "Change Shipping from $45 to $150 (total $330)");
+  assert.equal(described.choices[0]?.target, "line");
+  assert.equal(described.choices[0]?.lineId, "oak");
+  assert.equal(described.choices.some((choice) => /quote total/i.test(choice.label)), false);
 });
 
-test("one line confirms the quote total", () => {
+test("one line names the item and the resulting total", () => {
   const described = priceChoices([{ id: "oak", name: "Oak dining table", cents: 18000 }], 15000, 18000);
   assert.equal(described.choices.length, 1);
-  assert.equal(described.choices[0]?.target, "total");
-  assert.match(described.caption, /quote total/);
+  assert.equal(described.choices[0]?.target, "line");
+  assert.equal(described.caption, "Change Oak dining table from $180 to $150 (total $150).");
 });

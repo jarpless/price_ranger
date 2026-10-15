@@ -60,7 +60,7 @@ export function quoteCommand(message: string, pathname: string): QuoteCommand | 
       step: {
         name: "set_asking_price",
         args: { quoteId: id, amount },
-        caption: `Set the quote total to $${amount}? Nothing in your price library changes until you confirm.`,
+        caption: `Change this price to $${amount}? Nothing in your price library changes until you confirm.`,
         href: `/guide/${id}`,
         spotlight: "asking-price",
         needsConfirm: true,

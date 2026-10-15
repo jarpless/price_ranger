@@ -600,6 +600,16 @@ input[type="range"] {
   padding: 0.35rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
 }
 
+.ask-composer-input:focus,
+.ask-composer-input:focus-visible {
+  outline: none;
+}
+
+.ask-composer-shell:focus-within {
+  outline: 2px solid #1e4636;
+  outline-offset: 2px;
+}
+
 .ask-float[data-keyboard="open"] .ask-composer,
 .ask-popout[data-keyboard="open"] .ask-composer {
   padding-bottom: 0.5rem;
