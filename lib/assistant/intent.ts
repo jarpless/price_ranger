@@ -26,11 +26,14 @@ function guideIdFrom(pathname: string): string | null {
   return match?.[1] || null;
 }
 
+const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,7}(?:\.\d{1,2})?)`;
+
 function amountFrom(text: string): string | null {
-  const directed = text.match(/\b(?:to|at|for|be)\s+\$?\s*(\d{1,7}(?:\.\d{1,2})?)\b/);
-  if (directed) return directed[1];
-  const dollar = text.match(/\$\s*(\d{1,7}(?:\.\d{1,2})?)/);
-  return dollar?.[1] || null;
+  const directed = text.match(new RegExp(String.raw`\b(?:to|at|for|be)\s+\$?\s*${AMOUNT}\b`));
+  const dollar = text.match(new RegExp(String.raw`\$\s*${AMOUNT}`));
+  const raw = directed?.[1] || dollar?.[1];
+  if (!raw) return null;
+  return raw.replace(/,/g, "");
 }
 
 /**

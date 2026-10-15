@@ -2,10 +2,8 @@ import { cookies } from "next/headers";
 
 import { LoginForm } from "@/components/login-form";
 import { LogoLockup } from "@/components/logo";
-import { PendingLink } from "@/components/pending-link";
 import { RateLimitNotice } from "@/components/rate-limit-notice";
 import { Notice } from "@/components/ui";
-import { getSessionUser } from "@/lib/auth";
 import { passkeyConfigured } from "@/lib/auth-providers";
 import { EMAIL_KIND_COOKIE } from "@/lib/session";
 import { dataBackend } from "@/lib/env";
@@ -19,7 +17,6 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; reason?: string; detail?: string; notice?: string; email?: string; retry?: string }>;
 }) {
   const { error, reason, detail, notice, retry } = await searchParams;
-  const user = await getSessionUser();
   const jar = await cookies();
   const remembered = jar.get("pr_pending_email")?.value || "";
   const emailKind = jar.get(EMAIL_KIND_COOKIE)?.value === "signup" ? "signup" : "signin";
@@ -71,15 +68,6 @@ export default async function LoginPage({
         </div>
       ) : null}
       <LoginForm email={remembered} error={error} notice={notice} showPasskey={passkey} local={local} emailKind={emailKind} />
-      {user?.guest ? null : (
-        <PendingLink
-          href="/auth/guest?next=/new"
-          prefetch={false}
-          className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl text-base font-semibold text-pine"
-        >
-          Try it first
-        </PendingLink>
-      )}
       </div>
     </main>
   );
