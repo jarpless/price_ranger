@@ -352,6 +352,15 @@ export async function saveDescription(formData: FormData) {
   redirect(`/guide/${quoteId}`);
 }
 
+export async function editPrice(formData: FormData) {
+  const user = await requireUser();
+  const quoteId = clip(formData.get("quoteId"), 80);
+  const row = await requireGuide(user.id, quoteId);
+  await saveGuideQuote({ ...row, step: "adjust" });
+  refresh();
+  redirect(`/guide/${quoteId}`);
+}
+
 export async function continueGuide(formData: FormData) {
   const user = await requireUser();
   const quoteId = clip(formData.get("quoteId"), 80);

@@ -34,18 +34,15 @@ export default async function SentPage({
       <div className="mx-auto w-full max-w-lg">
       <Logo tone="ink" width={64} height={64} className="mb-6 h-16 w-16" />
       <h1 className="font-serif text-3xl">Check your email</h1>
-      {unverified ? (
-        <p className="mt-3 text-base leading-relaxed text-muted">
-          Password sign-in waits until {email || "this email"} is verified. Open the link in that email
-          {hasCode ? `, or enter the ${codeLabel} below` : ""}. The message {hasCode ? "also includes that code" : "does not include a code"}.
-        </p>
-      ) : (
-        <p className="mt-3 text-base leading-relaxed text-muted">
-          {email ? `If ${email} can receive mail, open the link in that email` : "Open the link in your email"}
-          {hasCode ? `. It also has an ${codeLabel}` : ". That message has a link and does not include a code"}.
-          {notice === "resent" ? " We sent another one." : ""}
-        </p>
-      )}
+      <p className="mt-3 text-base leading-relaxed text-muted">
+        {unverified
+          ? `Password sign-in waits until ${email || "this email"} is verified. `
+          : email
+            ? `If ${email} can receive mail, a message is on the way. `
+            : "A message is on the way. "}
+        If the email includes an {codeLabel}, enter it below. If it only has a link, open the link.
+        {notice === "resent" ? " We sent another one." : ""}
+      </p>
       <p className="mt-3 text-body leading-6">If this inbox cannot receive mail, your draft is still on this device.</p>
       <Link
         href="/"

@@ -117,6 +117,41 @@ export function jpegFromDataUrl(value: string | null | undefined): Uint8Array | 
   return dataUrlToJpeg(value);
 }
 
+/** Break on spaces so a price such as $200 is never cut to $20. */
+export function pdfRows(value: string, width: number): string[] {
+  const words = value.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const rows: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && next.length > width) {
+      rows.push(line);
+      line = word;
+      continue;
+    }
+    line = next;
+  }
+  if (line) rows.push(line);
+  return rows;
+}
+
+function writeRows(
+  commands: string[],
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  width: number,
+  leading: number,
+): number {
+  for (const row of pdfRows(text, width)) {
+    if (y < 64) break;
+    commands.push(`BT /F1 ${size} Tf ${x} ${y} Td (${escapePdf(row)}) Tj ET`);
+    y -= leading;
+  }
+  return y;
+}
+
 /** A real one-page PDF. A JPEG is embedded when the photo is a JPEG. */
 export function buildPricePdf(input: PdfInput): Uint8Array {
   const jpeg = input.jpeg && jpegSize(input.jpeg) ? input.jpeg : null;
@@ -139,22 +174,23 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   y -= 22;
   const facts = [input.condition, input.range].filter(Boolean).join("  ·  ");
   if (facts) {
-    commands.push(`BT /F1 11 Tf 48 ${y} Td (${escapePdf(facts.slice(0, 80))}) Tj ET`);
-    y -= 18;
+    y = writeRows(commands, facts, 48, y, 11, 78, 16);
+    y -= 2;
   }
   if (input.subtitle && input.subtitle.trim().toLowerCase() !== input.title.trim().toLowerCase()) {
-    commands.push(`BT /F1 12 Tf 48 ${y} Td (${escapePdf(input.subtitle.slice(0, 90))}) Tj ET`);
-    y -= 28;
+    y = writeRows(commands, input.subtitle, 48, y, 12, 72, 16);
+    y -= 12;
   } else {
     y -= 8;
   }
   const lines = input.lines;
   for (const line of lines.slice(0, 18)) {
+    if (y < 72) break;
     commands.push(`BT /F1 12 Tf 48 ${y} Td (${escapePdf(line.name.slice(0, 48))}) Tj ET`);
     commands.push(`BT /F1 12 Tf 400 ${y} Td (${escapePdf(line.price.slice(0, 24))}) Tj ET`);
     y -= 16;
-    commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(line.detail.slice(0, 80))}) Tj ET`);
-    y -= 20;
+    y = writeRows(commands, line.detail, 48, y, 10, 78, 14);
+    y -= 6;
   }
   y -= 8;
   commands.push(`BT /F1 16 Tf 48 ${y} Td (${escapePdf(`Total ${input.total}`)}) Tj ET`);
@@ -165,12 +201,11 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
     y -= 18;
     for (const comp of comps) {
       if (y < 72) break;
-      commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(comp.title.slice(0, 52))}) Tj ET`);
-      commands.push(`BT /F1 10 Tf 430 ${y} Td (${escapePdf(comp.price.slice(0, 16))}) Tj ET`);
-      y -= 14;
+      y = writeRows(commands, comp.title, 48, y, 10, 62, 14);
+      commands.push(`BT /F1 10 Tf 430 ${y + 14} Td (${escapePdf(comp.price.slice(0, 16))}) Tj ET`);
       if (comp.detail) {
-        commands.push(`BT /F1 9 Tf 48 ${y} Td (${escapePdf(comp.detail.slice(0, 70))}) Tj ET`);
-        y -= 16;
+        y = writeRows(commands, comp.detail, 48, y, 9, 78, 12);
+        y -= 4;
       }
     }
   }

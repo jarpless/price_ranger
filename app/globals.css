@@ -321,8 +321,15 @@ body[data-ask="off"] .ask-lane > .app-main {
 .content-split {
   display: grid;
   min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--card-gap);
+}
+
+.content-split > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @container app (min-width: 56rem) {
@@ -363,8 +370,15 @@ body[data-ask="off"] .ask-lane > .app-main {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--row-min);
   padding-block: var(--row-pad-y);
+}
+
+input[type="range"] {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .list-row {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { readFileSync } from "node:fs";
 
-import { buildPricePdf, jpegSize, pdfFilename } from "./guide/pdf";
+import { buildPricePdf, jpegSize, pdfFilename, pdfRows } from "./guide/pdf";
 import { inspectPhoto, savePendingPhoto } from "./guide/photos";
 import {
   accessLimits,
@@ -252,6 +252,17 @@ test("a price sheet becomes a real PDF", () => {
   assert.match(brandedText, /Comparables/);
   assert.match(brandedText, /iPhone 13 128GB unlocked/);
   assert.ok(branded.byteLength > 1200);
+  const summary = "Sold listings for a good Nintendo Switch (With dock) cluster around $175, from $150 to $200.";
+  assert.ok(summary.length > 90);
+  assert.deepEqual(pdfRows(summary, 72).some((row) => row.includes("$200.")), true);
+  const wrapped = buildPricePdf({
+    title: "Nintendo Switch",
+    subtitle: summary,
+    lines: [{ name: "Nintendo Switch", detail: "1 × $175", price: "$175" }],
+    total: "$175",
+  });
+  const wrappedText = Buffer.from(wrapped).toString("latin1");
+  assert.match(wrappedText, /from \$150 to \$200\./);
   const filename = pdfFilename("Used iPhone 13 128GB unlocked", "2026-10-14");
   assert.equal(filename, "price-ranger-used-iphone-13-128gb-unlocked-2026-10-14.pdf");
   assert.match(pdfFilename("A very long item title with many extra words that should stop cleanly", "2026-10-14"), /-[a-z0-9]+-2026-10-14\.pdf$/);

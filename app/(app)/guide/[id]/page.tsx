@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import {
   continueGuide,
+  editPrice,
   markOutcome,
   saveDescription,
   sendQuote,
@@ -69,7 +70,7 @@ export default async function GuidePage({
     return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
   });
   return (
-    <div data-guide-step={row.step} className="mx-auto w-full max-w-[40rem] lg:mx-0 lg:max-w-none">
+    <div data-guide-step={row.step} className="mx-auto w-full min-w-0 max-w-[40rem] lg:mx-0 lg:max-w-none">
       <GuideProgress step={row.step} />
       <h1 className="mt-6 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{title}</h1>
       <p className="mt-2 text-body text-muted">{now}</p>
@@ -150,7 +151,13 @@ export default async function GuidePage({
             </ul>
           ) : null}
           <ShareActions href={shareHref} title={row.description || "Price Ranger"} />
-          <div className="flex flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2">
+            <form action={editPrice}>
+              <input type="hidden" name="quoteId" value={row.quoteId} />
+              <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink">
+                Edit price
+              </button>
+            </form>
             <a
               href={`${shareHref}/pdf`}
               className="inline-flex h-12 min-h-12 w-full shrink-0 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink"

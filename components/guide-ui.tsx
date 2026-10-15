@@ -16,7 +16,7 @@ export function GuideProgress({ step }: { step: GuideStep }) {
       {(step === "sold" ? (["Add", "Price", "Done"] as const) : PHASES).map((label, item) => (
         <li key={label} className="min-w-0 flex-1">
           <div className={`h-1 rounded-full ${item <= current ? "bg-pine" : "bg-line"}`} />
-          <p className={`mt-2 whitespace-nowrap text-center text-caption font-semibold ${item === current ? "text-ink" : "text-muted"}`}>
+          <p className={`mt-2 text-center text-caption font-semibold ${item === current ? "text-ink" : "text-muted"}`}>
             {label}
           </p>
         </li>

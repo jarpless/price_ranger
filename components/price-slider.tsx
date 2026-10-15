@@ -26,8 +26,8 @@ export function PriceSlider({ quoteId, suggestedCents }: { quoteId: string; sugg
       <input type="hidden" name="quoteId" value={quoteId} />
       <input type="hidden" name="kind" value="price" />
       <input type="hidden" name="amount" value={dollarsInputValue(nextCents)} />
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-base font-semibold">Nudge the price</p>
+      <div className="flex min-w-0 items-baseline justify-between gap-3">
+        <p className="min-w-0 text-base font-semibold">Nudge the price</p>
         <p className="shrink-0 font-serif text-title tabular-nums">{label}</p>
       </div>
       <input

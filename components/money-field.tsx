@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { formatUsd, parseDollarsToCents } from "@/lib/money";
 
@@ -12,13 +12,13 @@ function shownMoney(value: string): string {
   return formatUsd(cents);
 }
 
-/** Select the current amount on focus so the next digits replace it. */
+/** Raw digits while typing. The dollar format is applied when the field blurs. */
 export function MoneyField({
   name,
   defaultValue,
   label,
   submitOnBlur = false,
-  className = "mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal",
+  className = "mt-1 h-12 w-full min-w-0 rounded-2xl border border-line px-3 text-base font-normal",
 }: {
   name: string;
   defaultValue: string;
@@ -26,12 +26,20 @@ export function MoneyField({
   submitOnBlur?: boolean;
   className?: string;
 }) {
-  const replaceNext = useRef(true);
+  const [text, setText] = useState(() => shownMoney(defaultValue));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (focused.current) return;
+    setText(shownMoney(defaultValue));
+  }, [defaultValue]);
+
   const field = (
     <input
       name={name}
       inputMode="decimal"
-      defaultValue={shownMoney(defaultValue)}
+      value={text}
+      onChange={(event) => setText(event.target.value)}
       onPointerDown={(event) => {
         const input = event.currentTarget;
         if (document.activeElement === input) return;
@@ -39,27 +47,21 @@ export function MoneyField({
         input.focus();
         input.select();
       }}
-      onMouseUp={(event) => event.preventDefault()}
+      onMouseUp={(event) => {
+        if (event.currentTarget.selectionStart !== event.currentTarget.selectionEnd) event.preventDefault();
+      }}
       onFocus={(event) => {
-        replaceNext.current = true;
-        const input = event.currentTarget;
-        input.select();
-        requestAnimationFrame(() => input.select());
+        focused.current = true;
+        event.currentTarget.select();
       }}
       onBlur={(event) => {
-        replaceNext.current = true;
-        const input = event.currentTarget;
-        const cents = parseDollarsToCents(input.value);
+        focused.current = false;
+        const cents = parseDollarsToCents(text);
         if (cents == null) return;
-        input.value = formatUsd(cents);
+        const formatted = formatUsd(cents);
+        setText(formatted);
         const previous = parseDollarsToCents(defaultValue);
-        if (submitOnBlur && cents !== previous) input.form?.requestSubmit();
-      }}
-      onBeforeInput={(event) => {
-        const input = event.currentTarget;
-        if (!replaceNext.current) return;
-        replaceNext.current = false;
-        if (input.selectionStart === input.selectionEnd) input.select();
+        if (submitOnBlur && cents !== previous) event.currentTarget.form?.requestSubmit();
       }}
       className={className}
     />

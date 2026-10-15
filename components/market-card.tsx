@@ -54,8 +54,8 @@ export function MarketCard({
     : comparablesForTitle(description, point || suggested || 0);
 
   return (
-    <div className="mt-6 space-y-4">
-      <section className="rounded-2xl border border-line bg-paper p-5 shadow-card">
+    <div className="mt-6 min-w-0 max-w-full space-y-4">
+      <section className="min-w-0 max-w-full rounded-2xl border border-line bg-paper p-5 shadow-card">
         <div className="flex items-center gap-1">
           <p className="text-caption font-semibold text-muted">
             {live ? conditionLabel(condition) : "Suggested"}
@@ -107,9 +107,9 @@ export function MarketCard({
       {live ? (
         <section>
           <p className="text-base font-semibold">Condition</p>
-          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Condition">
+          <div className="mt-2 flex min-w-0 max-w-full flex-wrap gap-2" role="group" aria-label="Condition">
             {CONDITIONS.map((item) => (
-              <form key={item.id} action={applyAdjustment}>
+              <form key={item.id} action={applyAdjustment} className="max-w-full">
                 <input type="hidden" name="quoteId" value={quoteId} />
                 <input type="hidden" name="kind" value="condition" />
                 <input type="hidden" name="value" value={item.id} />
@@ -129,9 +129,9 @@ export function MarketCard({
       {live && live.variants.length > 1 ? (
         <section>
           <p className="text-base font-semibold">Model</p>
-          <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Model">
+          <div className="mt-2 flex min-w-0 max-w-full flex-wrap gap-2" role="group" aria-label="Model">
             {live.variants.map((item) => (
-              <form key={item.id} action={applyAdjustment}>
+              <form key={item.id} action={applyAdjustment} className="max-w-full">
                 <input type="hidden" name="quoteId" value={quoteId} />
                 <input type="hidden" name="kind" value="variant" />
                 <input type="hidden" name="value" value={item.id} />
@@ -154,9 +154,9 @@ export function MarketCard({
           <InfoTip id="discount" />
           <InfoTip id="fees" label="About fees" />
         </div>
-        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Price presets">
+        <div className="mt-2 flex min-w-0 max-w-full flex-wrap gap-2" role="group" aria-label="Price presets">
           {PRESETS.map((preset) => (
-            <form key={preset.value} action={applyAdjustment}>
+            <form key={preset.value} action={applyAdjustment} className="max-w-full">
               <input type="hidden" name="quoteId" value={quoteId} />
               <input type="hidden" name="kind" value="preset" />
               <input type="hidden" name="value" value={preset.value} />
@@ -203,7 +203,7 @@ export function MarketCard({
           </div>
           <ul className="page-stack mt-4">
             {comparables.slice(0, 4).map((comp) => (
-              <li key={`${comp.title}-${comp.soldAt}`} className="surface flex items-start gap-3">
+              <li key={`${comp.title}-${comp.soldAt}`} className="surface flex min-w-0 items-start gap-3">
                 {/* Curated sold-search thumbnail, not a product photo. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={comp.thumbnail} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-cream object-contain" />
