@@ -499,6 +499,22 @@ export function namesForAutocomplete(): string[] {
   return QUICK_ITEMS.map((item) => item.description);
 }
 
+/** Matches for the item field. They render in the page, under the field and above See price. */
+export function searchSuggestions(query: string, names: string[], limit = 5): string[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [];
+  const seen = new Set<string>();
+  const matches: string[] = [];
+  for (const name of names) {
+    const key = name.trim().toLowerCase();
+    if (!key.includes(needle) || key === needle || seen.has(key)) continue;
+    seen.add(key);
+    matches.push(name);
+    if (matches.length >= limit) break;
+  }
+  return matches;
+}
+
 /** $1,250 against a $150–$200 sold range is far enough to warn. A few dollars outside is not. */
 export function priceFarFromRange(cents: number | null, lowCents: number | null, highCents: number | null): boolean {
   if (cents == null || lowCents == null || highCents == null || lowCents <= 0 || highCents <= 0) return false;

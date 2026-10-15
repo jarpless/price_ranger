@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useActionState } from "react";
 
 import { startAndPrice } from "@/app/guide-actions";
-import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS } from "@/lib/market";
+import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market";
 
 import { IconCamera } from "./icons";
 import { PhotoField } from "./photo-field";
@@ -17,7 +17,13 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
   const [barcode, setBarcode] = useState("");
   const [error, submit, pending] = useActionState(startAndPrice, "");
   const names = useMemo(() => namesForAutocomplete(), []);
+  const matches = searchSuggestions(description, names);
   const items = QUICK_ITEMS.filter((item) => !category || item.category === category);
+  const guard = useRef(false);
+
+  useEffect(() => {
+    if (!pending) guard.current = false;
+  }, [pending]);
 
   async function onBarcode(file: File, form: HTMLFormElement) {
     const Detector = "BarcodeDetector" in window ? window.BarcodeDetector : null;
@@ -45,7 +51,17 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
   }
 
   return (
-    <form action={submit} className="space-y-5">
+    <form
+      action={submit}
+      className="space-y-5"
+      onSubmit={(event) => {
+        if (guard.current || pending) {
+          event.preventDefault();
+          return;
+        }
+        guard.current = true;
+      }}
+    >
       <input type="hidden" name="path" value="item" />
       <div className="rounded-3xl border border-line bg-paper p-4 shadow-card">
         <p className="font-serif text-title">Take a photo</p>
@@ -112,18 +128,32 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
         <input
           id="item-search"
           name="description"
-          list="item-names"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="Nintendo Switch, iPhone, bike"
+          autoComplete="off"
+          role="combobox"
+          aria-expanded={matches.length > 0}
+          aria-controls="item-suggestions"
           className="h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base font-normal outline-none focus:border-pine"
         />
-        <datalist id="item-names">
-          {names.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
       </label>
+      {matches.length > 0 ? (
+        <ul id="item-suggestions" role="listbox" className="overflow-hidden rounded-2xl border border-line bg-paper">
+          {matches.map((name) => (
+            <li key={name} role="presentation">
+              <button
+                type="button"
+                role="option"
+                className="h-12 w-full px-4 text-left text-base font-normal hover:bg-cream"
+                onClick={() => setDescription(name)}
+              >
+                {name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {error === "limit" ? (
         <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { answerFromMarket, comparableAnchorCents, comparableAnchorFromRange, comparablesForTitle, MARKET_REGRESSION, marketPrice, pictureFor, priceFarFromRange } from "./market";
+import { readFileSync } from "node:fs";
+
+import { answerFromMarket, comparableAnchorCents, comparableAnchorFromRange, comparablesForTitle, MARKET_REGRESSION, marketPrice, namesForAutocomplete, pictureFor, priceFarFromRange, searchSuggestions } from "./market";
 
 test("a bare Nintendo Switch is the docked model, not the OLED", () => {
   const quote = marketPrice("Nintendo Switch");
@@ -81,6 +83,18 @@ test("a price far outside the sold range is called out", () => {
   assert.equal(priceFarFromRange(22000, 15000, 20000), false);
   assert.equal(priceFarFromRange(5000, 15000, 20000), true);
   assert.equal(priceFarFromRange(null, 15000, 20000), false);
+});
+
+test("search suggestions sit in the page instead of covering See price", () => {
+  const matches = searchSuggestions("switch", namesForAutocomplete());
+  assert.ok(matches.length > 0);
+  assert.ok(matches.length <= 5);
+  assert.ok(matches.every((name) => name.toLowerCase().includes("switch")));
+  assert.deepEqual(searchSuggestions("Used Nintendo Switch OLED", namesForAutocomplete()), []);
+  const form = readFileSync(new URL("../components/capture-form.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(form, /<datalist/);
+  assert.match(form, /searchSuggestions/);
+  assert.match(form, /id="item-suggestions"/);
 });
 
 test("the assistant does not repeat a $40 Switch price", () => {

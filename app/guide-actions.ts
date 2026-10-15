@@ -13,7 +13,8 @@ import { pricingAccess } from "@/lib/guide/access";
 import { TOS_VERSION } from "@/lib/guide/config";
 import { isGuidePath, suggestPrice } from "@/lib/guide/flow";
 import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
-import { adjustmentFromSources, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment } from "@/lib/guide/pricing";
+import { draftKey, reusableDraftId, shareDraftWork } from "@/lib/guide/drafts";
+import { adjustmentFromSources, commitAskingPrice, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
 import { identifyPhoto, type PhotoIdentity } from "@/lib/guide/vision";
 import {
   ensureGuideUser,
@@ -70,27 +71,16 @@ async function setFirstLinePrice(userId: string, quoteId: string, cents: number)
 }
 
 /** Writes the saved asking price onto the line the share link and the PDF read. */
-async function setAskingOnLines(userId: string, quoteId: string, askingCents: number, adjustment: Adjustment) {
+async function writeCommittedLines(userId: string, quoteId: string, lines: MoneyLine[]) {
   const { data, group } = await quoteGroup(userId, quoteId);
-  if (!group) return false;
-  const items = group.items;
-  if (!items[0]) {
-    const itemId = await data.createCustomItem(userId, { name: "Price", unit: "each", unitPriceCents: askingCents });
+  const first = lines[0];
+  if (!group || !first) return false;
+  const existing = group.items[0];
+  if (!existing) {
+    const itemId = await data.createCustomItem(userId, { name: first.name, unit: "each", unitPriceCents: first.unitPriceCents });
     return data.addGroupItem(userId, group.id, itemId);
   }
-  const rest = items.slice(1).map((item) => ({
-    name: item.name,
-    quantity: item.quantity,
-    unitPriceCents: item.unitPriceCents,
-  }));
-  const restTotal = settledTotal(rest, adjustment);
-  const first = items[0];
-  const quantity = first.quantity > 0 ? first.quantity : 1;
-  const discounted = adjustment.percent > 0 && !/\b(dumpster|haul|hauling|fee|fees|permit|disposal|tax|delivery)\b/i.test(first.name);
-  const target = askingCents - restTotal;
-  const base = discounted ? target / (1 - adjustment.percent / 100) : target;
-  const unit = Math.max(0, Math.round(base / quantity));
-  return data.updateGroupItem(userId, first.id, { quantity, unitPriceCents: unit });
+  return data.updateGroupItem(userId, existing.id, { quantity: first.quantity > 0 ? first.quantity : 1, unitPriceCents: first.unitPriceCents });
 }
 
 async function addExtraLine(userId: string, quoteId: string, name: string, amount: number) {
@@ -237,49 +227,47 @@ export async function startAndPrice(_previous: string, formData: FormData): Prom
     visionNote = identified.note;
   }
   if (!text || looksLikeFilename(text)) redirect("/new?error=photo");
-  const recent = (await listGuideQuotes(user.id)).find((quote) => {
-    if (quote.sample || quote.sharedAt) return false;
-    if (quote.description.trim() !== text.trim()) return false;
-    const age = Date.now() - Date.parse(quote.updatedAt);
-    return Number.isFinite(age) && age >= 0 && age < 20_000;
+  const quoteId = await shareDraftWork(draftKey(user.id, text), async () => {
+    const recentId = reusableDraftId(await listGuideQuotes(user.id), text);
+    if (recentId) return recentId;
+    const suggestion = suggestPrice(text, path);
+    if (visionNote) suggestion.note = visionNote;
+    const guide = await ensureGuideUser(user.id);
+    await recordFunnel(user.id, "path_chosen", { path, variant: guide.variant });
+    const customer = path === "job" ? "Customer" : path === "check" ? "Price check" : "Buyer";
+    const data = await getData();
+    const createdId = await data.createQuote(user.id, { title: text.slice(0, 80), customerName: customer });
+    const groupId = await data.createGroup(user.id, text.slice(0, 80));
+    const itemId = await data.createCustomItem(user.id, {
+      name: text.slice(0, 80),
+      unit: "each",
+      unitPriceCents: suggestion.cents,
+    });
+    await data.addGroupItem(user.id, groupId, itemId);
+    const quote = await data.getQuote(user.id, createdId);
+    const tierId = quote?.tiers[0]?.id;
+    if (tierId) await data.toggleTierGroup(user.id, tierId, groupId);
+    await saveGuideQuote({
+      quoteId: createdId,
+      userId: user.id,
+      path,
+      step: "review",
+      description: text,
+      priceCents: suggestion.cents,
+      note: suggestion.note,
+      sources: suggestion.sources,
+      photoName: photo ? "photo" : null,
+      sharedAt: null,
+      shareToken: null,
+      outcome: null,
+      sample: false,
+      finishedAt: null,
+      updatedAt: new Date().toISOString(),
+    });
+    if (photo) await saveQuotePhoto(user.id, createdId, photo.bytes, photo.mime).catch(() => undefined);
+    await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
+    return createdId;
   });
-  if (recent) redirect(`/guide/${recent.quoteId}`);
-  const suggestion = suggestPrice(text, path);
-  if (visionNote) suggestion.note = visionNote;
-  const guide = await ensureGuideUser(user.id);
-  await recordFunnel(user.id, "path_chosen", { path, variant: guide.variant });
-  const customer = path === "job" ? "Customer" : path === "check" ? "Price check" : "Buyer";
-  const data = await getData();
-  const quoteId = await data.createQuote(user.id, { title: text.slice(0, 80), customerName: customer });
-  const groupId = await data.createGroup(user.id, text.slice(0, 80));
-  const itemId = await data.createCustomItem(user.id, {
-    name: text.slice(0, 80),
-    unit: "each",
-    unitPriceCents: suggestion.cents,
-  });
-  await data.addGroupItem(user.id, groupId, itemId);
-  const quote = await data.getQuote(user.id, quoteId);
-  const tierId = quote?.tiers[0]?.id;
-  if (tierId) await data.toggleTierGroup(user.id, tierId, groupId);
-  await saveGuideQuote({
-    quoteId,
-    userId: user.id,
-    path,
-    step: "review",
-    description: text,
-    priceCents: suggestion.cents,
-    note: suggestion.note,
-    sources: suggestion.sources,
-    photoName: photo ? "photo" : null,
-    sharedAt: null,
-    shareToken: null,
-    outcome: null,
-    sample: false,
-    finishedAt: null,
-    updatedAt: new Date().toISOString(),
-  });
-  if (photo) await saveQuotePhoto(user.id, quoteId, photo.bytes, photo.mime).catch(() => undefined);
-  await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -430,11 +418,16 @@ export async function applyAdjustment(formData: FormData) {
     const base = meta.suggestedCents || row.priceCents || 0;
     const rawAmount = kind === "slider"
       ? nudgedCents(base, Number(clip(formData.get("percent"), 8) || "0"))
-      : parseDollarsToCents(clip(formData.get("amount"), 20));
+      : parseDollarsToCents(clip(formData.get("amount"), 32));
     const amount = rawAmount;
     if (amount == null) redirect(`/guide/${quoteId}?error=price`);
-    sources = withOverride(sources, amount);
-    await setAskingOnLines(user.id, quoteId, amount, adjustmentFromSources(sources));
+    const committed = commitAskingPrice({
+      lines: await quoteLines(user.id, quoteId),
+      sources,
+      amountCents: amount,
+    });
+    sources = committed.sources;
+    await writeCommittedLines(user.id, quoteId, committed.lines);
   } else if (kind === "preset") {
     const preset = clip(formData.get("value"), 20);
     if (preset === "off10" || preset === "off20") {
@@ -485,10 +478,18 @@ export async function sendQuote(formData: FormData) {
   const data = await getData();
   const quote = await data.getQuote(user.id, quoteId);
   if (!quote) redirect("/");
-  const groups = await data.listGroups(user.id);
-  const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
   const meta = readMarketMeta(row.sources);
   const askingCents = meta.overrideCents ?? row.priceCents;
+  if (askingCents != null) {
+    const committed = commitAskingPrice({
+      lines: await quoteLines(user.id, quoteId),
+      sources: row.sources,
+      amountCents: askingCents,
+    });
+    await writeCommittedLines(user.id, quoteId, committed.lines);
+  }
+  const groups = await data.listGroups(user.id);
+  const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
   const sheet = buyerSheet(quote, groups, {
     sources: row.sources,
     note: row.note,

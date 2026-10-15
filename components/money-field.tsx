@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { dollarsInputValue, formatUsd, parseDollarsToCents } from "@/lib/money";
+import { editingMoney, formatUsd, parseDollarsToCents, replacedMoney } from "@/lib/money";
 
 function shownMoney(value: string): string {
   const trimmed = value.trim();
@@ -32,10 +32,19 @@ export function MoneyField({
   const [text, setText] = useState(() => shownMoney(defaultValue));
   const focused = useRef(false);
   const textRef = useRef(text);
-  const hidden = useRef<HTMLInputElement>(null);
-  const held = useRef<number | null>(null);
   const sent = useRef<number | null>(null);
+  const held = useRef<number | null>(null);
+  const fresh = useRef(false);
+  const replace = useRef(false);
+  const selectNext = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   textRef.current = text;
+
+  useLayoutEffect(() => {
+    if (!selectNext.current) return;
+    selectNext.current = false;
+    inputRef.current?.select();
+  }, [text]);
 
   useEffect(() => {
     if (focused.current) return;
@@ -46,23 +55,24 @@ export function MoneyField({
     const shown = shownMoney(defaultValue);
     setText(shown);
     textRef.current = shown;
-    if (hidden.current && incoming != null) hidden.current.value = dollarsInputValue(incoming);
   }, [defaultValue]);
 
-  function remember(raw: string) {
+  function showRaw(input: HTMLInputElement) {
+    const raw = editingMoney(textRef.current);
+    replace.current = true;
+    selectNext.current = true;
     textRef.current = raw;
-    const cents = parseDollarsToCents(raw);
-    if (hidden.current) hidden.current.value = cents == null ? "" : dollarsInputValue(cents);
-    onDraft?.(cents);
-    return cents;
+    setText(raw);
+    input.value = raw;
   }
 
   function commit(form: HTMLFormElement | null) {
-    const cents = remember(textRef.current);
+    const cents = parseDollarsToCents(textRef.current);
     if (cents == null) return;
     const formatted = formatUsd(cents);
     textRef.current = formatted;
     setText(formatted);
+    onDraft?.(cents);
     if (!submitOnBlur || !form || sent.current === cents) return;
     const previous = parseDollarsToCents(defaultValue);
     if (cents === previous) return;
@@ -75,44 +85,47 @@ export function MoneyField({
   }
 
   const field = (
-    <>
-      <input
-        inputMode="decimal"
-        value={text}
-        onChange={(event) => {
-          const next = event.target.value;
-          sent.current = null;
-          setText(next);
-          remember(next);
-        }}
-        onPointerDown={(event) => {
-          const input = event.currentTarget;
-          if (document.activeElement === input) return;
-          event.preventDefault();
-          input.focus();
-          input.select();
-        }}
-        onMouseUp={(event) => {
-          if (event.currentTarget.selectionStart !== event.currentTarget.selectionEnd) event.preventDefault();
-        }}
-        onFocus={(event) => {
-          focused.current = true;
-          event.currentTarget.select();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Tab") commit(event.currentTarget.form);
-        }}
-        onBlur={(event) => {
-          focused.current = false;
-          commit(event.currentTarget.form);
-        }}
-        className={className}
-      />
-      <input type="hidden" name={name} ref={hidden} defaultValue={(() => {
-        const cents = parseDollarsToCents(defaultValue);
-        return cents == null ? "" : dollarsInputValue(cents);
-      })()} />
-    </>
+    <input
+      ref={inputRef}
+      name={name}
+      inputMode="decimal"
+      value={text}
+      onChange={(event) => {
+        const next = replacedMoney(textRef.current, event.target.value, replace.current);
+        replace.current = next.armed;
+        sent.current = null;
+        textRef.current = next.text;
+        setText(next.text);
+        onDraft?.(parseDollarsToCents(next.text));
+      }}
+      onPointerDown={(event) => {
+        const input = event.currentTarget;
+        if (document.activeElement === input) return;
+        showRaw(input);
+        fresh.current = true;
+        event.preventDefault();
+        input.focus();
+      }}
+      onMouseUp={(event) => {
+        if (!fresh.current) return;
+        event.preventDefault();
+        event.currentTarget.select();
+        fresh.current = false;
+      }}
+      onFocus={(event) => {
+        focused.current = true;
+        showRaw(event.currentTarget);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Tab") commit(event.currentTarget.form);
+      }}
+      onBlur={(event) => {
+        focused.current = false;
+        replace.current = false;
+        commit(event.currentTarget.form);
+      }}
+      className={className}
+    />
   );
   if (!label) return field;
   return (

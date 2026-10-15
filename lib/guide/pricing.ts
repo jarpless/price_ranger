@@ -1,3 +1,4 @@
+import { readMarketMeta, withOverride } from "../market";
 import { formatUsd } from "../money";
 import { applyDiscount } from "./flow";
 
@@ -61,6 +62,19 @@ export function linesAtAsking(lines: MoneyLine[], askingCents: number | null, ad
   const base = discounted ? target / (1 - adjustment.percent / 100) : target;
   const unit = Math.max(0, Math.round(base / quantity));
   return [{ ...first, quantity, unitPriceCents: unit }, ...rest];
+}
+
+/** The typed price replaces the suggestion on the line, the stored total, and every later reader. */
+export function commitAskingPrice(input: {
+  lines: MoneyLine[];
+  sources: string[];
+  amountCents: number;
+}): { lines: MoneyLine[]; sources: string[]; priceCents: number } {
+  const sources = withOverride(input.sources, input.amountCents);
+  const adjustment = adjustmentFromSources(sources);
+  const lines = linesAtAsking(input.lines, input.amountCents, adjustment);
+  const saved = readMarketMeta(sources).overrideCents;
+  return { lines, sources, priceCents: saved != null ? saved : input.amountCents };
 }
 
 const DISCOUNT = /^meta:discount=(\d{1,3})$/;

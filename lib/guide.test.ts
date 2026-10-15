@@ -18,15 +18,19 @@ import {
   TAP_AUDIT,
   variantForUser,
 } from "./guide/flow";
+import { draftKey, reusableDraftId, shareDraftWork } from "./guide/drafts";
 import { nudgedCents } from "./guide/pricing";
 import {
   adjustmentFromSources,
+  commitAskingPrice,
   isPassThrough,
   lineSettlement,
   looksLikeFilename,
   settledTotal,
   withAdjustment,
 } from "./guide/pricing";
+import { formatUsd, postedDollars, replacedMoney } from "./money";
+import { frameFor } from "../components/capture-shot";
 import { isMissingSchema } from "./guide/schema";
 import { explainPrice } from "./guide/help";
 import { buyerSheet, forPublic } from "./share";
@@ -190,6 +194,101 @@ test("the buyer sheet keeps the seller discount", () => {
     total: sheet.options[0].total,
   });
   assert.match(Buffer.from(pdf).toString("latin1"), /Total \$1,290/);
+});
+
+test("saving $1,250 is what the share, the public page, the PDF, and the list show", () => {
+  const suggestion = suggestPrice("Oak dining table", "item");
+  assert.equal(suggestion.cents, 18000);
+  const typed = postedDollars("$1,250");
+  assert.equal(typed, "1250");
+  assert.equal(replacedMoney("$180", "1801250", true).text, "1250");
+  const saved = commitAskingPrice({
+    lines: [{ name: "Oak dining table", quantity: 1, unitPriceCents: suggestion.cents }],
+    sources: suggestion.sources,
+    amountCents: 125000,
+  });
+  assert.equal(saved.priceCents, 125000);
+  assert.equal(saved.lines[0].unitPriceCents, 125000);
+  assert.notEqual(saved.priceCents, suggestion.cents);
+  const quote = {
+    id: "quote-oak",
+    title: "Oak dining table",
+    customerName: "Buyer",
+    tiers: [{ id: "tier-1", quoteId: "quote-oak", name: "Price", note: "", sortOrder: 0, recommended: true, groupIds: ["group-oak"] }],
+  } as QuoteRecord;
+  const groups = [
+    {
+      id: "group-oak",
+      items: saved.lines.map((line) => ({ name: line.name, quantity: line.quantity, unitPriceCents: line.unitPriceCents })),
+    },
+  ] as ItemGroup[];
+  const sheet = buyerSheet(quote, groups, { sources: saved.sources, askingCents: saved.priceCents });
+  assert.equal(sheet.options[0].total, "$1,250");
+  assert.equal(sheet.options[0].lines[0].detail, "1 × $1,250");
+  assert.equal(sheet.options[0].lines[0].price, "$1,250");
+  const pub = forPublic(sheet);
+  assert.equal(pub.options[0].total, "$1,250");
+  assert.equal(pub.options[0].lines[0].price, "$1,250");
+  const pdf = buildPricePdf({
+    title: pub.title,
+    subtitle: pub.subtitle,
+    lines: pub.options[0].lines,
+    total: pub.options[0].total,
+  });
+  assert.match(Buffer.from(pdf).toString("latin1"), /Total \$1,250/);
+  assert.doesNotMatch(Buffer.from(pdf).toString("latin1"), /Total \$180/);
+  assert.equal(formatUsd(saved.priceCents), "$1,250");
+  const field = readFileSync(new URL("../components/money-field.tsx", import.meta.url), "utf8");
+  assert.match(field, /name=\{name\}/);
+  assert.doesNotMatch(field, /type="hidden"/);
+});
+
+test("an open draft is reused after Back and a double tap does not create a second one", async () => {
+  const oak = {
+    quoteId: "draft-oak",
+    description: "Oak dining table",
+    sample: false,
+    sharedAt: null,
+    finishedAt: null,
+    outcome: null,
+  };
+  assert.equal(reusableDraftId([oak], "oak dining table"), "draft-oak");
+  assert.equal(reusableDraftId([oak], "  Oak   dining table "), "draft-oak");
+  assert.equal(reusableDraftId([{ ...oak, sharedAt: "2026-10-15T00:00:00.000Z" }], "Oak dining table"), null);
+  assert.equal(reusableDraftId([oak], "Used iPhone 13"), null);
+  assert.equal(draftKey("user-1", "Oak dining table"), draftKey("user-1", "oak dining table"));
+  let calls = 0;
+  const first = shareDraftWork("user-1\0oak dining table", async () => {
+    calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return "draft-oak";
+  });
+  const second = shareDraftWork("user-1\0oak dining table", async () => {
+    calls += 1;
+    return "draft-other";
+  });
+  assert.deepEqual(await Promise.all([first, second]), ["draft-oak", "draft-oak"]);
+  assert.equal(calls, 1);
+});
+
+test("a feedback capture frame is the full page, not the viewport", () => {
+  const frame = frameFor(
+    { x: 40, y: 500, w: 300, h: 120 },
+    {
+      scrollWidth: 800,
+      scrollHeight: 2800,
+      clientWidth: 800,
+      clientHeight: 900,
+      scrollLeft: 0,
+      scrollTop: 900,
+      left: 240,
+      top: 48,
+    },
+  );
+  assert.equal(frame.height, 2800);
+  assert.ok(frame.height > 900);
+  assert.equal(frame.pageBox.y, 500 - 48 + 900);
+  assert.equal(frame.pageBox.x, 40 - 240);
 });
 
 test("the share sheet uses a saved price instead of the suggestion", () => {
