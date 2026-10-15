@@ -55,6 +55,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${outfit.variable} ${sourceSerif.variable} bg-cream font-sans text-ink antialiased`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var p=location.pathname;document.body.dataset.ask=(p.indexOf('/signin')===0||p.indexOf('/login')===0||p.indexOf('/settings/delete')===0)?'off':'on'}catch(e){}",
+          }}
+        />
         {children}
         <AppChrome />
       </body>

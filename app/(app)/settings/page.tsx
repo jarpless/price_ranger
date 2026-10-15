@@ -90,7 +90,7 @@ export default async function SettingsPage({
           Delete account
         </Link>
       </section>
-      <form action={signOut} className="lg:hidden">
+      <form action={signOut}>
         <SubmitButton pendingLabel="Signing out…" className="inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">
           Sign out
         </SubmitButton>

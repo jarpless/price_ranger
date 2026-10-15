@@ -46,6 +46,12 @@ export function settledTotal(lines: MoneyLine[], adjustment: Adjustment): number
 
 const DISCOUNT = /^meta:discount=(\d{1,3})$/;
 
+/** Slider percent is applied to the original suggestion, and 0% returns that suggestion. */
+export function nudgedCents(baseCents: number, percent: number): number {
+  const clean = Math.max(-40, Math.min(40, Math.round(percent)));
+  return Math.max(0, Math.round((baseCents * (100 + clean)) / 100));
+}
+
 export function adjustmentFromSources(sources: string[]): Adjustment {
   let percent = 0;
   let includeFees = false;

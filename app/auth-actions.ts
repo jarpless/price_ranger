@@ -11,7 +11,7 @@ import { enabledOAuthButtons, type OAuthProvider } from "@/lib/auth-providers";
 import { isCompleteEmailCode, normalizeEmailCode } from "@/lib/auth-code";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip, isEmail } from "@/lib/form";
-import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, PENDING_EMAIL_COOKIE } from "@/lib/session";
+import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, EMAIL_KIND_COOKIE, PENDING_EMAIL_COOKIE } from "@/lib/session";
 import { getData } from "@/lib/store";
 import { reassignBasecamp } from "@/lib/store/basecamp";
 import {
@@ -60,11 +60,15 @@ async function rememberLocalChallenge(email: string) {
 }
 
 async function finishLocalSignIn(userId: string) {
+  const cookieStore = await cookies();
+  const linked = cookieStore.get(LINK_COOKIE)?.value || "";
   const current = await getSessionUser();
-  if (current?.guest && current.id !== userId) {
-    await adoptLocalGuest(current.id, userId);
-    await reassignBasecamp(current.id, userId);
+  const guestId = current?.guest && current.id !== userId ? current.id : linked && linked !== userId ? linked : "";
+  if (guestId) {
+    await adoptLocalGuest(guestId, userId);
+    await reassignBasecamp(guestId, userId);
   }
+  if (linked) cookieStore.set(LINK_COOKIE, "", { ...linkCookie, maxAge: 0 });
   await setLocalSession(userId, "user");
   revalidatePath("/", "layout");
   redirect("/");
@@ -95,7 +99,12 @@ export async function startOAuth(formData: FormData) {
 
 async function rememberGuest(guestId: string) {
   const cookieStore = await cookies();
-  cookieStore.set(LINK_COOKIE, guestId, { ...linkCookie, maxAge: 60 * 60 });
+  cookieStore.set(LINK_COOKIE, guestId, { ...linkCookie, maxAge: 60 * 60 * 24 * 30 });
+}
+
+async function rememberEmailKind(kind: "signin" | "signup") {
+  const cookieStore = await cookies();
+  cookieStore.set(EMAIL_KIND_COOKIE, kind, { ...linkCookie, maxAge: 60 * 30 });
 }
 
 async function consumeGuestLink(userId: string) {
@@ -118,6 +127,12 @@ export async function signInWithPassword(formData: FormData) {
 
   if (dataBackend() === "supabase") {
     try {
+      const current = await getSessionUser();
+      if (current?.guest) {
+        await rememberGuest(current.id);
+        const clearing = await createClient({ allowAuthClear: true });
+        await clearing.auth.signOut();
+      }
       const supabase = await createClient();
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
@@ -162,6 +177,7 @@ export async function createPasswordAccount(formData: FormData) {
       await rememberGuest(current.id);
       await supabase.auth.signOut();
     }
+    await rememberEmailKind("signup");
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -178,6 +194,7 @@ export async function createPasswordAccount(formData: FormData) {
     redirect("/signin/sent");
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
+  await rememberEmailKind("signup");
   const created = await createLocalPasswordAccount(email, password);
   if (created === "taken") redirect("/signin?error=taken");
   if (created === "password") redirect("/signin?error=password");
@@ -224,6 +241,7 @@ export async function resendVerification(formData: FormData) {
   }
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
+    await rememberEmailKind("signup");
     const { error } = await supabase.auth.resend({ type: "signup", email });
     if (error) {
       await keepEmail(email);

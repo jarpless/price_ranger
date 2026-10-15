@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { answerFromMarket, MARKET_REGRESSION, marketPrice } from "./market";
+import { answerFromMarket, comparablesForTitle, MARKET_REGRESSION, marketPrice, pictureFor } from "./market";
 
 test("a bare Nintendo Switch is the docked model, not the OLED", () => {
   const quote = marketPrice("Nintendo Switch");
@@ -45,6 +45,16 @@ test("comparables draw the kind of item, not one phone for everything", () => {
   const thumbs = [deck, phone, buds, laptop].map((quote) => quote.comparables[0]?.thumbnail || "");
   assert.equal(new Set(thumbs).size, 4);
   assert.ok(thumbs.every((thumb) => thumb.startsWith("data:image/svg+xml")));
+});
+
+test("a table without a catalog listing still has sold comps and a picture", () => {
+  const comps = comparablesForTitle("Oak dining table", 18000);
+  assert.equal(comps.length, 4);
+  assert.ok(comps.every((comp) => comp.title.includes("Oak dining table") && comp.source === "eBay" && comp.url.includes("LH_Sold=1")));
+  assert.equal(new Set(comps.map((comp) => comp.priceCents)).size, 4);
+  const picture = pictureFor("Oak dining table");
+  assert.ok(picture.startsWith("data:image/svg+xml"));
+  assert.notEqual(picture, pictureFor("iPhone 13"));
 });
 
 test("the assistant does not repeat a $40 Switch price", () => {

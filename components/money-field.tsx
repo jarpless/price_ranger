@@ -2,10 +2,14 @@
 
 import { useRef } from "react";
 
+import { formatUsd, parseDollarsToCents } from "@/lib/money";
+
 function shownMoney(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  return trimmed.startsWith("$") ? trimmed : `$${trimmed}`;
+  const cents = parseDollarsToCents(trimmed);
+  if (cents == null) return trimmed.startsWith("$") ? trimmed : `$${trimmed}`;
+  return formatUsd(cents);
 }
 
 /** Select the current amount on focus so the next digits replace it. */
@@ -13,11 +17,13 @@ export function MoneyField({
   name,
   defaultValue,
   label,
+  submitOnBlur = false,
   className = "mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal",
 }: {
   name: string;
   defaultValue: string;
   label?: string;
+  submitOnBlur?: boolean;
   className?: string;
 }) {
   const replaceNext = useRef(true);
@@ -40,8 +46,14 @@ export function MoneyField({
         input.select();
         requestAnimationFrame(() => input.select());
       }}
-      onBlur={() => {
+      onBlur={(event) => {
         replaceNext.current = true;
+        const input = event.currentTarget;
+        const cents = parseDollarsToCents(input.value);
+        if (cents == null) return;
+        input.value = formatUsd(cents);
+        const previous = parseDollarsToCents(defaultValue);
+        if (submitOnBlur && cents !== previous) input.form?.requestSubmit();
       }}
       onBeforeInput={(event) => {
         const input = event.currentTarget;

@@ -212,8 +212,28 @@ function suggestion(partial: {
     comparables: partial.comparables ?? [],
     cents: partial.cents,
     note: partial.note,
-    sources: partial.sources,
+    sources: stampSuggestion(partial.sources, {
+      cents: partial.cents,
+      lowCents: partial.lowCents ?? partial.cents,
+      highCents: partial.highCents ?? partial.cents,
+      confidence: partial.confidence ?? "medium",
+    }),
   };
+}
+
+function stampSuggestion(
+  sources: string[],
+  meta: { cents: number; lowCents: number; highCents: number; confidence: string },
+): string[] {
+  const next = [...sources];
+  const add = (key: string, value: string | number) => {
+    if (!next.some((source) => source.startsWith(`meta:${key}=`))) next.push(`meta:${key}=${value}`);
+  };
+  add("suggested", meta.cents);
+  add("low", meta.lowCents);
+  add("high", meta.highCents);
+  add("confidence", meta.confidence);
+  return next;
 }
 
 const PRICE_RULES: { test: RegExp; cents: number; note: string }[] = [

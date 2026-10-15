@@ -42,6 +42,23 @@ test("a cookie near expiry is refreshed", () => {
   assert.equal(readSupabaseCookieUser(cookies)?.id, user.id);
 });
 
+function jwt(payload: object): string {
+  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return `${encode({ alg: "none" })}.${encode(payload)}.sig`;
+}
+
+test("an email on the access token is a signed-in account", () => {
+  const token = jwt({ sub: user.id, email: "toby@priceranger.app", exp: future });
+  const session = {
+    expires_at: future,
+    access_token: token,
+    user: { id: user.id, email: "", is_anonymous: false },
+  };
+  const read = readSupabaseCookieUser([{ name: "sb-project-auth-token", value: cookieValue(session) }]);
+  assert.equal(read?.email, "toby@priceranger.app");
+  assert.equal(read?.is_anonymous, false);
+});
+
 test("guest sign-in surfaces the auth error", () => {
   assert.equal(guestErrorDetail("Anonymous sign-ins are disabled"), "Anonymous sign-ins are disabled");
   assert.equal(guestErrorDetail("  line\nbreak  "), "line break");

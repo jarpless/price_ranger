@@ -81,17 +81,19 @@ function FolderSection({
 }) {
   const open = sectionOpen(label, pathname, chosen);
   return (
-    <div className="mt-2 first:mt-0">
+    <div className="mt-3 first:mt-0" data-nav-folder={label}>
       <button
         type="button"
         aria-expanded={open}
         onClick={() => onToggle(label)}
-        className="flex h-11 w-full items-center justify-between rounded-xl px-3 text-left text-caption font-semibold uppercase tracking-[0.14em] text-cream/70 hover:bg-white/10"
+        className="flex h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-caption font-semibold uppercase tracking-[0.14em] text-cream/70 hover:bg-white/10"
       >
-        {label}
-        <span aria-hidden="true">{open ? "–" : "+"}</span>
+        <svg aria-hidden="true" viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 ${open ? "rotate-90" : ""}`}>
+          <path d="M7 4.5 13 10l-6 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="flex-1">{label}</span>
       </button>
-      {open ? children : null}
+      {open ? <div className="ml-5 border-l border-white/25 pl-2">{children}</div> : null}
     </div>
   );
 }

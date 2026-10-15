@@ -6,9 +6,9 @@ import { Logo } from "@/components/logo";
 import { OtpInput } from "@/components/otp-input";
 import { RateLimitNotice } from "@/components/rate-limit-notice";
 import { Button, Notice } from "@/components/ui";
-import { emailCodeLabel } from "@/lib/auth-code";
+import { emailCodeLabel, emailScreenHasCode } from "@/lib/auth-code";
 import { dataBackend } from "@/lib/env";
-import { DEV_CODE_COOKIE, DEV_LINK_COOKIE } from "@/lib/session";
+import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, EMAIL_KIND_COOKIE } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +22,10 @@ export default async function SentPage({
   const email = cookieStore.get("pr_pending_email")?.value || "";
   const devLink = cookieStore.get(DEV_LINK_COOKIE)?.value;
   const devCode = cookieStore.get(DEV_CODE_COOKIE)?.value;
+  const kind = cookieStore.get(EMAIL_KIND_COOKIE)?.value;
   const codeLabel = emailCodeLabel();
   const unverified = notice === "unverified";
-  const hasCode = Boolean(devCode) || dataBackend() === "local";
+  const hasCode = emailScreenHasCode({ backend: dataBackend(), kind, devCode });
   const retrySeconds = Number(retry);
   const wait = Number.isFinite(retrySeconds) && retrySeconds > 0 ? retrySeconds : 900;
 

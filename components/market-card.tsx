@@ -4,6 +4,7 @@ import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import {
+  comparablesForTitle,
   CONDITIONS,
   conditionLabel,
   marketPrice,
@@ -48,6 +49,9 @@ export function MarketCard({
   const point = priceCents ?? live?.cents ?? null;
   const headline = totalCents ?? point;
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
+  const comparables = live?.comparables.length
+    ? live.comparables
+    : comparablesForTitle(description, point || suggested || 0);
 
   return (
     <div className="mt-6 space-y-4">
@@ -167,12 +171,12 @@ export function MarketCard({
           ))}
         </div>
         <div className="mt-4">
-          <PriceSlider quoteId={quoteId} />
+          <PriceSlider quoteId={quoteId} suggestedCents={suggested ?? point ?? 0} />
         </div>
         <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="quoteId" value={quoteId} />
           <input type="hidden" name="kind" value="price" />
-          <MoneyField name="amount" label="Your price" defaultValue={point != null ? dollarsInputValue(point) : ""} />
+          <MoneyField key={point ?? "empty"} name="amount" label="Your price" submitOnBlur defaultValue={point != null ? dollarsInputValue(point) : ""} />
           <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
             Save price
           </button>
@@ -191,20 +195,20 @@ export function MarketCard({
         </form>
       </section>
 
-      {live && live.comparables.length > 0 ? (
+      {comparables.length > 0 ? (
         <section>
           <div className="flex items-center gap-1">
             <p className="text-base font-semibold">Comparables</p>
             <InfoTip id="comparables" />
           </div>
           <ul className="page-stack mt-4">
-            {live.comparables.slice(0, 4).map((comp) => (
-              <li key={`${comp.title}-${comp.soldAt}`} className="surface flex items-center gap-3">
+            {comparables.slice(0, 4).map((comp) => (
+              <li key={`${comp.title}-${comp.soldAt}`} className="surface flex items-start gap-3">
                 {/* Curated sold-search thumbnail, not a product photo. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={comp.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-cream object-cover" />
+                <img src={comp.thumbnail} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-cream object-contain" />
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-base font-semibold">{comp.title}</p>
+                  <p className="text-base font-semibold text-pretty">{comp.title}</p>
                   <p className="text-caption text-muted">
                     {comp.source} · {comp.condition} · {comp.soldAt} · {comp.listed ? "Listed" : "Sold"}
                   </p>
@@ -212,7 +216,7 @@ export function MarketCard({
                     See similar sold listings on {comp.source}
                   </a>
                 </div>
-                <p className="list-price">{formatUsd(comp.priceCents)}</p>
+                <p className="list-price shrink-0">{formatUsd(comp.priceCents)}</p>
               </li>
             ))}
           </ul>

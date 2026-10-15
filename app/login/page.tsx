@@ -6,6 +6,7 @@ import { PendingLink } from "@/components/pending-link";
 import { RateLimitNotice } from "@/components/rate-limit-notice";
 import { Notice } from "@/components/ui";
 import { passkeyConfigured } from "@/lib/auth-providers";
+import { EMAIL_KIND_COOKIE } from "@/lib/session";
 import { dataBackend } from "@/lib/env";
 import { guestErrorDetail } from "@/lib/form";
 
@@ -17,7 +18,9 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; reason?: string; detail?: string; notice?: string; email?: string; retry?: string }>;
 }) {
   const { error, reason, detail, notice, retry } = await searchParams;
-  const remembered = (await cookies()).get("pr_pending_email")?.value || "";
+  const jar = await cookies();
+  const remembered = jar.get("pr_pending_email")?.value || "";
+  const emailKind = jar.get(EMAIL_KIND_COOKIE)?.value === "signup" ? "signup" : "signin";
   const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const passkey = passkeyConfigured();
@@ -65,7 +68,7 @@ export default async function LoginPage({
           <Notice code={error} detail={authDetail} />
         </div>
       ) : null}
-      <LoginForm email={remembered} error={error} notice={notice} showPasskey={passkey} local={local} />
+      <LoginForm email={remembered} error={error} notice={notice} showPasskey={passkey} local={local} emailKind={emailKind} />
       <PendingLink
         href="/auth/guest?next=/new"
         prefetch={false}

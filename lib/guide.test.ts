@@ -18,6 +18,7 @@ import {
   TAP_AUDIT,
   variantForUser,
 } from "./guide/flow";
+import { nudgedCents } from "./guide/pricing";
 import {
   adjustmentFromSources,
   isPassThrough,
@@ -61,6 +62,9 @@ test("guided steps move in order and prices stay plain", () => {
   assert.equal(nextStep("sold"), null);
   const table = suggestPrice("Oak dining table", "item");
   assert.equal(table.cents, 18000);
+  assert.equal(nudgedCents(18000, 0), 18000);
+  assert.equal(nudgedCents(18000, 10), 19800);
+  assert.equal(nudgedCents(18000, 40), 25200);
   assert.equal(applyDiscount(18000, 10), 16200);
   assert.equal(applyFee(16200, 500), 16700);
   assert.equal(suggestPrice("something unusual", "check").cents, 2500);

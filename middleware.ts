@@ -44,6 +44,19 @@ function unsignedRedirect(request: NextRequest) {
 }
 
 const SIGNIN_EMAIL = "pr_pending_email";
+const GUEST_LINK = "pr_link_guest";
+
+function rememberAnonymous(request: NextRequest, response: NextResponse, guestId: string) {
+  if (!guestId || request.cookies.get(GUEST_LINK)?.value) return response;
+  response.cookies.set(GUEST_LINK, guestId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  return response;
+}
 
 /** A sign-in error must not leave the address in the query string. */
 function stripSignInEmail(request: NextRequest): NextResponse | null {
@@ -139,7 +152,8 @@ export async function middleware(request: NextRequest) {
     if (user && isLogin(pathname) && !guest) {
       return copyCookies(response, NextResponse.redirect(new URL("/", request.url)));
     }
-    return response;
+    const guestId = guest && user && "id" in user ? user.id : "";
+    return rememberAnonymous(request, response, guestId);
   }
 
   const userId = await readSessionValue(
@@ -157,7 +171,7 @@ export async function middleware(request: NextRequest) {
   if (userId && isLogin(pathname) && !guest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
-  return NextResponse.next();
+  return rememberAnonymous(request, NextResponse.next(), guest && userId ? userId : "");
 }
 
 export const config = {

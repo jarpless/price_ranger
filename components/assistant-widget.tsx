@@ -526,8 +526,12 @@ export function AssistantWidget({
       for (const step of payload.steps || []) {
         if (stopRef.current) break;
         if (step.needsConfirm) {
-          setPending(step);
-          setSpotlight({ selector: step.spotlight, caption: step.caption });
+          const shown = document.querySelector("[data-spotlight='asking-price']")?.textContent?.trim() || "";
+          const caption = shown && step.caption.includes("the price on screen")
+            ? step.caption.replace("the price on screen", shown)
+            : step.caption;
+          setPending({ ...step, caption });
+          setSpotlight({ selector: step.spotlight, caption: "" });
           setRunning(false);
           return;
         }

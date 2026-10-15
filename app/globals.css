@@ -229,8 +229,11 @@ iframe[src*="vercel.live"] {
   height: 100dvh;
   min-height: 0;
   box-sizing: border-box;
-  padding-bottom: calc(var(--ask-clearance) + 4.75rem);
   overflow: hidden;
+}
+
+body[data-ask="on"] .ask-lane {
+  padding-bottom: calc(var(--ask-clearance) + 7.25rem);
 }
 
 .ask-lane > .app-main {
@@ -260,7 +263,7 @@ body[data-ask="off"] .ask-lane > .app-main {
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
-    padding-bottom: calc(var(--ask-clearance) + 4.75rem);
+    padding-bottom: calc(var(--ask-clearance) + 7.25rem);
   }
 
   body[data-ask="on"] .ask-lane > .app-main {

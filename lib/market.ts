@@ -51,7 +51,7 @@ interface VariantSeed {
   comps: { title: string; priceCents: number; condition: string; soldAt: string }[];
 }
 
-type ThumbShape = "console" | "phone" | "headphones" | "laptop";
+type ThumbShape = "console" | "phone" | "headphones" | "laptop" | "table";
 
 interface ItemSeed {
   id: string;
@@ -74,9 +74,54 @@ function thumb(color: string, shape: ThumbShape): string {
         ? `<path d="M46 90c0-30 16-52 34-52s34 22 34 52" fill="none" stroke="#1c1915" stroke-width="8" stroke-linecap="round"/><rect x="32" y="78" width="24" height="44" rx="10" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="104" y="78" width="24" height="44" rx="10" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
         : shape === "laptop"
           ? `<rect x="36" y="36" width="88" height="58" rx="6" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><path d="M28 108h104l-10-14H38z" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
+          : shape === "table"
+            ? `<rect x="28" y="48" width="104" height="14" rx="3" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="40" y="62" width="10" height="42" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="110" y="62" width="10" height="42" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
           : `<rect x="24" y="52" width="112" height="56" rx="12" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="36" y="64" width="40" height="28" rx="4" fill="${color}"/><circle cx="108" cy="72" r="6" fill="#1c1915"/><circle cx="108" cy="90" r="6" fill="#1c1915"/>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${color}"/>${mark}</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function shapeFor(title: string): ThumbShape {
+  if (/phone|iphone|pixel|galaxy/i.test(title)) return "phone";
+  if (/airpod|headphone|earbud/i.test(title)) return "headphones";
+  if (/macbook|laptop|notebook/i.test(title)) return "laptop";
+  if (/table|desk|chair|dresser/i.test(title)) return "table";
+  return "console";
+}
+
+function pictureColor(title: string): string {
+  if (/table|desk|chair|dresser|oak|wood/i.test(title)) return "#c4a574";
+  if (/phone|iphone|pixel|galaxy/i.test(title)) return "#d5dee8";
+  if (/airpod|headphone|earbud/i.test(title)) return "#ece7df";
+  if (/macbook|laptop|notebook/i.test(title)) return "#d9d4cc";
+  return "#d7e4dc";
+}
+
+/** A picture for a price that is not one of the catalog consoles. */
+export function pictureFor(title: string): string {
+  return thumb(pictureColor(title), shapeFor(title));
+}
+
+/** Sold-style comps for an item we price without a catalog listing. */
+export function comparablesForTitle(title: string, cents: number): Comparable[] {
+  if (!title.trim() || cents <= 0) return [];
+  const shape = shapeFor(title);
+  const thumbnail = thumb(pictureColor(title), shape);
+  const labels = ["Recent sale", "Same kind", "Sold nearby", "Similar item"];
+  const factors = [0.86, 0.94, 1.06, 1.14];
+  return labels.map((label, index) => {
+    const name = `${label}: ${title}`.slice(0, 80);
+    return {
+      title: name,
+      priceCents: Math.max(100, Math.round((cents * factors[index]) / 100) * 100),
+      condition: "Good",
+      source: "eBay",
+      url: soldSearch(title),
+      soldAt: "2026-09-18",
+      listed: false,
+      thumbnail,
+    };
+  });
 }
 
 function compsFor(variant: VariantSeed, item: ItemSeed): Comparable[] {

@@ -58,14 +58,32 @@ function tokenExpiry(accessToken: string): number | null {
   }
 }
 
-function userFromParsed(user: { id?: unknown; email?: unknown; is_anonymous?: unknown } | undefined): CookieSessionUser | null {
-  const id = typeof user?.id === "string" ? user.id : "";
+function jwtPayload(accessToken: string): { sub?: unknown; email?: unknown; is_anonymous?: unknown } | null {
+  const payload = accessToken.split(".")[1];
+  if (!payload) return null;
+  try {
+    return JSON.parse(decodeBase64Url(payload)) as { sub?: unknown; email?: unknown; is_anonymous?: unknown };
+  } catch {
+    return null;
+  }
+}
+
+function userFromParsed(
+  user: { id?: unknown; email?: unknown; is_anonymous?: unknown } | undefined,
+  accessToken: string | null,
+): CookieSessionUser | null {
+  const claims = accessToken ? jwtPayload(accessToken) : null;
+  const id = typeof user?.id === "string" ? user.id : typeof claims?.sub === "string" ? claims.sub : "";
   if (!id) return null;
-  const email = typeof user?.email === "string" ? user.email : null;
+  const emailFromUser = typeof user?.email === "string" && user.email.includes("@") ? user.email : null;
+  const emailFromToken = typeof claims?.email === "string" && claims.email.includes("@") ? claims.email : null;
+  const email = emailFromUser || emailFromToken;
+  // An email on the session is a real account. Anonymous guests have no email.
+  const anonymous = !email || user?.is_anonymous === true || claims?.is_anonymous === true;
   return {
     id,
     email,
-    is_anonymous: user?.is_anonymous === true || !email,
+    is_anonymous: anonymous && !email,
   };
 }
 
@@ -81,7 +99,8 @@ function parseAuthCookie(cookies: CookiePair[]): { user: CookieSessionUser; expi
       access_token?: unknown;
       user?: { id?: unknown; email?: unknown; is_anonymous?: unknown };
     };
-    const user = userFromParsed(parsed.user);
+    const accessToken = typeof parsed.access_token === "string" ? parsed.access_token : null;
+    const user = userFromParsed(parsed.user, accessToken);
     if (!user) return null;
     const expiresAt =
       typeof parsed.expires_at === "number"

@@ -9,7 +9,6 @@ import { Notice } from "@/components/ui";
 
 import { IconApple, IconGoogle, IconPasskey } from "./icons";
 
-type Mode = "code" | "password";
 type Account = "signin" | "create";
 
 export function LoginForm({
@@ -18,20 +17,21 @@ export function LoginForm({
   notice,
   showPasskey,
   local,
+  emailKind = "signin",
 }: {
   email?: string;
   error?: string;
   notice?: string;
   showPasskey: boolean;
   local: boolean;
+  emailKind?: "signin" | "signup";
 }) {
-  const [mode, setMode] = useState<Mode>("code");
-  const [account, setAccount] = useState<Account>("signin");
+  const [account, setAccount] = useState<Account>(emailKind === "signup" ? "create" : "signin");
   const [value, setValue] = useState(email);
   const [banner, setBanner] = useState(error || "");
-  const action = mode === "code" ? sendMagicLink : account === "create" ? createPasswordAccount : signInWithPassword;
+  const action = account === "create" ? createPasswordAccount : signInWithPassword;
   const linkLabel = local ? "Email me a code" : "Email me a link";
-  const primary = mode === "code" ? linkLabel : account === "create" ? "Create account" : "Sign in";
+  const primary = account === "create" ? "Create account" : "Sign in";
 
   const heading = notice === "deleted" && account === "signin" ? "Account deleted" : account === "create" ? "Create account" : "Sign in";
 
@@ -92,36 +92,29 @@ export function LoginForm({
           />
         </label>
 
-        {mode === "password" ? (
-          <>
-            <label className="block" htmlFor="password">
-              <span className="mb-1.5 block text-sm font-medium">Password</span>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={account === "create" ? "new-password" : "current-password"}
-                required
-                minLength={8}
-                className="h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base outline-none focus:border-pine"
-              />
-            </label>
-          </>
-        ) : null}
+        <label className="block" htmlFor="password">
+          <span className="mb-1.5 block text-sm font-medium">Password</span>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete={account === "create" ? "new-password" : "current-password"}
+            required
+            minLength={8}
+            className="h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base outline-none focus:border-pine"
+          />
+        </label>
 
         {banner && banner !== "rate_limit" ? <Notice code={banner} /> : null}
         <button type="submit" className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-pine text-base font-semibold text-cream">
           {primary}
         </button>
-        {mode === "password" ? (
-          <button type="button" onClick={() => setMode("code")} className="h-12 w-full text-base font-semibold text-pine">
-            {local ? "Email me a code instead" : "Email me a link instead"}
-          </button>
-        ) : (
-          <button type="button" onClick={() => setMode("password")} className="h-12 w-full text-base font-semibold text-muted">
-            Use a password
-          </button>
-        )}
+      </form>
+      <form action={sendMagicLink}>
+        <input type="hidden" name="email" value={value} />
+        <button type="submit" className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-line bg-paper text-base font-semibold text-pine">
+          {linkLabel}
+        </button>
       </form>
 
       {error === "unverified" ? (

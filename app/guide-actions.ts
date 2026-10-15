@@ -13,7 +13,7 @@ import { pricingAccess } from "@/lib/guide/access";
 import { TOS_VERSION } from "@/lib/guide/config";
 import { isGuidePath, suggestPrice } from "@/lib/guide/flow";
 import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
-import { adjustmentFromSources, looksLikeFilename, settledTotal, withAdjustment, type Adjustment } from "@/lib/guide/pricing";
+import { adjustmentFromSources, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment } from "@/lib/guide/pricing";
 import { identifyPhoto, type PhotoIdentity } from "@/lib/guide/vision";
 import {
   ensureGuideUser,
@@ -382,9 +382,9 @@ export async function applyAdjustment(formData: FormData) {
     const meta = readMarketMeta(sources);
     const base = meta.suggestedCents || row.priceCents || 0;
     const rawAmount = kind === "slider"
-      ? Math.max(0, Math.round((base * (100 + Number(clip(formData.get("percent"), 8) || "0"))) / 100))
+      ? nudgedCents(base, Number(clip(formData.get("percent"), 8) || "0"))
       : parseDollarsToCents(clip(formData.get("amount"), 20));
-    const amount = rawAmount == null ? null : Math.round(rawAmount / 100) * 100;
+    const amount = rawAmount;
     if (amount == null) redirect(`/guide/${quoteId}?error=price`);
     sources = withOverride(sources, amount);
     await setFirstLinePrice(user.id, quoteId, amount);

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { contactAboutPrice } from "@/app/share-contact";
 import { formatUsd } from "@/lib/money";
-import { conditionLabel, marketPrice } from "@/lib/market";
+import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
 import { forPublic, readSharedSheet } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export default async function PublicSheetPage({
   const live = marketPrice(sheet.title);
   const range = sheet.range || (live ? `${formatUsd(live.lowCents)}–${formatUsd(live.highCents)}` : "");
   const condition = sheet.condition || (live ? conditionLabel(live.condition) : "");
-  const photo = sheet.photo || live?.comparables[0]?.thumbnail || null;
+  const photo = sheet.photo || live?.comparables[0]?.thumbnail || pictureFor(sheet.title);
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">

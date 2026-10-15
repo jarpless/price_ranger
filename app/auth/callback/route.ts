@@ -9,6 +9,50 @@ import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 
 type PendingCookie = { name: string; value: string; options?: Record<string, unknown> };
 
+const HASH_PAGE = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Signing you in</title>
+</head>
+<body style="margin:0;background:#f3eee4;color:#1c1915;font-family:Georgia,serif;">
+  <p style="margin:0;padding:48px 24px;text-align:center;font-size:22px;">Signing you in…</p>
+  <script>
+    (function () {
+      var hash = new URLSearchParams(String(location.hash || "").replace(/^#/, ""));
+      var access = hash.get("access_token");
+      var refresh = hash.get("refresh_token");
+      if (!access || !refresh) {
+        location.replace("/signin?error=link");
+        return;
+      }
+      fetch("/auth/callback/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ access_token: access, refresh_token: refresh })
+      }).then(function (response) {
+        return response.json().then(function (body) {
+          location.replace(response.ok && body && body.next ? body.next : "/signin?error=link");
+        });
+      }).catch(function () {
+        location.replace("/signin?error=link");
+      });
+    })();
+  </script>
+</body>
+</html>`;
+
+function hashRecovery(): NextResponse {
+  return new NextResponse(HASH_PAGE, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const origin = siteOriginFromHeaders(request.headers);
@@ -20,8 +64,9 @@ export async function GET(request: NextRequest) {
   if (!supabaseUrl || !supabaseKey) return failure;
 
   const code = url.searchParams.get("code");
-  const tokenHash = url.searchParams.get("token_hash");
+  const tokenHash = url.searchParams.get("token_hash") || url.searchParams.get("token");
   const type = url.searchParams.get("type");
+  const flowId = url.searchParams.get("sb_flow_id");
   let pending: PendingCookie[] = [];
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -43,16 +88,17 @@ export async function GET(request: NextRequest) {
   });
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return failure;
+    const { error } = await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
+    if (error) return hashRecovery();
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
       type: type as EmailOtpType,
       token_hash: tokenHash,
     });
-    if (error) return failure;
+    if (error) return hashRecovery();
   } else {
-    return failure;
+    // Signup confirmation often returns the session in the fragment, which a server redirect drops.
+    return hashRecovery();
   }
 
   const { data } = await supabase.auth.getUser();

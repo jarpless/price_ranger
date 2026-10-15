@@ -8,6 +8,7 @@ import { dataBackend } from "./env";
 import { effectivePlan, isPlanId, type PlanId } from "./plans";
 import {
   createSessionValue,
+  EMAIL_KIND_COOKIE,
   KIND_COOKIE,
   readSessionValue,
   SESSION_COOKIE,
@@ -155,13 +156,14 @@ export async function requestMagicLink(
   const backend = dataBackend();
   if (backend === "supabase") {
     const supabase = await createClient({ allowAuthClear: true });
+    const cookieStore = await cookies();
     const current = await getSessionUser();
     if (current?.guest) {
-      const cookieStore = await cookies();
-      cookieStore.set(LINK_COOKIE, current.id, { ...cookieOptions, maxAge: 60 * 60 });
+      cookieStore.set(LINK_COOKIE, current.id, { ...cookieOptions, maxAge: 60 * 60 * 24 * 30 });
       const { error: signOutError } = await supabase.auth.signOut();
       if (signOutError) return { error: classifyAuthError(signOutError) };
     }
+    cookieStore.set(EMAIL_KIND_COOKIE, "signin", { ...cookieOptions, maxAge: 60 * 30 });
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${origin}/auth/callback` },
@@ -181,13 +183,13 @@ export async function requestMagicLink(
 }
 
 export async function signOutUser() {
-  const cookieStore = await cookies();
-  cookieStore.set(LINK_COOKIE, "", { ...cookieOptions, maxAge: 0 });
+  // The guest id cookie stays. Sign-out must not orphan prices that still belong to this browser.
   if (dataBackend() === "supabase") {
     const supabase = await createClient({ allowAuthClear: true });
     await supabase.auth.signOut();
     return;
   }
+  const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, "", { ...cookieOptions, maxAge: 0 });
   cookieStore.set(KIND_COOKIE, "", { ...cookieOptions, maxAge: 0 });
 }
