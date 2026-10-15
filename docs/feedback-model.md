@@ -27,15 +27,13 @@ The migration is `supabase/migrations/20261013140000_feedback_system.sql`. It on
 
 ## GitHub
 
-When `GITHUB_FEEDBACK_TOKEN` is set, a new note opens an issue on `jarpless/price_ranger` labeled `feedback` and `bug` or `feature`. A bug that is not a duplicate, and that has a screenshot or a real description, also gets `agent-fix`. That label is only a signal that an agent may pick the issue up. The issue text says not to deploy. This app never calls a deploy API from feedback.
+When `GITHUB_FEEDBACK_TOKEN` is set, a new note opens an issue on `jarpless/price_ranger` labeled `type:bug` or `type:feature`, plus `source:user-feedback`. A bug that is not a duplicate, and that has a screenshot or a real description, also gets `agent-fix`. That label is only a signal that an agent may pick the issue up. The issue text says not to deploy. This app never calls a deploy API from feedback. New notes start at status `triage`.
 
 A duplicate adds a comment on the existing issue instead of opening another one. Replies in the app are copied to that issue when the token is set.
 
 ## Email
 
-Receipt mail goes to the signed-in address when there is one. It says what we understood (the summary and bug or feature) and what happens next. A second mail goes out when the status changes. The sender is `support@priceranger.app`. Guests have no address, so they are skipped.
-
-If `RESEND_API_KEY` is unset, both sends do nothing and the ticket is still saved.
+The app does not email the reporter when a note is saved, and it does not email them when the status changes. The reporter address is stored on the note so a follow-up can be sent later from `support@priceranger.app`, and only after Jamie approves that mail. Quote share mail is a separate path and still uses the support sender when that feature sends a link.
 
 ### Domain setup
 
@@ -55,7 +53,7 @@ The admin page for a customer lists funnel events and screen events, with the de
 | Name | Required | Role |
 | --- | --- | --- |
 | `GITHUB_FEEDBACK_TOKEN` | No | Mirror tickets to GitHub issues and add `agent-fix` on valid bugs. |
-| `RESEND_API_KEY` | No | Send the receipt and the status mail. Unset means no mail is sent. |
+| `RESEND_API_KEY` | No | Sends quote-share mail. Feedback does not email the reporter. |
 | `EMAIL_PROVIDER` | No | `resend` when the key is set. |
 | `SUPPORT_FROM_EMAIL` | No | Defaults to `Price Ranger <support@priceranger.app>`. |
 | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` | No | Classify and dedupe. Rules are used when both are unset. |

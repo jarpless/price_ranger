@@ -190,20 +190,23 @@ export async function saveTicketMeta(meta: TicketMeta): Promise<void> {
     return;
   }
   const client = await supabase();
-  const { error } = await client
-    .from("feedback")
-    .update({
-      summary: meta.summary,
-      severity: meta.severity,
-      duplicate_of: meta.duplicateOf,
-      duplicate_count: meta.duplicateCount,
-      score: meta.score,
-      score_breakdown: meta.lines,
-      device_id: meta.deviceId,
-      source: meta.source,
-      updated_at: nowIso(),
-    })
-    .eq("id", meta.id);
+  const patch: Record<string, unknown> = {
+    summary: meta.summary,
+    severity: meta.severity,
+    duplicate_of: meta.duplicateOf,
+    duplicate_count: meta.duplicateCount,
+    score: meta.score,
+    score_breakdown: meta.lines,
+    device_id: meta.deviceId,
+    source: meta.source,
+    email: meta.email,
+    updated_at: nowIso(),
+  };
+  let { error } = await client.from("feedback").update(patch).eq("id", meta.id);
+  if (error && isMissingSchema(error)) {
+    delete patch.email;
+    ({ error } = await client.from("feedback").update(patch).eq("id", meta.id));
+  }
   if (error && !isMissingSchema(error)) throw new Error(error.message);
   if (!error) return;
   await withLock(async () => {

@@ -24,7 +24,6 @@ import {
   saveTicketMeta,
   type TicketSource,
 } from "./desk";
-import { receiptEmail, sendSupportEmail } from "./mail";
 import { scoreTicket, type ScoreLine } from "./model";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -46,6 +45,8 @@ export interface IntakeInput {
   extras: Uint8Array[];
   deviceId: string;
   source: TicketSource;
+  kind?: "bug" | "feature";
+  title?: string;
 }
 
 async function paidCents(userId: string): Promise<number> {
@@ -110,7 +111,7 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
   lines: ScoreLine[];
   githubIssueUrl: string | null;
   githubError: string | null;
-  email: "sent" | "unset" | "no-address" | "provider-error";
+  email: "skipped";
 }> {
   const existing = await briefs();
   const classified = await classifyTicket(input.body, input.route, existing);
@@ -126,9 +127,12 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
     severity: classified.severity,
   });
   const note = input.body.trim() || classified.summary;
+  const kind = input.kind === "feature" || input.kind === "bug" ? input.kind : classified.kind;
+  const summary = input.title?.replace(/\s+/g, " ").trim().slice(0, 80) || classified.summary;
   const report = await createFeedback({
     userId: input.userId,
-    kind: classified.kind,
+    email: input.email,
+    kind,
     body: note.slice(0, 2000),
     route: input.route,
     versionLabel: input.versionLabel,
@@ -143,7 +147,7 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
     id: report.id,
     userId: input.userId,
     email: input.email,
-    summary: classified.summary,
+    summary,
     severity: classified.severity,
     duplicateOf: classified.duplicateOf,
     duplicateCount: 0,
@@ -156,8 +160,8 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
     feedbackId: report.id,
     actorId: input.userId,
     fromStatus: null,
-    toStatus: "new",
-    note: classified.kind === "bug" ? "We saved this as a bug." : "We saved this as an idea.",
+    toStatus: report.status,
+    note: kind === "bug" ? "We saved this as a bug." : "We saved this as an idea.",
   });
   for (const extra of input.extras.slice(0, 4)) {
     await saveExtraImage({ feedbackId: report.id, userId: input.userId, png: extra });
@@ -173,7 +177,7 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
   let githubIssueUrl: string | null = null;
   let githubError: string | null = null;
   const agentFix = bugIsValid({
-    kind: classified.kind,
+    kind,
     duplicateOf: classified.duplicateOf,
     body: note,
     hasShot: Boolean(input.png),
@@ -193,9 +197,10 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
       }
       if (!githubIssueUrl) {
         const shot = await feedbackScreenshotUrl(input.userId, report.id);
-        githubIssueUrl = await openFeedbackIssue({ ...report, body: note }, shot, {
-          summary: classified.summary,
+        githubIssueUrl = await openFeedbackIssue({ ...report, kind, body: note }, shot, {
+          summary,
           agentFix,
+          email: input.email,
         });
         if (githubIssueUrl) await attachGithubIssue(input.userId, report.id, githubIssueUrl);
       }
@@ -204,24 +209,14 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
     }
   }
 
-  const mailed = await sendSupportEmail({
-    to: input.email,
-    subject: "We got your note",
-    text: receiptEmail({
-      summary: classified.summary,
-      kind: classified.kind,
-      duplicate: Boolean(classified.duplicateOf),
-    }),
-  });
-
   return {
     report,
-    summary: classified.summary,
+    summary,
     duplicateOf: classified.duplicateOf,
     score: scored.score,
     lines: scored.lines,
     githubIssueUrl,
     githubError,
-    email: mailed.reason,
+    email: "skipped",
   };
 }

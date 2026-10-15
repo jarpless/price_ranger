@@ -8,8 +8,7 @@ import { parsePriceCsv } from "@/lib/csv";
 import { isOwnerEmail } from "@/lib/owner";
 import { parseDollarsToCents, parseQuantity } from "@/lib/money";
 import { getData } from "@/lib/store";
-import { addHistory, metaFor } from "@/lib/feedback/desk";
-import { sendSupportEmail, statusEmail } from "@/lib/feedback/mail";
+import { addHistory } from "@/lib/feedback/desk";
 import { getFeedbackById, updateFeedback, type FeedbackStatus } from "@/lib/store/basecamp";
 import { isUnit } from "@/lib/units";
 
@@ -22,7 +21,7 @@ export async function saveFeedbackStatus(id: string, formData: FormData) {
   if (!isOwnerEmail(user.email)) redirect("/");
   const status = String(formData.get("status") || "") as FeedbackStatus;
   const shippedIn = String(formData.get("shippedIn") || "");
-  const allowed: FeedbackStatus[] = ["new", "planned", "in_progress", "shipped"];
+  const allowed: FeedbackStatus[] = ["triage", "new", "planned", "in_progress", "shipped"];
   if (!allowed.includes(status)) return;
   const before = await getFeedbackById(id);
   if (!before) return;
@@ -38,12 +37,6 @@ export async function saveFeedbackStatus(id: string, formData: FormData) {
     fromStatus: before.status,
     toStatus: status,
     note: shipped ? `Shipped in ${shipped}.` : "",
-  });
-  const meta = await metaFor(id);
-  await sendSupportEmail({
-    to: meta?.email || "",
-    subject: `Your note is now ${status.replace("_", " ")}`,
-    text: statusEmail({ summary: meta?.summary || before.body, status, shippedIn: shipped }),
   });
   refresh();
 }

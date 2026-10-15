@@ -6,6 +6,7 @@ import { assistantAllowance } from "@/lib/usage";
 import { AssistantWidget } from "./assistant-widget";
 import { AuthSession, type AccountKind } from "./auth-session";
 import { ConsoleBuffer } from "./console-buffer";
+import { FeedbackMode } from "./feedback-mode";
 import { Hotkeys } from "./hotkeys";
 import { SessionBeacon } from "./session-beacon";
 import { ShakeReport } from "./shake-report";
@@ -37,6 +38,7 @@ export async function AppChrome() {
       <ConsoleBuffer />
       <AssistantWidget stamp={stamp} signedIn={Boolean(user)} allowance={allowance} />
       {user ? <ShakeReport /> : null}
+      {user ? <FeedbackMode /> : null}
       {terms ? <SessionBeacon /> : null}
     </>
   );

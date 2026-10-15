@@ -2,6 +2,7 @@ import { listMessages, listTicketMetas } from "./desk";
 import { listFeedback, type FeedbackStatus } from "../store/basecamp";
 
 export function statusLabel(status: FeedbackStatus | string): string {
+  if (status === "triage") return "Triage";
   if (status === "in_progress") return "In progress";
   if (status === "planned") return "Planned";
   if (status === "shipped") return "Shipped";

@@ -31,13 +31,13 @@ export const AGENT_FIX_LABEL = "agent-fix";
 export async function openFeedbackIssue(
   report: FeedbackReport,
   screenshotUrl: string | null,
-  options?: { summary?: string; agentFix?: boolean },
+  options?: { summary?: string; agentFix?: boolean; email?: string },
 ): Promise<string | null> {
   if (!process.env.GITHUB_FEEDBACK_TOKEN) return null;
 
-  const kindLabel = report.kind === "bug" ? "bug" : "feature";
-  await ensureLabel("feedback", "C6A15B");
-  await ensureLabel(kindLabel, report.kind === "bug" ? "8D3B32" : "1E4636");
+  const kindLabel = report.kind === "bug" ? "type:bug" : "type:feature";
+  await ensureLabel(kindLabel, report.kind === "bug" ? "8D3B32" : "1E4636", "Opened from Price Ranger feedback.");
+  await ensureLabel("source:user-feedback", "C6A15B", "Sent from feedback mode.");
   if (options?.agentFix) {
     await ensureLabel(AGENT_FIX_LABEL, "1E4636", "A person must review. Never auto-deploy.");
   }
@@ -46,8 +46,8 @@ export async function openFeedbackIssue(
     ? report.consoleErrors.map((line) => `- ${line}`).join("\n")
     : "None captured.";
   const shot = screenshotUrl
-    ? `![Region screenshot](${screenshotUrl})`
-    : "The screenshot is stored with this feedback record in the app inbox.";
+    ? `![Annotated screenshot](${screenshotUrl})`
+    : "The annotated screenshot is stored with this feedback record in the admin inbox.";
 
   const summary = options?.summary?.replace(/\s+/g, " ").trim() || report.body.replace(/\s+/g, " ").trim();
   const bodyLines = [
@@ -59,18 +59,21 @@ export async function openFeedbackIssue(
     "",
     "| | |",
     "| --- | --- |",
+    `| Type | ${report.kind} |`,
     `| Route | \`${report.route}\` |`,
     `| Version | ${report.versionLabel} |`,
     `| Git | \`${report.gitSha}\` |`,
     `| Env | ${report.env} |`,
     `| Viewport | ${report.viewport} |`,
     `| User agent | ${report.userAgent} |`,
+    `| User id | \`${report.userId}\` |`,
+    `| Email | ${options?.email || "none"} |`,
     `| Feedback id | \`${report.id}\` |`,
     "",
     "### Recent console errors",
     consoleBlock,
     "",
-    "Status in the app starts at `new`. Move it to `planned`, `in_progress`, or `shipped` from the admin backlog.",
+    "Status in the app starts at `triage`. Follow-up mail is not sent from the app.",
   ];
   if (options?.agentFix) {
     bodyLines.push(
@@ -81,8 +84,8 @@ export async function openFeedbackIssue(
     );
   }
   const body = bodyLines.join("\n");
-  const title = `${report.kind === "bug" ? "Bug" : "Feature"}: ${summary.slice(0, 80)}`;
-  const labels = options?.agentFix ? ["feedback", kindLabel, AGENT_FIX_LABEL] : ["feedback", kindLabel];
+  const title = summary.slice(0, 80);
+  const labels = options?.agentFix ? [kindLabel, "source:user-feedback", AGENT_FIX_LABEL] : [kindLabel, "source:user-feedback"];
   let response = await github(`/repos/${REPO}/issues`, {
     method: "POST",
     body: JSON.stringify({ title, body, labels }),

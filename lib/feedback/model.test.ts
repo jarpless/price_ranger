@@ -4,6 +4,7 @@ import test from "node:test";
 import { bugIsValid, classifyByRules, findDuplicate } from "./classify";
 import { receiptEmail, sendSupportEmail } from "./mail";
 import { replaceDuplicateLine, scoreTicket } from "./model";
+import { composeFeedbackBody, readFeedbackAnswers, suggestFeedbackTitle } from "./note";
 
 test("a pro trades account with a severe duplicated bug outranks a quiet free note", () => {
   const quiet = scoreTicket({
@@ -80,4 +81,34 @@ test("email is a no-op when the provider is unset", async () => {
   const empty = await sendSupportEmail({ to: "", subject: "Hi", text: "Hi" });
   assert.equal(empty.reason, "no-address");
   if (previous) process.env.RESEND_API_KEY = previous;
+});
+
+test("a feedback note keeps both answers, the box, and a title from the first answer", () => {
+  assert.equal(suggestFeedbackTitle("bug", "", "/guide/oak"), "Bug on /guide/oak");
+  assert.equal(suggestFeedbackTitle("bug", "The price became $1", "/guide/oak"), "The price became $1");
+  const body = composeFeedbackBody({
+    title: "Price became $1",
+    kind: "bug",
+    answerA: "I asked for $1,250 and the card said $1.",
+    answerB: "The card should say $1,250.",
+    selection: { x: 12, y: 40, w: 200, h: 80 },
+    url: "https://example.com/guide/oak",
+    viewport: "1280x800",
+  });
+  const answers = readFeedbackAnswers(body);
+  assert.equal(answers.answerA, "I asked for $1,250 and the card said $1.");
+  assert.equal(answers.answerB, "The card should say $1,250.");
+  assert.equal(answers.selection, "12,40 200x80");
+  const idea = composeFeedbackBody({
+    title: "Darker toast",
+    kind: "feature",
+    answerA: "A darker toast",
+    answerB: "It is easier to see",
+    selection: null,
+    url: "https://example.com/",
+    viewport: "390x844",
+  });
+  const read = readFeedbackAnswers(idea);
+  assert.equal(read.answerA, "A darker toast");
+  assert.equal(read.answerB, "It is easier to see");
 });
