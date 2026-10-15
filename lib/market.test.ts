@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { answerFromMarket, comparablesForTitle, MARKET_REGRESSION, marketPrice, pictureFor, priceFarFromRange } from "./market";
+import { answerFromMarket, comparableAnchorCents, comparableAnchorFromRange, comparablesForTitle, MARKET_REGRESSION, marketPrice, pictureFor, priceFarFromRange } from "./market";
 
 test("a bare Nintendo Switch is the docked model, not the OLED", () => {
   const quote = marketPrice("Nintendo Switch");
@@ -55,6 +55,24 @@ test("a table without a catalog listing still has sold comps and a picture", () 
   const picture = pictureFor("Oak dining table");
   assert.ok(picture.startsWith("data:image/svg+xml"));
   assert.notEqual(picture, pictureFor("iPhone 13"));
+});
+
+test("sold comps stay on the lookup when the asking price changes", () => {
+  const lookup = comparableAnchorCents({ suggestedCents: 18000, lowCents: 14400, highCents: 21600 });
+  assert.equal(lookup, 18000);
+  const typed = 125000;
+  assert.equal(comparableAnchorCents({ lookupCents: null, suggestedCents: 18000, lowCents: 14400, highCents: 21600 }), 18000);
+  assert.notEqual(lookup, typed);
+  const comps = comparablesForTitle("Oak dining table", lookup);
+  assert.deepEqual(
+    comps.map((comp) => comp.priceCents),
+    [15500, 16900, 19100, 20500],
+  );
+  assert.equal(comparableAnchorFromRange("$144–$216"), 18000);
+  assert.equal(comparableAnchorFromRange(""), 0);
+  const catalog = marketPrice("Nintendo Switch");
+  assert.ok(catalog);
+  assert.ok(catalog.comparables.every((comp) => comp.priceCents < 40000));
 });
 
 test("a price far outside the sold range is called out", () => {

@@ -4,7 +4,7 @@ import { adoptGuestAccount, LINK_COOKIE } from "@/lib/account/link";
 import { safeNext } from "@/lib/auth";
 import { dataBackend } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import { readSupabaseCookieUser, readSupabaseLinkGuest } from "@/lib/supabase/cookie-session";
+import { readSupabaseCookieUser, readSupabaseLinkGuest, reconcileAuthCookies } from "@/lib/supabase/cookie-session";
 
 const cookieBase = {
   httpOnly: true,
@@ -20,20 +20,36 @@ const cookieBase = {
 export async function POST(request: Request) {
   if (dataBackend() !== "supabase") return Response.json({ error: "link" }, { status: 400 });
   const cookieStore = await cookies();
-  let userId = readSupabaseCookieUser(cookieStore.getAll())?.id || "";
-  let metaGuest = "";
+  const pairs = cookieStore.getAll();
+  const cookieUser = readSupabaseCookieUser(pairs);
+  const verified = Boolean(cookieUser?.email && !cookieUser.is_anonymous);
+  let userId = verified ? cookieUser?.id || "" : "";
+  let metaGuest = verified ? readSupabaseLinkGuest(pairs) || "" : "";
+
+  const plan = reconcileAuthCookies(pairs);
+  if (plan && verified) {
+    for (const name of plan.drop) cookieStore.set(name, "", { ...cookieBase, maxAge: 0, httpOnly: false });
+  }
 
   if (!userId) {
     const body = (await request.json().catch(() => null)) as { access_token?: unknown; refresh_token?: unknown } | null;
     const accessToken = typeof body?.access_token === "string" ? body.access_token : "";
     const refreshToken = typeof body?.refresh_token === "string" ? body.refresh_token : "";
-    if (!accessToken || !refreshToken) return Response.json({ error: "link" }, { status: 400 });
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    if (error || !data.user) return Response.json({ error: "link" }, { status: 400 });
-    userId = data.user.id;
-    const linkGuest = data.user.user_metadata?.link_guest;
-    if (typeof linkGuest === "string") metaGuest = linkGuest;
+    if (!accessToken || !refreshToken) {
+      if (cookieUser) userId = cookieUser.id;
+      else return Response.json({ error: "link" }, { status: 400 });
+    } else {
+      const supabase = await createClient({ allowAuthClear: true });
+      const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      if (error || !data.user) {
+        if (!cookieUser) return Response.json({ error: "link" }, { status: 400 });
+        userId = cookieUser.id;
+      } else {
+        userId = data.user.id;
+        const linkGuest = data.user.user_metadata?.link_guest;
+        if (typeof linkGuest === "string") metaGuest = linkGuest;
+      }
+    }
   }
 
   const fromCookie = cookieStore.get(LINK_COOKIE)?.value || "";

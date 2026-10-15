@@ -10,13 +10,14 @@ export function WelcomeSlides({
   copy,
   error,
   next = "",
-  guest = true,
+  account,
 }: {
   copy: OnboardingCopy;
   error: boolean;
   next?: string;
-  guest?: boolean;
+  account: "member" | "guest";
 }) {
+  const guest = account === "guest";
   return (
     <div>
       <div className="flex items-center justify-between gap-3">

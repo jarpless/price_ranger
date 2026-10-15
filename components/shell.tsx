@@ -21,7 +21,7 @@ export function Shell({
 }) {
   return (
     <div className="min-h-dvh max-w-full overflow-x-clip bg-cream text-ink lg:flex">
-      <Sidebar quotesLabel={quotesLabel} guest={guest} accountLabel={accountLabel} owner={owner} />
+      <Sidebar quotesLabel={quotesLabel} account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />
       <div className="shell-main ask-lane flex min-h-dvh min-w-0 max-w-full flex-1 flex-col">
         <header className="shell-header sticky top-0 z-[70] h-12 shrink-0 bg-pine text-cream lg:hidden">
           <div className="flex h-12 min-w-0 items-center gap-1 px-2">
@@ -30,7 +30,7 @@ export function Shell({
             <Link href="/" className="min-w-0 truncate font-serif text-base tracking-tight">
               Price Ranger
             </Link>
-            <PhoneMenu guest={guest} accountLabel={accountLabel} owner={owner} />
+            <PhoneMenu account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />
           </div>
         </header>
         <main className="app-main">

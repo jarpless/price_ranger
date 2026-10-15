@@ -4,6 +4,7 @@ import { termsAccepted } from "@/lib/guide/store";
 import { assistantAllowance } from "@/lib/usage";
 
 import { AssistantWidget } from "./assistant-widget";
+import { AuthSession, type AccountKind } from "./auth-session";
 import { ConsoleBuffer } from "./console-buffer";
 import { Hotkeys } from "./hotkeys";
 import { SessionBeacon } from "./session-beacon";
@@ -27,8 +28,11 @@ export async function AppChrome() {
     }
   }
 
+  const account: AccountKind = user ? (user.guest ? "guest" : "member") : "out";
+
   return (
     <>
+      <AuthSession account={account} />
       <Hotkeys />
       <ConsoleBuffer />
       <AssistantWidget stamp={stamp} signedIn={Boolean(user)} allowance={allowance} />

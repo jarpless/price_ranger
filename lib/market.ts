@@ -102,6 +102,39 @@ export function pictureFor(title: string): string {
   return thumb(pictureColor(title), shapeFor(title));
 }
 
+/**
+ * Cents to scale sold comps from. This is the item lookup or the sold range,
+ * never the price someone typed.
+ */
+export function comparableAnchorCents(input: {
+  lookupCents?: number | null;
+  suggestedCents?: number | null;
+  lowCents?: number | null;
+  highCents?: number | null;
+}): number {
+  const lookup = input.lookupCents ?? 0;
+  if (lookup > 0) return lookup;
+  const suggested = input.suggestedCents ?? 0;
+  if (suggested > 0) return suggested;
+  const low = input.lowCents ?? 0;
+  const high = input.highCents ?? 0;
+  if (low > 0 && high > 0) return Math.round((low + high) / 2);
+  return 0;
+}
+
+/** Midpoint of a sold range such as "$144–$216". */
+export function comparableAnchorFromRange(range: string): number {
+  const amounts = [...range.matchAll(/([\d,]+(?:\.\d+)?)/g)]
+    .map((match) => {
+      const cleaned = match[1].replace(/,/g, "");
+      const cents = Number(cleaned.includes(".") ? Math.round(Number(cleaned) * 100) : Number(cleaned) * 100);
+      return Number.isFinite(cents) ? cents : 0;
+    })
+    .filter((cents) => cents > 0);
+  if (amounts.length >= 2) return Math.round((amounts[0] + amounts[1]) / 2);
+  return amounts[0] ?? 0;
+}
+
 /** Sold-style comps for an item we price without a catalog listing. */
 export function comparablesForTitle(title: string, cents: number): Comparable[] {
   if (!title.trim() || cents <= 0) return [];

@@ -52,7 +52,7 @@ export default async function WelcomePage({
           We couldn&apos;t save that yet. Your account is still here. Try again.
         </p>
       ) : null}
-      <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} next={safeNext(next || null)} guest={user.guest} />
+      <WelcomeSlides copy={onboardingCopy(guide.variant)} error={error === "terms"} next={safeNext(next || null)} account={user.guest ? "guest" : "member"} />
     </div>
   );
 }

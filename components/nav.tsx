@@ -100,15 +100,16 @@ function FolderSection({
 
 export function Sidebar({
   quotesLabel,
-  guest,
+  account,
   accountLabel,
   owner = false,
 }: {
   quotesLabel: string;
-  guest: boolean;
+  account: "member" | "guest";
   accountLabel: string | null;
   owner?: boolean;
 }) {
+  const guest = account === "guest";
   void quotesLabel;
   const pathname = usePathname();
   const [folders, setFolders] = useState<Record<string, boolean>>({});
@@ -191,14 +192,15 @@ export function Sidebar({
 }
 
 export function PhoneMenu({
-  guest,
+  account,
   accountLabel,
   owner = false,
 }: {
-  guest: boolean;
+  account: "member" | "guest";
   accountLabel: string | null;
   owner?: boolean;
 }) {
+  const guest = account === "guest";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [folders, setFolders] = useState<Record<string, boolean>>({});

@@ -5,6 +5,7 @@ import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import {
+  comparableAnchorCents,
   comparablesForTitle,
   CONDITIONS,
   conditionLabel,
@@ -53,7 +54,15 @@ export function MarketCard({
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
   const comparables = live?.comparables.length
     ? live.comparables
-    : comparablesForTitle(description, point || suggested || 0);
+    : comparablesForTitle(
+        description,
+        comparableAnchorCents({
+          lookupCents: live?.cents,
+          suggestedCents: meta.suggestedCents,
+          lowCents: meta.lowCents ?? live?.lowCents,
+          highCents: meta.highCents ?? live?.highCents,
+        }),
+      );
 
   return (
     <div className="mt-6 min-w-0 max-w-full space-y-4">

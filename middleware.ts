@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { dataBackend } from "./lib/env";
 import { GUEST_SENT_PARAM, unsignedDestination } from "./lib/guest-gate";
 import { KIND_COOKIE, readSessionValue, SESSION_COOKIE, sessionSecret } from "./lib/session";
-import { readFreshSupabaseSession, type CookieSessionUser } from "./lib/supabase/cookie-session";
+import { readFreshSupabaseSession, reconcileAuthCookies, type CookieSessionUser } from "./lib/supabase/cookie-session";
 import { refreshSupabaseSession } from "./lib/supabase/middleware";
 
 function isPublic(pathname: string) {
@@ -93,15 +93,46 @@ function copyCookies(from: NextResponse, to: NextResponse) {
   return to;
 }
 
+const authClear = {
+  path: "/",
+  maxAge: 0,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  httpOnly: false,
+};
+
+/** Drop a stale guest auth cookie before the page reads the session. */
+function preferVerifiedSession(request: NextRequest): { response: NextResponse; drop: string[] } | null {
+  const plan = reconcileAuthCookies(request.cookies.getAll());
+  if (!plan) return null;
+  for (const name of plan.drop) request.cookies.delete(name);
+  if (plan.replace) {
+    for (const cookie of plan.set) request.cookies.set(cookie.name, cookie.value);
+  }
+  const response = NextResponse.next({ request });
+  for (const name of plan.drop) response.cookies.set(name, "", authClear);
+  if (plan.replace) {
+    for (const cookie of plan.set) {
+      response.cookies.set(cookie.name, cookie.value, { ...authClear, maxAge: 400 * 24 * 60 * 60 });
+    }
+  }
+  return { response, drop: plan.drop };
+}
+
 async function supabaseGate(request: NextRequest): Promise<{
   user: CookieSessionUser | { id: string; email?: string | null; is_anonymous?: boolean } | null;
   response: NextResponse;
 }> {
+  const verified = preferVerifiedSession(request);
   const fresh = readFreshSupabaseSession(request.cookies.getAll());
   if (fresh.status === "known") {
-    return { user: fresh.user, response: NextResponse.next({ request }) };
+    return { user: fresh.user, response: verified?.response ?? NextResponse.next({ request }) };
   }
-  return refreshSupabaseSession(request);
+  const refreshed = await refreshSupabaseSession(request);
+  if (verified) {
+    for (const name of verified.drop) refreshed.response.cookies.set(name, "", authClear);
+  }
+  return refreshed;
 }
 
 export async function middleware(request: NextRequest) {

@@ -1,6 +1,6 @@
 import { jpegFromDataUrl, buildPricePdf, pdfFilename } from "@/lib/guide/pdf";
-import { formatUsd, parseDollarsToCents } from "@/lib/money";
-import { comparablesForTitle, marketPrice } from "@/lib/market";
+import { formatUsd } from "@/lib/money";
+import { comparableAnchorFromRange, comparablesForTitle, marketPrice } from "@/lib/market";
 import { forPublic, readSharedSheet } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +17,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     ? option.lines
     : [{ name: sheet.title, detail: sheet.range || "", price: option?.total || "" }];
   const live = marketPrice(sheet.title);
-  const priced = live?.cents ?? parseDollarsToCents(option?.total || "") ?? 0;
-  const comps = live?.comparables.length ? live.comparables : comparablesForTitle(sheet.title, priced);
+  const lookup = live?.cents ?? comparableAnchorFromRange(sheet.range || "");
+  const comps = live?.comparables.length ? live.comparables : comparablesForTitle(sheet.title, lookup);
   const comparables = comps.slice(0, 4).map((comp) => ({
     title: comp.title,
     detail: [comp.source, comp.condition, comp.soldAt].filter(Boolean).join(" · "),
