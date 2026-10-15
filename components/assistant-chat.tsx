@@ -131,6 +131,7 @@ export function AssistantChat({
   const streamText = last?.role === "assistant" && last.kind !== "step" ? last.text : "";
   const revealing = slice != null && streamText.length > 0 && slice < streamText.length;
   const waiting = running && !revealing && (last?.role !== "assistant" || last.kind === "step");
+  const showStop = revealing || (running && !pending);
   const canSend = draft.trim().length > 0;
 
   useEffect(() => {
@@ -570,7 +571,7 @@ export function AssistantChat({
                     <MicIcon />
                   </button>
                 ) : null}
-                {running ? (
+                {showStop ? (
                   <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#8d3b32] text-cream" aria-label="Stop" onClick={onStop}>
                     <StopIcon />
                   </button>

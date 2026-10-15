@@ -495,7 +495,7 @@ export function AssistantWidget({
     revRef.current = snap.rev;
   }
 
-  async function play(step: Step, confirmed = false) {
+  async function play(step: Step, confirmed = false, onSettled?: () => void) {
     rememberLines([...linesRef.current, { role: "assistant", text: step.caption, kind: "step" }]);
     turnsRef.current.push({ role: "assistant", content: step.caption });
     setTurnVersion((value) => value + 1);
@@ -526,6 +526,7 @@ export function AssistantWidget({
     if (effect.allowance) setAllowance(effect.allowance);
     if (!response.ok || effect.ok === false) {
       setLines((current) => [...current, { role: "assistant", text: effect.error || effect.summary || "That step did not run." }]);
+      onSettled?.();
       return false;
     }
     if (confirmed && effect.summary) {
@@ -534,6 +535,8 @@ export function AssistantWidget({
       rememberLines([...linesRef.current, { role: "assistant", text: summary }]);
       setTurnVersion((value) => value + 1);
     }
+    // The reply is on screen. The highlight can finish without keeping Stop in the composer.
+    onSettled?.();
     if (effect.href) router.push(effect.href);
     router.refresh();
     const spotlightId = effect.spotlight || step.spotlight;
@@ -553,6 +556,8 @@ export function AssistantWidget({
     setRunning(true);
     stopRef.current = false;
     let guard = 0;
+    let holdSpotlight = false;
+    try {
     while (guard < 6 && !stopRef.current) {
       guard += 1;
       const here = pathnameRef.current;
@@ -603,6 +608,7 @@ export function AssistantWidget({
             : step.caption;
           setPending({ ...step, caption });
           setSpotlight({ selector: step.spotlight, caption: "" });
+          holdSpotlight = true;
           setRunning(false);
           return;
         }
@@ -612,8 +618,10 @@ export function AssistantWidget({
       if (!payload.continue) break;
       extraTurns = undefined;
     }
-    setSpotlight(null);
-    setRunning(false);
+    } finally {
+      if (!holdSpotlight) setSpotlight(null);
+      setRunning(false);
+    }
     if (modeRef.current === "agent") await saveTour();
   }
 
@@ -784,9 +792,12 @@ export function AssistantWidget({
     setPending(null);
     setRunning(true);
     void (async () => {
-      await play(step, true);
-      setSpotlight(null);
-      setRunning(false);
+      try {
+        await play(step, true, () => setRunning(false));
+      } finally {
+        setSpotlight(null);
+        setRunning(false);
+      }
       await saveTour();
     })();
   }
