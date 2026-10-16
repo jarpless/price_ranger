@@ -115,8 +115,8 @@ export default async function GuidePage({
             priceCents={headlineCents}
             note={row.note}
             sources={row.sources}
-            extras={lines}
-            totalCents={headlineCents}
+            lines={money}
+            adjustment={adjustment}
           />
           <div className="lg:sticky lg:top-4">
             <div className="mt-4 flex items-center gap-1 lg:mt-6">

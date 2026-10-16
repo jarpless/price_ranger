@@ -41,13 +41,17 @@ async function quoteLines(userId: string, quoteId: string) {
   const data = await getData();
   const quote = await data.getQuote(userId, quoteId);
   if (!quote) return [];
-  const groups = await data.listGroups(userId);
-  const byId = new Map(groups.map((group) => [group.id, group]));
-  return (quote.tiers[0]?.groupIds ?? []).flatMap((id) => byId.get(id)?.items ?? []).map((item) => ({
-    name: item.name,
-    quantity: item.quantity,
-    unitPriceCents: item.unitPriceCents,
-  }));
+  const ids = [...new Set(quote.tiers[0]?.groupIds ?? [])];
+  const groups = await Promise.all(ids.map((id) => data.getGroup(userId, id)));
+  return ids.flatMap((id) => {
+    const group = groups.find((item) => item?.id === id);
+    return (group?.items ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+    }));
+  });
 }
 
 async function settledPrice(userId: string, quoteId: string, adjustment: Adjustment): Promise<number> {
@@ -72,8 +76,15 @@ async function setFirstLinePrice(userId: string, quoteId: string, cents: number)
 
 /** Writes the saved asking price onto the line the share link and the PDF read. */
 async function writeCommittedLines(userId: string, quoteId: string, lines: MoneyLine[]) {
-  const { data, group } = await quoteGroup(userId, quoteId);
-  const first = lines[0];
+  const first = lines[0] as (MoneyLine & { id?: string }) | undefined;
+  const data = await getData();
+  if (first?.id) {
+    return data.updateGroupItem(userId, first.id, {
+      quantity: first.quantity > 0 ? first.quantity : 1,
+      unitPriceCents: first.unitPriceCents,
+    });
+  }
+  const { group } = await quoteGroup(userId, quoteId);
   if (!group || !first) return false;
   const existing = group.items[0];
   if (!existing) {
@@ -428,6 +439,9 @@ export async function applyAdjustment(formData: FormData) {
     });
     sources = committed.sources;
     await writeCommittedLines(user.id, quoteId, committed.lines);
+    await saveGuideQuote({ ...row, sources, priceCents: committed.priceCents, step: "adjust" });
+    refresh();
+    return;
   } else if (kind === "preset") {
     const preset = clip(formData.get("value"), 20);
     if (preset === "off10" || preset === "off20") {

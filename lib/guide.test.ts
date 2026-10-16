@@ -18,6 +18,7 @@ import {
   TAP_AUDIT,
   variantForUser,
 } from "./guide/flow";
+import { captureFromQuery, readCaptureState, withCaptureState } from "./capture-state";
 import { draftKey, reusableDraftId, shareDraftWork } from "./guide/drafts";
 import { nudgedCents } from "./guide/pricing";
 import {
@@ -26,6 +27,7 @@ import {
   isPassThrough,
   lineSettlement,
   looksLikeFilename,
+  pricedView,
   settledTotal,
   withAdjustment,
 } from "./guide/pricing";
@@ -241,6 +243,43 @@ test("saving $1,250 is what the share, the public page, the PDF, and the list sh
   const field = readFileSync(new URL("../components/money-field.tsx", import.meta.url), "utf8");
   assert.match(field, /name=\{name\}/);
   assert.doesNotMatch(field, /type="hidden"/);
+});
+
+test("the line and the total move together from the typed price", () => {
+  const adjustment = { percent: 0, includeFees: false };
+  const stored = [{ name: "Oak dining table", quantity: 1, unitPriceCents: 125000 }];
+  const view = pricedView(stored, 125100, adjustment);
+  assert.equal(view.lines[0].detail, "1 × $1,251");
+  assert.equal(view.lines[0].price, "$1,251");
+  assert.equal(view.totalCents, 125100);
+  assert.equal(formatUsd(view.totalCents ?? 0), view.lines[0].price);
+  const card = readFileSync(new URL("../components/market-card.tsx", import.meta.url), "utf8");
+  const asking = readFileSync(new URL("../components/asking-price.tsx", import.meta.url), "utf8");
+  assert.match(card, /<AskingTotal[\s\S]*lines=\{lines\}[\s\S]*adjustment=\{adjustment\}[\s\S]*askingCents=\{point\}/);
+  assert.match(card, /<AskingLines lines=\{lines\} adjustment=\{adjustment\} askingCents=\{point\}/);
+  assert.match(asking, /pricedView\(lines, draft, adjustment\)/);
+  const actions = readFileSync(new URL("../app/guide-actions.ts", import.meta.url), "utf8");
+  const linesFn = actions.slice(actions.indexOf("async function quoteLines"), actions.indexOf("async function settledPrice"));
+  assert.doesNotMatch(linesFn, /listGroups/);
+  assert.match(actions, /priceCents: committed\.priceCents/);
+});
+
+test("back restores the search text and category", () => {
+  const saved = readCaptureState({ prNew: { description: "Oak dining table", category: "Games" } });
+  assert.equal(saved?.description, "Oak dining table");
+  assert.equal(saved?.category, "Games");
+  const merged = withCaptureState({ __NA: true }, { description: "oak dining table", category: null });
+  assert.equal(merged.__NA, true);
+  assert.equal(readCaptureState(merged)?.description, "oak dining table");
+  assert.equal(readCaptureState(null), null);
+  assert.equal(readCaptureState({ prNew: { description: "", category: null } }), null);
+  const fromQuery = captureFromQuery("oak dining table", "Games", ["Games", "Phones"]);
+  assert.deepEqual(fromQuery, { description: "oak dining table", category: "Games" });
+  assert.equal(captureFromQuery("bike", "Not a category", ["Games"]).category, null);
+  const form = readFileSync(new URL("../components/capture-form.tsx", import.meta.url), "utf8");
+  assert.match(form, /persistCapture/);
+  assert.match(form, /readCaptureState/);
+  assert.match(form, /popstate/);
 });
 
 test("an open draft is reused after Back and a double tap does not create a second one", async () => {

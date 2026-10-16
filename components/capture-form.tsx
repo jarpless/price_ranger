@@ -1,18 +1,73 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useActionState } from "react";
 
 import { startAndPrice } from "@/app/guide-actions";
+import { CAPTURE_STATE_KEY, readCaptureState, withCaptureState } from "@/lib/capture-state";
 import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market";
 
 import { IconCamera } from "./icons";
 import { PhotoField } from "./photo-field";
 import { PrimaryDock } from "./primary-dock";
 
-export function CaptureForm({ initial = "" }: { initial?: string }) {
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number] | null>(null);
+const SESSION_KEY = "pr-new-capture";
+let restoredFromBack = false;
+
+if (typeof window !== "undefined") {
+  const flag = window as Window & { __prCaptureBack?: boolean };
+  if (!flag.__prCaptureBack) {
+    flag.__prCaptureBack = true;
+    window.addEventListener(
+      "popstate",
+      () => {
+        restoredFromBack = true;
+      },
+      true,
+    );
+  }
+}
+
+function isCategory(value: string | null): value is (typeof CATEGORIES)[number] {
+  return CATEGORIES.some((item) => item === value);
+}
+
+function persistCapture(description: string, category: string | null) {
+  const capture = { description: description.slice(0, 280), category };
+  try {
+    // Update the current history entry only. Passing a URL makes Next.js restore the page and wipe the field.
+    window.history.replaceState(withCaptureState(window.history.state, capture), "");
+  } catch {
+    /* Private mode can reject history updates. The session copy still restores Back. */
+  }
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(capture));
+  } catch {
+    /* Ignore. */
+  }
+}
+
+function savedCapture() {
+  const fromHistory = readCaptureState(window.history.state);
+  if (fromHistory) return fromHistory;
+  if (!restoredFromBack) return null;
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return readCaptureState(raw ? { [CAPTURE_STATE_KEY]: JSON.parse(raw) } : null);
+  } catch {
+    return null;
+  }
+}
+
+export function CaptureForm({
+  initial = "",
+  initialCategory = null,
+}: {
+  initial?: string;
+  initialCategory?: string | null;
+}) {
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number] | null>(isCategory(initialCategory) ? initialCategory : null);
   const [description, setDescription] = useState(initial);
   const [barcode, setBarcode] = useState("");
   const [error, submit, pending] = useActionState(startAndPrice, "");
@@ -20,6 +75,14 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
   const matches = searchSuggestions(description, names);
   const items = QUICK_ITEMS.filter((item) => !category || item.category === category);
   const guard = useRef(false);
+
+  useLayoutEffect(() => {
+    const saved = savedCapture();
+    restoredFromBack = false;
+    if (!saved) return;
+    if (!initial && saved.description) setDescription(saved.description);
+    if (!initialCategory && isCategory(saved.category)) setCategory(saved.category);
+  }, [initial, initialCategory]);
 
   useEffect(() => {
     if (!pending) guard.current = false;
@@ -55,6 +118,7 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
       action={submit}
       className="space-y-5"
       onSubmit={(event) => {
+        persistCapture(description, category);
         if (guard.current || pending) {
           event.preventDefault();
           return;
@@ -96,7 +160,11 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
               key={item}
               type="button"
               aria-pressed={category === item}
-              onClick={() => setCategory(category === item ? null : item)}
+              onClick={() => {
+                const next = category === item ? null : item;
+                setCategory(next);
+                persistCapture(description, next);
+              }}
               className={`h-11 rounded-full px-4 text-base font-semibold ${category === item ? "bg-pine text-cream" : "border border-line bg-paper text-ink"}`}
             >
               {item}
@@ -113,6 +181,7 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
                 event.preventDefault();
                 const form = event.currentTarget.form;
                 flushSync(() => setDescription(item.description));
+                persistCapture(item.description, category);
                 form?.requestSubmit();
               }}
               className="h-11 rounded-full border border-line bg-cream px-4 text-base font-semibold text-ink disabled:opacity-60"
@@ -129,7 +198,11 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
           id="item-search"
           name="description"
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDescription(next);
+            persistCapture(next, category);
+          }}
           placeholder="Nintendo Switch, iPhone, bike"
           autoComplete="off"
           role="combobox"
@@ -146,7 +219,10 @@ export function CaptureForm({ initial = "" }: { initial?: string }) {
                 type="button"
                 role="option"
                 className="h-12 w-full px-4 text-left text-base font-normal hover:bg-cream"
-                onClick={() => setDescription(name)}
+                onClick={() => {
+                  setDescription(name);
+                  persistCapture(name, category);
+                }}
               >
                 {name}
               </button>

@@ -2,18 +2,21 @@ import { redirect } from "next/navigation";
 
 import { CaptureForm } from "@/components/capture-form";
 import { requireUser } from "@/lib/auth";
+import { captureFromQuery } from "@/lib/capture-state";
 import { pricingAccess } from "@/lib/guide/access";
 import { priceError } from "@/lib/guide/pricing";
 import { ensureGuideUser } from "@/lib/guide/store";
+import { CATEGORIES } from "@/lib/market";
 
 export const metadata = { title: "New price" };
 
 export default async function NewPricePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; q?: string; cat?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, q, cat } = await searchParams;
+  const capture = captureFromQuery(q, cat, CATEGORIES);
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
   if (!guide.tosAcceptedAt) redirect("/welcome?next=/new");
@@ -37,7 +40,7 @@ export default async function NewPricePage({
           <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
         ) : null}
         <div className="mt-6">
-          <CaptureForm />
+          <CaptureForm initial={capture.description} initialCategory={capture.category} />
         </div>
       </div>
       <aside className="content-aside min-w-0">
