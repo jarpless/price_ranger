@@ -21,10 +21,10 @@ export default async function NewPricePage({
   if (!access.ok) redirect("/upgrade");
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,40rem)_minmax(16rem,1fr)] lg:items-start lg:gap-16">
+    <div className="content-split">
       <div>
         <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">New price</h1>
-        <p className="mt-2 text-body text-muted">Item is already selected. A photo prices itself.</p>
+        <p className="mt-2 text-body text-muted">Take a photo or tap an item. Nothing is selected until you do.</p>
         {error === "photo" || error === "heic" || error === "large" || error === "unread" ? (
           <div className="mt-4 space-y-3">
             <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
@@ -40,18 +40,18 @@ export default async function NewPricePage({
           <CaptureForm />
         </div>
       </div>
-      <aside className="hidden lg:block lg:pt-2">
+      <aside className="content-aside min-w-0">
         <p className="font-serif text-title">Three taps</p>
-        <ol className="mt-4 space-y-3">
-          <li className="rounded-2xl border border-line bg-paper p-4 shadow-card">
+        <ol className="page-stack mt-4">
+          <li className="surface">
             <p className="text-caption font-semibold text-pine">1</p>
             <p className="mt-1 text-base font-semibold">New price</p>
           </li>
-          <li className="rounded-2xl border border-line bg-paper p-4 shadow-card">
+          <li className="surface">
             <p className="text-caption font-semibold text-pine">2</p>
             <p className="mt-1 text-base font-semibold">Add a photo</p>
           </li>
-          <li className="rounded-2xl border border-line bg-paper p-4 shadow-card">
+          <li className="surface">
             <p className="text-caption font-semibold text-pine">3</p>
             <p className="mt-1 text-base font-semibold">Send</p>
           </li>

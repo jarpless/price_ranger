@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { ensureSupportOwner } from "@/lib/feedback/desk";
 import { statusLabel } from "@/lib/feedback/mine";
+import { promptLabels, readFeedbackAnswers } from "@/lib/feedback/note";
 import { isOwnerEmail } from "@/lib/owner";
 import { listAllFeedback } from "@/lib/store/basecamp";
 import { listTicketMetas } from "@/lib/feedback/desk";
@@ -13,7 +14,7 @@ import type { FeedbackStatus } from "@/lib/store/basecamp";
 
 export const metadata = { title: "Feedback backlog" };
 
-const STATUSES: FeedbackStatus[] = ["new", "planned", "in_progress", "shipped"];
+const STATUSES: FeedbackStatus[] = ["triage", "new", "planned", "in_progress", "shipped"];
 
 export default async function FeedbackBacklogPage() {
   const user = await requireUser();
@@ -23,12 +24,21 @@ export default async function FeedbackBacklogPage() {
   const metaById = new Map(metas.map((meta) => [meta.id, meta]));
   const rows = reports
     .map((report) => ({ report, meta: metaById.get(report.id) }))
-    .sort((a, b) => (b.meta?.score || 0) - (a.meta?.score || 0) || b.report.createdAt.localeCompare(a.report.createdAt));
+    .sort((a, b) => {
+      const closed = (status: string) => (status === "shipped" ? 1 : 0);
+      const triage = (status: string) => (status === "triage" ? 0 : 1);
+      return (
+        closed(a.report.status) - closed(b.report.status) ||
+        triage(a.report.status) - triage(b.report.status) ||
+        (b.meta?.score || 0) - (a.meta?.score || 0) ||
+        b.report.createdAt.localeCompare(a.report.createdAt)
+      );
+    });
 
   return (
     <div className="mx-auto w-full max-w-3xl">
       <h1 className="font-serif text-display lg:text-[2.5rem] lg:leading-[3rem]">Backlog</h1>
-      <p className="mt-2 text-body text-muted">Sorted by the score in docs/feedback-model.md. The lines under each note are the whole formula.</p>
+      <p className="mt-2 text-body text-muted">Open notes come first, starting with triage. Follow-up mail is not sent from here.</p>
       {rows.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-line bg-paper px-4 py-8 text-body text-muted">No notes yet.</p>
       ) : (
@@ -42,9 +52,34 @@ export default async function FeedbackBacklogPage() {
                 <p className="font-serif text-title">{meta?.score ?? 0}</p>
               </div>
               <p className="mt-1 text-caption text-muted">
-                {statusLabel(report.status)} · {report.kind === "bug" ? "Bug" : "Idea"}
+                {statusLabel(report.status)} · {report.kind === "bug" ? "Bug" : "Feature request"}
+                {meta?.email ? ` · ${meta.email}` : ""}
                 {meta?.duplicateOf ? " · Duplicate" : ""}
               </p>
+              {report.screenshotPath ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/api/feedback/${report.id}/image`} alt="Annotated screenshot" className="mt-3 max-h-48 w-full rounded-xl border border-line bg-cream object-contain" />
+              ) : null}
+              {(() => {
+                const answers = readFeedbackAnswers(report.body);
+                const [labelA, labelB] = promptLabels(report.kind);
+                if (!answers.answerA && !answers.answerB) return null;
+                return (
+                  <div className="mt-3 space-y-2 text-body">
+                    {answers.answerA ? (
+                      <p>
+                        <span className="font-semibold">{labelA}</span> {answers.answerA}
+                      </p>
+                    ) : null}
+                    {answers.answerB ? (
+                      <p>
+                        <span className="font-semibold">{labelB}</span> {answers.answerB}
+                      </p>
+                    ) : null}
+                    {answers.selection ? <p className="text-caption text-muted">Selection {answers.selection}</p> : null}
+                  </div>
+                );
+              })()}
               {meta && meta.lines.length > 0 ? (
                 <ul className="mt-3 space-y-1">
                   {meta.lines.map((line) => (

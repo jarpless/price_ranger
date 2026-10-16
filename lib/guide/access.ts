@@ -47,8 +47,7 @@ export function planStatusLine(access: PricingAccess): string {
   if (access.reason === "limit") {
     return `You've used all ${access.limits.quoteLimit} free prices. Upgrade to keep them and add more.`;
   }
-  const dayWord = access.limits.daysLeft === 1 ? "day" : "days";
-  return `Free trial · ${access.limits.daysLeft} ${dayWord} left · ${access.used} of ${access.limits.quoteLimit} prices used`;
+  return `Free plan · ${access.used} of ${access.limits.quoteLimit} prices used`;
 }
 
 export function variantLabel(variant: Variant): string {

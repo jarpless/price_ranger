@@ -2,6 +2,7 @@ import { listMessages, listTicketMetas } from "./desk";
 import { listFeedback, type FeedbackStatus } from "../store/basecamp";
 
 export function statusLabel(status: FeedbackStatus | string): string {
+  if (status === "triage") return "Triage";
   if (status === "in_progress") return "In progress";
   if (status === "planned") return "Planned";
   if (status === "shipped") return "Shipped";
@@ -29,7 +30,7 @@ export async function myTickets(userId: string) {
 export async function feedbackAssistantText(userId: string): Promise<string> {
   const tickets = await myTickets(userId);
   if (tickets.length === 0) {
-    return "You have no feedback yet. On a computer, use the Feedback button and drag a region. On a phone, open Menu and tap Send feedback, or shake the phone.";
+    return "You have no feedback yet. Use Feedback in the sidebar, or Feedback in the header on a phone. You can also open Menu or shake the phone.";
   }
   const lines = ["Your feedback:"];
   for (const ticket of tickets.slice(0, 8)) {

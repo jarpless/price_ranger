@@ -7,17 +7,18 @@ import { priceError } from "@/lib/guide/pricing";
 import { vibrate } from "./feel";
 import { preparePhoto } from "./prepare-photo";
 
-export function PhotoField() {
+export function PhotoField({ hero = false }: { hero?: boolean }) {
   const [notice, setNotice] = useState("");
 
   return (
     <div>
-      <label className="flex h-12 cursor-pointer items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink">
-        Add photo
+      <label className={`flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-pine font-semibold text-cream ${hero ? "h-16 text-lg" : "h-12 border border-line bg-paper px-4 text-base text-ink"}`}>
+        {hero ? "Open camera" : "Add photo"}
         <input
           name="photo"
           type="file"
           accept="image/*"
+          capture={hero ? "environment" : undefined}
           className="sr-only"
           onChange={(event) => {
             const input = event.target;

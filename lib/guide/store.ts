@@ -232,13 +232,21 @@ function quoteToRow(quote: GuideQuote): Record<string, unknown> {
   };
 }
 
+function duplicateRow(error: { code?: string; message?: string }): boolean {
+  return error.code === "23505" || /duplicate key|unique constraint/i.test(error.message || "");
+}
+
+function freshGuideUser(userId: string): GuideUser {
+  return { ...blankUser(userId), signedUpAt: nowIso() };
+}
+
 export async function ensureGuideUser(userId: string): Promise<GuideUser> {
   if (dataBackend() !== "supabase" || degraded()) {
     return withLock(async () => {
       const file = await loadMutable();
       let user = file.users.find((item) => item.userId === userId);
       if (!user) {
-        user = { ...blankUser(userId), signedUpAt: nowIso() };
+        user = freshGuideUser(userId);
         file.users.push(user);
         await storeMutable(file);
       }
@@ -249,14 +257,20 @@ export async function ensureGuideUser(userId: string): Promise<GuideUser> {
   const existing = await supabase.from("guide_users").select("*").eq("user_id", userId).maybeSingle();
   if (existing.error) {
     if (rememberMissing(existing.error)) return ensureGuideUser(userId);
-    throw new Error(existing.error.message);
+    console.error(`Guide profile could not be read: ${existing.error.message}`);
+    return freshGuideUser(userId);
   }
   if (existing.data) return mapUser(existing.data as Record<string, unknown>);
-  const created = { ...blankUser(userId), signedUpAt: nowIso() };
+  const created = freshGuideUser(userId);
   const inserted = await supabase.from("guide_users").insert(userToRow(created));
   if (inserted.error) {
     if (rememberMissing(inserted.error)) return ensureGuideUser(userId);
-    throw new Error(inserted.error.message);
+    if (duplicateRow(inserted.error)) {
+      const again = await supabase.from("guide_users").select("*").eq("user_id", userId).maybeSingle();
+      if (again.data) return mapUser(again.data as Record<string, unknown>);
+    }
+    console.error(`Guide profile could not be saved: ${inserted.error.message}`);
+    return created;
   }
   return created;
 }
@@ -307,8 +321,23 @@ export async function listGuideQuotes(userId: string): Promise<GuideQuote[]> {
 }
 
 export async function getGuideQuote(userId: string, quoteId: string): Promise<GuideQuote | null> {
-  const quotes = await listGuideQuotes(userId);
-  return quotes.find((quote) => quote.quoteId === quoteId) ?? null;
+  if (dataBackend() !== "supabase" || degraded()) {
+    const file = await loadMutable();
+    return file.quotes.find((quote) => quote.userId === userId && quote.quoteId === quoteId) ?? null;
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("guide_quotes")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("quote_id", quoteId)
+    .maybeSingle();
+  if (error) {
+    if (rememberMissing(error)) return getGuideQuote(userId, quoteId);
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+  return mapQuote(data as Record<string, unknown>);
 }
 
 export async function saveGuideQuote(quote: GuideQuote): Promise<void> {
@@ -469,6 +498,28 @@ function mapEvents(rows: Record<string, unknown>[] | null): FunnelEvent[] {
 
 export function funnelHasServiceRole(): boolean {
   return dataBackend() !== "supabase" || Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+/** Keeps intro and terms when a guest becomes an account. */
+export async function reassignGuide(fromUserId: string, toUserId: string): Promise<void> {
+  if (!fromUserId || fromUserId === toUserId) return;
+  if (dataBackend() === "supabase" && !degraded()) return;
+  await withLock(async () => {
+    const file = await loadMutable();
+    const from = file.users.find((item) => item.userId === fromUserId);
+    const to = file.users.find((item) => item.userId === toUserId);
+    if (from && !to) file.users.push({ ...from, userId: toUserId });
+    else if (from && to && !to.tosAcceptedAt && from.tosAcceptedAt) {
+      to.tosAcceptedAt = from.tosAcceptedAt;
+      to.tosVersion = from.tosVersion;
+      to.introCompletedAt = from.introCompletedAt;
+      to.trialStartedAt = to.trialStartedAt || from.trialStartedAt;
+    }
+    file.users = file.users.filter((item) => item.userId !== fromUserId);
+    for (const quote of file.quotes) if (quote.userId === fromUserId) quote.userId = toUserId;
+    for (const event of file.events) if (event.userId === fromUserId) event.userId = toUserId;
+    await storeMutable(file);
+  });
 }
 
 /** Local guide rows. Supabase rows leave with the auth user through ON DELETE CASCADE. */

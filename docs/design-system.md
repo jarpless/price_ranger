@@ -14,7 +14,7 @@ One ramp. Do not introduce a new size for a single screen.
 | `text-display` | 32 / 40, 40 / 48 from `lg` | The one screen title. |
 | `text-price` | 40 / 48 | The number. It is the product, the way the amount is the product in Venmo and Cash App. |
 
-Screen titles use Fraunces. Everything else uses Outfit. A second display size would make the legal pages and the price screen look like different products.
+Screen titles use Source Serif 4 at Medium, with standard ligatures off. Everything else uses Outfit. A second display size would make the legal pages and the price screen look like different products.
 
 Headlines may wrap on word boundaries. `text-balance` keeps a two-line title even, which is how iOS large titles behave on a narrow phone. Button labels never wrap. They use `whitespace-nowrap`, a 48px height, and a 192px minimum width from the `lg` breakpoint. If a label cannot fit at 320px, the words get shorter. “Price something” became “Price” in the tab bar and “New price” on the button. “See your price” became “See price”. “Upgrade to keep access” became “Upgrade”.
 

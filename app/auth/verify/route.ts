@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { dataBackend } from "@/lib/env";
+import { LINK_COOKIE } from "@/lib/account/link";
+import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { createSessionValue, KIND_COOKIE, readSessionValue, SESSION_COOKIE, sessionSecret } from "@/lib/session";
 import { reassignBasecamp } from "@/lib/store/basecamp";
 import { adoptLocalGuest, consumeMagicLink, getLocalUser } from "@/lib/store/local";
@@ -9,14 +10,17 @@ import { isIndustryId } from "@/lib/vocabulary";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const failure = NextResponse.redirect(new URL("/login?error=link", url.origin));
+  const origin = siteOriginFromHeaders(request.headers);
+  const failure = NextResponse.redirect(new URL("/signin?error=link", origin));
   if (dataBackend() !== "local") return failure;
 
   const cookieStore = await cookies();
-  const guestId = await readSessionValue(cookieStore.get(SESSION_COOKIE)?.value, sessionSecret());
+  const sessionGuest = await readSessionValue(cookieStore.get(SESSION_COOKIE)?.value, sessionSecret());
+  const linkedGuest = cookieStore.get(LINK_COOKIE)?.value || "";
   const user = await consumeMagicLink(url.searchParams.get("token") || "");
   if (!user) return failure;
-  if (guestId && guestId !== user.id) {
+  const guestId = sessionGuest && sessionGuest !== user.id ? sessionGuest : linkedGuest && linkedGuest !== user.id ? linkedGuest : "";
+  if (guestId) {
     const guest = await getLocalUser(guestId);
     if (guest?.guest) {
       await adoptLocalGuest(guestId, user.id);
@@ -25,7 +29,7 @@ export async function GET(request: Request) {
   }
   const fresh = await getLocalUser(user.id);
   const dest = isIndustryId(fresh?.industry) ? "/" : "/start";
-  const response = NextResponse.redirect(new URL(dest, url.origin));
+  const response = NextResponse.redirect(new URL(dest, origin));
   const options = {
     httpOnly: true,
     sameSite: "lax" as const,
@@ -35,5 +39,6 @@ export async function GET(request: Request) {
   };
   response.cookies.set(SESSION_COOKIE, await createSessionValue(user.id, sessionSecret()), options);
   response.cookies.set(KIND_COOKIE, "user", options);
+  response.cookies.set(LINK_COOKIE, "", { ...options, maxAge: 0 });
   return response;
 }

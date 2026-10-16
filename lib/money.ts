@@ -13,6 +13,33 @@ export function dollarsInputValue(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** Digits for the field while it is focused. "$1,250" becomes "1250", so a new number replaces it. */
+export function editingMoney(value: string): string {
+  const cents = parseDollarsToCents(value);
+  if (cents == null) return value.replace(/[$,\s]/g, "");
+  return dollarsInputValue(cents);
+}
+
+/** The dollars string a price field posts. "$1,250" and "1250" both become "1250". */
+export function postedDollars(text: string): string {
+  const cents = parseDollarsToCents(text);
+  return cents == null ? "" : dollarsInputValue(cents);
+}
+
+/**
+ * The first keystroke after focus replaces the suggestion.
+ * A click that leaves the caret at the end would otherwise turn $180 into $180,1250.
+ */
+export function replacedMoney(previous: string, typed: string, armed: boolean): { text: string; armed: boolean } {
+  const next = typed.replace(/[$,]/g, "");
+  if (!armed) return { text: next, armed: false };
+  const prior = editingMoney(previous);
+  if (prior && next.startsWith(prior) && next.length > prior.length) {
+    return { text: next.slice(prior.length), armed: false };
+  }
+  return { text: next, armed: false };
+}
+
 export function parseDollarsToCents(input: string): number | null {
   const cleaned = input.replace(/[$,\s]/g, "");
   if (!/^\d+(\.\d{0,2})?$/.test(cleaned)) return null;

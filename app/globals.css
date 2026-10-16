@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme {
+@theme inline {
   --color-pine: #1e4636;
   --color-pine-deep: #132e24;
   --color-gold: #c6a15b;
@@ -11,7 +11,7 @@
   --color-line: #e3dacd;
   --color-danger: #8d3b32;
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
   /* One type ramp. Sizes sit on an 8pt grid except the 13px caption (iOS footnote). */
   --text-caption: 0.8125rem;
   --text-caption--line-height: 1rem;
@@ -28,13 +28,58 @@
   --shadow-sheet: 0 16px 40px rgba(28, 25, 21, 0.16);
 }
 
+/* 4px scale. 8px is the rhythm. Components use these names, not one-off pixels. */
+:root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-18: 4.5rem;
+  --gutter: var(--space-5);
+  --row-min: var(--space-18);
+  --row-pad-y: var(--space-4);
+  --row-pad-x: var(--space-5);
+  --stack: var(--space-4);
+  --card-gap: var(--space-4);
+  --title-gap: var(--space-1);
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --gutter: var(--space-6);
+  }
+}
+
 html {
   background: var(--color-cream);
-  overflow-x: clip;
+  max-width: 100%;
+}
+
+/* Source Serif 4 at Medium. Fraunces’s f terminal crashed into the next
+   letter even with ligatures off. These faces keep fi/fl off and a small
+   tracking so the crossbar stays clear. Prices stay untacked. */
+.font-serif {
+  font-weight: 500;
+  font-synthesis: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0;
+  letter-spacing: 0.01em;
+}
+
+.font-serif.tabular-nums {
+  letter-spacing: 0;
+  font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0, "tnum" 1;
 }
 
 body {
   min-height: 100dvh;
+  max-width: 100%;
 }
 
 ::selection {
@@ -96,11 +141,9 @@ textarea:focus-visible {
 @keyframes page-in {
   from {
     opacity: 0;
-    margin-left: 12px;
   }
   to {
     opacity: 1;
-    margin-left: 0;
   }
 }
 
@@ -108,23 +151,435 @@ textarea:focus-visible {
   animation: page-in 180ms ease;
 }
 
-.ask-fab {
-  position: fixed;
-  left: 1rem;
-  z-index: 40;
-  bottom: calc(4.75rem + env(safe-area-inset-bottom));
+:root {
+  --ask-clearance: calc(1rem + env(safe-area-inset-bottom));
 }
 
-body[data-dock="1"] .ask-fab {
-  bottom: calc(9rem + env(safe-area-inset-bottom));
+/* Preview deploys inject a right-edge circle. It reads as a clipped, unlabeled Feedback pill. */
+vercel-live-feedback,
+[data-vercel-toolbar],
+#vercel-toolbar,
+.vercel-toolbar,
+iframe[src*="vercel.live"] {
+  display: none !important;
+}
+
+/* Public pages share one centered frame. Gutters are 24px, then 48px from
+   the desktop breakpoint and 64px from 1280. The app shell keeps its own
+   padding; a frame inside it pulls back out so these gutters are the only ones. */
+.page-frame {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 90rem;
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+
+.page-frame-pad {
+  padding-block: 2rem;
 }
 
 @media (min-width: 64rem) {
-  .ask-fab {
-    left: auto;
-    right: 2rem;
-    bottom: 2rem;
+  .page-frame {
+    padding-inline: var(--space-12);
   }
+
+  .page-frame-pad {
+    padding-block: 3rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  .page-frame {
+    padding-inline: var(--space-16);
+  }
+}
+
+.shell-main .page-frame {
+  width: auto;
+  max-width: none;
+  min-height: 100%;
+  margin-inline: calc(var(--gutter) * -1);
+}
+
+.app-main {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 36rem;
+  min-width: 0;
+  margin-inline: auto;
+  flex: 1;
+  padding: var(--space-6) var(--gutter) var(--space-6);
+  container-type: inline-size;
+  container-name: app;
+}
+
+@media (min-width: 64rem) {
+  .app-main {
+    max-width: none;
+    margin-inline: 0;
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+    padding-inline: var(--gutter);
+  }
+}
+
+/* The assistant pill sits in this lane, under the scrolling page, on phone and desktop. */
+.ask-lane {
+  height: 100dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+body[data-ask="on"] .ask-lane {
+  padding-bottom: calc(var(--ask-clearance) + 7.25rem);
+}
+
+.ask-lane > .app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body[data-ask="off"] .ask-lane {
+  height: auto;
+  min-height: 100dvh;
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+body[data-ask="off"] .ask-lane > .app-main {
+  overflow: visible;
+}
+
+@media (min-width: 64rem) {
+  .shell-header {
+    display: none;
+  }
+
+  body[data-ask="on"] .ask-lane {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: calc(var(--ask-clearance) + 7.25rem);
+  }
+
+  body[data-ask="on"] .ask-lane > .app-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+.primary-dock {
+  position: static;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.primary-dock-inner {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.page-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--stack);
+}
+
+.card-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--card-gap);
+}
+
+@container app (min-width: 40rem) {
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container app (min-width: 52rem) {
+  .card-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.content-aside {
+  display: none;
+}
+
+.content-split {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--card-gap);
+}
+
+.content-split > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@container app (min-width: 56rem) {
+  .content-split {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .content-aside {
+    display: block;
+  }
+}
+
+.surface {
+  min-width: 0;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+}
+
+.list-card {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-card);
+}
+
+.list-card > li + li {
+  border-top: 1px solid var(--color-line);
+}
+
+.list-row,
+.line-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--row-min);
+  padding-block: var(--row-pad-y);
+}
+
+input[type="range"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.list-row {
+  padding-inline: var(--row-pad-x);
+}
+
+.list-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--title-gap);
+}
+
+.list-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.list-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--title-gap);
+}
+
+.list-price {
+  flex: none;
+  align-self: center;
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0, "tnum" 1;
+  letter-spacing: 0;
+  color: var(--color-pine);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 1rem;
+  padding-inline: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-cream);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pill-sold {
+  background: #e4efe8;
+  color: var(--color-pine);
+}
+
+.scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.assistant-dock:empty {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .assistant-dock:not(:empty) {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    flex: none;
+    width: max-content;
+    height: 100dvh;
+  }
+}
+
+.ask-launcher {
+  position: fixed;
+  z-index: 62;
+  left: 50%;
+  bottom: var(--ask-clearance);
+  display: inline-flex;
+  max-width: calc(100vw - 2rem);
+  min-height: 3.25rem;
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.35rem 1.15rem 0.35rem 0.4rem;
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  border-radius: 999px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(28, 25, 21, 0.16), 0 1px 2px rgba(28, 25, 21, 0.08);
+}
+
+.ask-launcher-mark {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-pine);
+  color: var(--color-cream);
+}
+
+.ask-float {
+  position: fixed;
+  z-index: 72;
+  left: 50%;
+  bottom: calc(var(--ask-clearance) + 3.75rem);
+  display: flex;
+  width: min(28rem, calc(100vw - 2rem));
+  height: min(34rem, calc(100dvh - var(--ask-clearance) - 5.25rem));
+  min-height: 0;
+  transform: translateX(-50%);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 1.5rem;
+  background: var(--color-paper);
+  box-shadow: 0 18px 50px rgba(28, 25, 21, 0.18), 0 2px 6px rgba(28, 25, 21, 0.06);
+}
+
+.ask-popout {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-paper);
+}
+
+.ask-dock {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--color-line);
+  background: var(--color-paper);
+}
+
+.ask-dock-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 0.75rem;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.ask-dock-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0.3rem;
+  width: 1px;
+  background: var(--color-line);
+}
+
+.ask-dock-handle:focus-visible {
+  outline: 2px solid #1e4636;
+  outline-offset: -2px;
+}
+
+@media (max-width: 63.99rem) {
+  .ask-float {
+    inset: 3rem 0 calc(var(--ask-clearance) + 3.75rem) 0;
+    width: auto;
+    height: auto;
+    transform: none;
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+}
+
+.landing-ground {
+  background-color: var(--color-cream);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72' fill='none'><path d='M-8 54c12-14 24-14 36 0s24 14 36 0 24-14 36 0' stroke='%231e4636' stroke-opacity='.09' stroke-width='1'/><path d='M-8 28c12-14 24-14 36 0s24 14 36 0 24-14 36 0' stroke='%231e4636' stroke-opacity='.06' stroke-width='1'/></svg>");
+  background-size: 72px 72px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { readSupabaseCookieUser } from "./cookie-session";
+
 export async function refreshSupabaseSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,6 +28,17 @@ export async function refreshSupabaseSession(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getUser();
-  return { response, user: data.user };
+  const prior = request.cookies.getAll();
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error && data.user) return { response, user: data.user };
+    const cookieUser = readSupabaseCookieUser(prior);
+    // A failed refresh must not send the cleared cookies back to the browser.
+    if (cookieUser) return { response: NextResponse.next(), user: cookieUser };
+    return { response, user: null };
+  } catch {
+    const cookieUser = readSupabaseCookieUser(prior);
+    if (cookieUser) return { response: NextResponse.next(), user: cookieUser };
+    return { response, user: null };
+  }
 }

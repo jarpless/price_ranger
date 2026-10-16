@@ -13,10 +13,34 @@ export async function assistantAllowance(user: SessionUser): Promise<{
   remaining: number;
 }> {
   const cap = assistantMessageCap(user.plan);
-  const rows = await listUsage(user.id, false);
   const start = monthStartIso();
-  const used = rows.filter((row) => row.createdAt >= start).length;
+  const used = await countUsageSince(user.id, start);
   return { used, cap, remaining: Math.max(0, cap - used) };
+}
+
+async function countUsageSince(userId: string, start: string): Promise<number> {
+  try {
+    const rows = await listUsage(userId, false);
+    return rows.filter((row) => row.createdAt >= start).length;
+  } catch {
+    return 0;
+  }
+}
+
+/** Counts a local answer. A failure must not block the reply. */
+export async function recordLocalAssistantUse(userId: string): Promise<void> {
+  try {
+    await recordAssistantUse({
+      userId,
+      mode: "ask",
+      provider: "local",
+      model: "guide",
+      inputTokens: 0,
+      outputTokens: 0,
+    });
+  } catch {
+    return;
+  }
 }
 
 export async function recordAssistantUse(input: {

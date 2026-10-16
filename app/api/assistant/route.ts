@@ -6,9 +6,14 @@ import { describeTool, isToolName, toolNeedsConfirm } from "@/lib/assistant/tool
 import { redactText, restoreText } from "@/lib/redact";
 import type { SessionUser } from "@/lib/types";
 import { feedbackAssistantText } from "@/lib/feedback/mine";
-import { explainPrice, guideAnswer } from "@/lib/guide/help";
+import { screenAnswer } from "@/lib/assistant/screen";
+import { explainPrice } from "@/lib/guide/help";
 import { getGuideQuote } from "@/lib/guide/store";
-import { assistantAllowance, blockedAssistantMessage, recordAssistantUse } from "@/lib/usage";
+import { confirmedAction, appPath, quoteCommand } from "@/lib/assistant/intent";
+import { answerFromMarket, conditionLabel, readMarketMeta } from "@/lib/market";
+import { PLANS } from "@/lib/plans";
+import { formatUsd } from "@/lib/money";
+import { assistantAllowance, blockedAssistantMessage, recordAssistantUse, recordLocalAssistantUse } from "@/lib/usage";
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
   await recordAssistantUse({
@@ -22,6 +27,16 @@ async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResul
 }
 
 export const dynamic = "force-dynamic";
+
+async function localReply(user: SessionUser, text: string) {
+  await recordLocalAssistantUse(user.id);
+  return Response.json({
+    type: "message",
+    configured: llmProvider() != null,
+    text,
+    allowance: await assistantAllowance(user),
+  });
+}
 
 function turnsFrom(value: unknown): LlmTurn[] {
   if (!Array.isArray(value)) return [];
@@ -50,27 +65,79 @@ export async function POST(request: Request) {
 
   const pathname = String(body.pathname || "/").slice(0, 200);
   const turns = turnsFrom(body.turns);
+  const latestIntent = [...turns].reverse().find((turn) => turn.role === "user")?.content || "";
+  const commanded = quoteCommand(latestIntent, pathname);
+  if (commanded?.type === "reply") return localReply(user, commanded.text);
+  if (commanded?.type === "step") {
+    return Response.json({
+      type: "plan",
+      configured: llmProvider() != null,
+      text: commanded.step.caption,
+      steps: [commanded.step],
+      continue: false,
+      allowance: await assistantAllowance(user),
+    });
+  }
+  const confirmed = confirmedAction(latestIntent, pathname);
+  if (confirmed) {
+    return Response.json({
+      type: "plan",
+      configured: llmProvider() != null,
+      text: confirmed.caption,
+      steps: [confirmed],
+      continue: false,
+      allowance: await assistantAllowance(user),
+    });
+  }
   if (body.mode === "ask") {
     const latest = [...turns].reverse().find((turn) => turn.role === "user");
-    if (/my feedback|my ticket|my bug|feedback status/.test((latest?.content || "").toLowerCase())) {
+    const latestText = latest?.content || "";
+    const guidePath = pathname.split("?")[0] || "";
+    const quoteId = guidePath.startsWith("/guide/") ? guidePath.split("/")[2] || "" : "";
+    const row = quoteId ? await getGuideQuote(user.id, quoteId) : null;
+    const meta = row ? readMarketMeta(row.sources) : null;
+    const screened = screenAnswer(latestText, {
+      pathname: guidePath,
+      planName: PLANS[user.plan].name,
+      quote: row
+        ? {
+            description: row.description,
+            priceCents: row.priceCents,
+            step: row.step,
+            note: row.note,
+            condition: conditionLabel(meta?.condition || "good"),
+            range: meta?.lowCents && meta?.highCents ? `${formatUsd(meta.lowCents)}–${formatUsd(meta.highCents)}` : "",
+          }
+        : null,
+    });
+    if (screened) return localReply(user, screened);
+    const askingPrice = /how much|worth|price|re-?price|what should i (ask|charge)|fair price|sold for/i.test(latestText);
+    const namesProduct = /switch|iphone|playstation|\bps5\b|airpods|xbox|macbook/i.test(latestText);
+    if (row?.description && (askingPrice || namesProduct)) {
+      const fromQuote = answerFromMarket(row.description, row.priceCents);
+      if (fromQuote) {
+        return localReply(user, fromQuote);
+      }
+    }
+    if (askingPrice || namesProduct) {
+      const fromMessage = answerFromMarket(latestText, row?.priceCents ?? null);
+      if (fromMessage) {
+        return localReply(user, fromMessage);
+      }
+    }
+    if (/my feedback|my ticket|my bug|feedback status/.test(latestText.toLowerCase())) {
       return Response.json({
         type: "message",
         configured: llmProvider() != null,
         text: await feedbackAssistantText(user.id),
+        allowance: await assistantAllowance(user),
       });
     }
-    const guidePath = pathname.split("?")[0] || "";
-    if (guidePath.startsWith("/guide/")) {
-      const quoteId = guidePath.split("/")[2] || "";
-      const row = quoteId ? await getGuideQuote(user.id, quoteId) : null;
-      const explained = explainPrice(latest?.content || "", row);
+    if (row) {
+      const explained = explainPrice(latestText, row);
       if (explained) {
-        return Response.json({ type: "message", configured: llmProvider() != null, text: explained });
+        return localReply(user, explained);
       }
-    }
-    const guided = guideAnswer(pathname, latest?.content || "");
-    if (guided) {
-      return Response.json({ type: "message", configured: llmProvider() != null, text: guided });
     }
   }
   const slice = await loadAccount(user.id, user.email);
@@ -104,6 +171,7 @@ export async function POST(request: Request) {
         type: "message",
         configured: true,
         text: text || "I could not find that in your account.",
+        allowance: await assistantAllowance(user),
       });
     } catch (error) {
       const text = error instanceof Error ? error.message : "The assistant failed.";
@@ -156,7 +224,7 @@ export async function POST(request: Request) {
         name: tool.name,
         args,
         caption: described.caption,
-        href: described.href,
+        href: appPath(described.href),
         spotlight: described.spotlight,
         needsConfirm: toolNeedsConfirm(tool.name, args),
       };

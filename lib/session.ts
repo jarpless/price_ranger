@@ -3,6 +3,8 @@ export const KIND_COOKIE = "pr_kind";
 export const DEV_LINK_COOKIE = "pr_dev_link";
 export const DEV_CODE_COOKIE = "pr_dev_code";
 export const PENDING_EMAIL_COOKIE = "pr_pending_email";
+/** signup = confirm-account mail (link). signin = magic-link mail (link and code). */
+export const EMAIL_KIND_COOKIE = "pr_email_kind";
 
 const DEV_SECRET = "price-ranger-dev-secret";
 

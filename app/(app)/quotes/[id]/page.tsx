@@ -40,11 +40,10 @@ export default async function QuotePage({
 
   return (
     <div className="space-y-4">
-      <div className="hidden lg:block">
-        <BackLink href="/quotes">{words.quotes}</BackLink>
-        <h1 className="mb-4 font-serif text-4xl">{quote.customerName}</h1>
+      <div className="hidden h-[calc(100dvh-5.75rem)] min-h-0 flex-col lg:flex">
+        <h1 className="mb-2 truncate font-serif text-title">{quote.customerName}</h1>
         {drifted ? (
-          <p className="mb-4 rounded-2xl bg-[#f8f1df] px-4 py-3 text-sm leading-relaxed text-ink">
+          <p className="mb-2 rounded-xl bg-[#f8f1df] px-3 py-2 text-sm leading-5 text-ink">
             Prices changed after you last presented. Present again to update the customer copy.
           </p>
         ) : null}

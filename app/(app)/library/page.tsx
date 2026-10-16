@@ -35,11 +35,11 @@ export default async function LibraryPage({
         </Link>
       </div>
       <Notice code={error} />
-      <section data-spotlight="price-add" className="space-y-3 rounded-3xl border border-line bg-paper p-4">
-        <h2 className="font-serif text-2xl">Add your own</h2>
-        <form action={createCustomItem} className="grid gap-3 lg:grid-cols-[1fr_160px_140px_auto] lg:items-end">
+      <section data-spotlight="price-add" className="surface page-stack">
+        <h2 className="font-serif text-title">Add your own</h2>
+        <form action={createCustomItem} className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] lg:items-end">
           <TextField label="Name" name="name" required placeholder="Tear-off and haul" />
-          <SelectField label="Unit" name="unit" defaultValue="square">
+          <SelectField label="Unit" name="unit" defaultValue="each">
             {UNIT_OPTIONS.map((unit) => (
               <option key={unit.value} value={unit.value}>
                 {unit.label}

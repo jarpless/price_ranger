@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth";
 import { buildStamp } from "@/lib/build-info";
 import { intakeFeedback } from "@/lib/feedback/intake";
+import { composeFeedbackBody, type FeedbackKind } from "@/lib/feedback/note";
 import type { TicketSource } from "@/lib/feedback/desk";
 import { listTicketMetas } from "@/lib/feedback/desk";
 import { listFeedback } from "@/lib/store/basecamp";
@@ -42,7 +43,29 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: "Sign in first." }, { status: 401 });
 
   const form = await request.formData();
-  const body = String(form.get("body") || "").replace(/\s+/g, " ").trim().slice(0, 2000);
+  const kindRaw = String(form.get("kind") || "");
+  const kind: FeedbackKind | undefined = kindRaw === "bug" || kindRaw === "feature" ? kindRaw : undefined;
+  const title = String(form.get("title") || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const answerA = String(form.get("answerA") || "").trim().slice(0, 2000);
+  const answerB = String(form.get("answerB") || "").trim().slice(0, 2000);
+  const selectionRaw = String(form.get("selection") || "");
+  const selectionParts = selectionRaw.split(",").map((part) => Number(part));
+  const selection =
+    selectionParts.length === 4 && selectionParts.every((part) => Number.isFinite(part))
+      ? { x: selectionParts[0], y: selectionParts[1], w: selectionParts[2], h: selectionParts[3] }
+      : null;
+  const url = String(form.get("url") || "").slice(0, 500);
+  const body = kind
+    ? composeFeedbackBody({
+        title,
+        kind,
+        answerA,
+        answerB,
+        selection,
+        url,
+        viewport: String(form.get("viewport") || "").slice(0, 40),
+      })
+    : String(form.get("body") || "").trim().slice(0, 2000);
   let png: Uint8Array | null = null;
   const extras: Uint8Array[] = [];
   try {
@@ -54,6 +77,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "That image is too large.";
     return Response.json({ error: message }, { status: 413 });
+  }
+  if (kind && answerA.length < 2 && answerB.length < 2) {
+    return Response.json({ error: "Add a note before sending." }, { status: 400 });
   }
   if (body.length < 4 && !png) {
     return Response.json({ error: "Add a note or a screenshot." }, { status: 400 });
@@ -85,6 +111,8 @@ export async function POST(request: Request) {
     extras,
     deviceId: String(form.get("deviceId") || "").slice(0, 80),
     source: sourceOf(String(form.get("source") || "")),
+    kind,
+    title,
   });
 
   return Response.json({
@@ -93,6 +121,5 @@ export async function POST(request: Request) {
     href: `/feedback/${result.report.id}`,
     githubIssueUrl: result.githubIssueUrl,
     githubError: result.githubError,
-    email: result.email,
   });
 }

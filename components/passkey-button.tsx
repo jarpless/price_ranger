@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-export function PasskeyButton() {
+export function PasskeyButton({ icon }: { icon?: ReactNode }) {
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -20,14 +20,15 @@ export function PasskeyButton() {
   }
 
   return (
-    <div className="mt-3">
+    <div>
       <button
         type="button"
         onClick={() => void signIn()}
         disabled={pending}
         aria-busy={pending}
-        className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-line bg-paper text-base font-semibold text-ink hover:border-pine disabled:opacity-60"
+        className="mt-0 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-paper text-base font-semibold text-ink hover:border-pine disabled:opacity-60"
       >
+        {icon}
         {pending ? "Checking this device…" : "Sign in with a passkey"}
       </button>
       {message ? <p className="mt-2 text-sm text-muted">{message}</p> : null}
@@ -53,7 +54,7 @@ export function PasskeyOffer() {
     <section className="rounded-3xl border border-line bg-paper p-5">
       <h2 className="font-serif text-2xl">Passkey</h2>
       <p className="mt-2 text-sm leading-relaxed text-muted">
-        Add a passkey so this device can sign in without a code. Turn on Passkeys in the Supabase dashboard first.
+        Add a passkey so this device can sign in without a code.
       </p>
       <button
         type="button"

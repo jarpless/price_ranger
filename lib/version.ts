@@ -1,10 +1,10 @@
 /** Single source of truth for the shipping version and ranger codename. */
-export const APP_VERSION = "2.2.2";
+export const APP_VERSION = "2.3.0";
 
-export const APP_CODENAME = "Ridgeline";
+export const APP_CODENAME = "Lookout";
 
-/** Shown on every screen. */
-export const VERSION_LABEL = "v2.2.2 Ridgeline";
+/** Shown in Settings. Consumer screens use this plain label. */
+export const VERSION_LABEL = "v2.3 Lookout";
 
 export interface Release {
   version: string;
@@ -54,15 +54,15 @@ export const RELEASES: Release[] = [
     version: "2.2.2",
     label: "v2.2.2 Ridgeline",
     codename: "Ridgeline",
-    state: "current",
+    state: "shipped",
     summary: "A photo that fails says so, the buyer total matches the seller, and the sign-in mark sits on a light plate.",
   },
   {
     version: "2.3.0",
     label: "v2.3 Lookout",
     codename: "Lookout",
-    state: "planned",
-    summary: "One live catalog feed, only with a written supplier agreement.",
+    state: "current",
+    summary: "Sold-listing ranges, a market card, branded sign-in codes, and plans you can manage.",
   },
   {
     version: "2.4.0",

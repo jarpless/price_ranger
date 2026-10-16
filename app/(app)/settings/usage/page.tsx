@@ -16,7 +16,6 @@ export default async function UsagePage() {
   const owner = isOwnerEmail(user.email);
   const allowance = await assistantAllowance(user);
   const rows = await listUsage(user.id, owner && dataBackend() !== "supabase");
-  const spent = rows.reduce((sum, row) => sum + row.costUsd, 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -25,7 +24,7 @@ export default async function UsagePage() {
       </Link>
       <h1 className="font-serif text-4xl">Usage</h1>
       <p className="text-sm leading-relaxed text-muted">
-        {PLANS[user.plan].name} allows {allowance.cap} assistant messages a month. {allowance.used} used. Estimated cost of the rows below is ${spent.toFixed(4)}. Checkout is not wired up in this version.
+        {PLANS[user.plan].name} includes {allowance.cap} assistant messages a month. {allowance.used} used.
       </p>
       {owner && dataBackend() === "supabase" ? (
         <p className="text-sm leading-relaxed text-muted">
@@ -37,7 +36,7 @@ export default async function UsagePage() {
           No model calls yet.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-line bg-paper">
+        <div className="scroll-x rounded-2xl border border-line bg-paper">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-muted">
               <tr>

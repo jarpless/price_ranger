@@ -29,31 +29,35 @@ export function Spotlight({
   }, [selector]);
 
   return (
-    <div className="fixed inset-0 z-[80]">
-      <div className="absolute inset-0 bg-pine-deep/45" />
-      {rect ? (
-        <div
-          className="absolute rounded-2xl ring-4 ring-gold"
-          style={{
-            top: Math.max(8, rect.top - 8),
-            left: Math.max(8, rect.left - 8),
-            width: rect.width + 16,
-            height: rect.height + 16,
-            boxShadow: "0 0 0 9999px rgba(19, 46, 36, 0.45)",
-          }}
-        />
-      ) : null}
-      <div className="absolute inset-x-4 bottom-24 z-[81] mx-auto max-w-lg rounded-3xl bg-paper p-4 text-ink shadow-2xl lg:bottom-8">
-        <p className="text-caption font-semibold uppercase tracking-wide text-pine">Price Ranger</p>
-        <p className="mt-1 text-sm leading-relaxed">{caption}</p>
-        <button
-          type="button"
-          onClick={onStop}
-          className="mt-3 h-11 rounded-2xl bg-[#8d3b32] px-4 text-sm font-semibold text-cream"
-        >
-          Stop
-        </button>
+    <>
+      <div className="pointer-events-none fixed inset-0 z-[55]">
+        <div className="pointer-events-auto absolute inset-0 bg-pine-deep/45" />
+        {rect ? (
+          <div
+            className="absolute rounded-2xl ring-4 ring-gold"
+            style={{
+              top: Math.max(8, rect.top - 8),
+              left: Math.max(8, rect.left - 8),
+              width: rect.width + 16,
+              height: rect.height + 16,
+              boxShadow: "0 0 0 9999px rgba(19, 46, 36, 0.45)",
+            }}
+          />
+        ) : null}
       </div>
-    </div>
+      {caption ? (
+        <div className="fixed inset-x-4 top-4 z-[80] mx-auto max-w-lg rounded-3xl bg-paper p-4 text-ink shadow-2xl lg:top-6">
+          <p className="text-caption font-semibold uppercase tracking-wide text-pine">Price Ranger</p>
+          <p className="mt-1 text-sm leading-relaxed">{caption}</p>
+          <button
+            type="button"
+            onClick={onStop}
+            className="mt-3 h-11 rounded-2xl bg-[#8d3b32] px-4 text-sm font-semibold text-cream"
+          >
+            Stop
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }

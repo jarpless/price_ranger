@@ -134,7 +134,7 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
         </button>
         {message ? <span className="text-muted">{message}</span> : null}
       </div>
-      <div className="overflow-x-auto rounded-3xl border border-line bg-paper">
+      <div className="scroll-x rounded-2xl border border-line bg-paper">
         <table data-spotlight="catalog-table" className="w-full min-w-[860px] text-left text-sm">
           <thead className="border-b border-line text-xs uppercase tracking-wide text-muted">
             <tr>

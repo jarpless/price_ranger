@@ -6,7 +6,7 @@ import { isMissingSchema } from "../guide/schema";
 import { createClient } from "../supabase/server";
 
 export type FeedbackKind = "bug" | "feature";
-export type FeedbackStatus = "new" | "planned" | "in_progress" | "shipped";
+export type FeedbackStatus = "triage" | "new" | "planned" | "in_progress" | "shipped";
 
 export interface FeedbackReport {
   id: string;
@@ -213,6 +213,7 @@ export async function createFeedback(input: {
   userAgent: string;
   consoleErrors: string[];
   png: Uint8Array | null;
+  email?: string;
 }): Promise<FeedbackReport> {
   const id = crypto.randomUUID();
   const createdAt = nowIso();
@@ -248,7 +249,7 @@ export async function createFeedback(input: {
     userAgent: input.userAgent,
     consoleErrors: input.consoleErrors.slice(0, 20),
     screenshotPath,
-    status: "new",
+    status: "triage",
     shippedIn: null,
     githubIssueUrl: null,
     createdAt,
@@ -265,7 +266,7 @@ export async function createFeedback(input: {
   }
 
   const client = await supabase();
-  const { error } = await client.from("feedback").insert({
+  const row: Record<string, unknown> = {
     id,
     user_id: input.userId,
     kind: input.kind,
@@ -278,10 +279,21 @@ export async function createFeedback(input: {
     user_agent: input.userAgent,
     console_errors: report.consoleErrors,
     screenshot_path: screenshotPath,
-    status: "new",
+    status: "triage",
+    email: (input.email || "").slice(0, 200),
     created_at: createdAt,
     updated_at: createdAt,
-  });
+  };
+  let { error } = await client.from("feedback").insert(row);
+  if (error && isMissingSchema(error)) {
+    delete row.email;
+    ({ error } = await client.from("feedback").insert(row));
+  }
+  if (error && /check constraint|23514|feedback_status_check/i.test(error.message)) {
+    row.status = "new";
+    report.status = "new";
+    ({ error } = await client.from("feedback").insert(row));
+  }
   if (error) throw new Error(error.message);
   return report;
 }

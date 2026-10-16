@@ -38,15 +38,17 @@ export function MyFeedbackList() {
   if (!tickets || tickets.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-line bg-paper p-3">
+    <div className="page-stack">
       <p className="text-caption font-semibold text-muted">Your feedback</p>
-      <ul className="mt-2 space-y-2">
+      <ul className="list-card">
         {tickets.slice(0, 4).map((ticket) => (
           <li key={ticket.id}>
-            <Link href={ticket.href} className="block text-body font-semibold text-pine">
-              {ticket.summary}
+            <Link href={ticket.href} className="list-row">
+              <span className="list-copy">
+                <span className="list-title">{ticket.summary}</span>
+                <span className="pill">{label(ticket.status)}</span>
+              </span>
             </Link>
-            <p className="text-caption text-muted">{label(ticket.status)}</p>
           </li>
         ))}
       </ul>

@@ -4,17 +4,22 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getSessionUser, requireUser, setLocalSession } from "@/lib/auth";
+import { adoptGuestAccount, LINK_COOKIE } from "@/lib/account/link";
+import { getSessionUser, requireUser, safeNext, setLocalSession } from "@/lib/auth";
+import { authErrorPath, classifyAuthError, isNextRedirect } from "@/lib/auth-errors";
 import { enabledOAuthButtons, type OAuthProvider } from "@/lib/auth-providers";
+import { isCompleteEmailCode, normalizeEmailCode } from "@/lib/auth-code";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip, isEmail } from "@/lib/form";
-import { PENDING_EMAIL_COOKIE } from "@/lib/session";
+import { DEV_CODE_COOKIE, DEV_LINK_COOKIE, EMAIL_KIND_COOKIE, PENDING_EMAIL_COOKIE } from "@/lib/session";
 import { getData } from "@/lib/store";
 import { reassignBasecamp } from "@/lib/store/basecamp";
 import {
   adoptLocalGuest,
   consumeEmailCode,
   createLocalPasswordAccount,
+  issueEmailCode,
+  issueMagicLink,
   setLocalIndustry,
   verifyLocalPassword,
 } from "@/lib/store/local";
@@ -22,12 +27,48 @@ import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/lib/types";
 import { isIndustryId, VOCABULARIES } from "@/lib/vocabulary";
 
+const linkCookie = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+};
+
+async function keepEmail(email: string) {
+  if (!isEmail(email)) return;
+  const store = await cookies();
+  store.set(PENDING_EMAIL_COOKIE, email, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 15,
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
+async function rememberLocalChallenge(email: string) {
+  await keepEmail(email);
+  if (dataBackend() !== "local") return;
+  const token = await issueMagicLink(email);
+  const code = await issueEmailCode(email);
+  if (process.env.NODE_ENV === "production") return;
+  const origin = siteOriginFromHeaders(await headers());
+  const cookieStore = await cookies();
+  const devCookie = { ...linkCookie, secure: false, maxAge: 60 * 15 };
+  cookieStore.set(DEV_LINK_COOKIE, `${origin}/auth/verify?token=${encodeURIComponent(token)}`, devCookie);
+  cookieStore.set(DEV_CODE_COOKIE, code, devCookie);
+}
+
 async function finishLocalSignIn(userId: string) {
+  const cookieStore = await cookies();
+  const linked = cookieStore.get(LINK_COOKIE)?.value || "";
   const current = await getSessionUser();
-  if (current?.guest && current.id !== userId) {
-    await adoptLocalGuest(current.id, userId);
-    await reassignBasecamp(current.id, userId);
+  const guestId = current?.guest && current.id !== userId ? current.id : linked && linked !== userId ? linked : "";
+  if (guestId) {
+    await adoptLocalGuest(guestId, userId);
+    await reassignBasecamp(guestId, userId);
   }
+  if (linked) cookieStore.set(LINK_COOKIE, "", { ...linkCookie, maxAge: 0 });
   await setLocalSession(userId, "user");
   revalidatePath("/", "layout");
   redirect("/");
@@ -39,7 +80,12 @@ function providerId(value: string): OAuthProvider | null {
 
 export async function startOAuth(formData: FormData) {
   const provider = providerId(clip(formData.get("provider"), 20));
-  if (!provider || dataBackend() !== "supabase") redirect("/login?error=provider");
+  if (!provider || dataBackend() !== "supabase") redirect("/signin?error=provider");
+  const next = clip(formData.get("next"), 200);
+  if (next) {
+    const cookieStore = await cookies();
+    cookieStore.set("pr_oauth_next", safeNext(next), { ...linkCookie, maxAge: 60 * 10 });
+  }
   const origin = siteOriginFromHeaders(await headers());
   const supabase = await createClient();
   const current = await getSessionUser();
@@ -47,75 +93,164 @@ export async function startOAuth(formData: FormData) {
   const result = current?.guest
     ? await supabase.auth.linkIdentity({ provider, options })
     : await supabase.auth.signInWithOAuth({ provider, options });
-  if (result.error || !result.data?.url) redirect("/login?error=provider");
+  if (result.error || !result.data?.url) redirect(authErrorPath(classifyAuthError(result.error || { code: "oauth_provider_not_supported", message: "Unsupported provider" })));
   redirect(result.data.url);
+}
+
+async function rememberGuest(guestId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(LINK_COOKIE, guestId, { ...linkCookie, maxAge: 60 * 60 * 24 * 30 });
+}
+
+async function rememberEmailKind(kind: "signin" | "signup") {
+  const cookieStore = await cookies();
+  cookieStore.set(EMAIL_KIND_COOKIE, kind, { ...linkCookie, maxAge: 60 * 30 });
+}
+
+async function consumeGuestLink(userId: string) {
+  const cookieStore = await cookies();
+  const guestId = cookieStore.get(LINK_COOKIE)?.value || "";
+  if (guestId) cookieStore.set(LINK_COOKIE, "", { ...linkCookie, maxAge: 0 });
+  if (!guestId || guestId === userId) return;
+  try {
+    await adoptGuestAccount(guestId, userId);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "Could not move the guest prices.");
+  }
 }
 
 export async function signInWithPassword(formData: FormData) {
   const email = clip(formData.get("email"), 160).toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!isEmail(email)) redirect("/login?error=email");
-  if (password.length < 8) redirect("/login?error=password");
+  if (!isEmail(email)) redirect("/signin?error=email");
+  if (password.length < 8) redirect("/signin?error=password");
 
   if (dataBackend() === "supabase") {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) redirect("/login?error=signin");
+    try {
+      const current = await getSessionUser();
+      if (current?.guest) {
+        await rememberGuest(current.id);
+        const clearing = await createClient({ allowAuthClear: true });
+        await clearing.auth.signOut();
+      }
+      const supabase = await createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        const classified = classifyAuthError(error);
+        await keepEmail(email);
+        if (classified.code === "unverified") redirect("/signin/sent?notice=unverified");
+        redirect(authErrorPath(classified));
+      }
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) redirect("/signin?notice=unavailable");
+      await consumeGuestLink(data.user.id);
+    } catch (error) {
+      if (isNextRedirect(error)) throw error;
+      redirect("/signin?error=auth");
+    }
     redirect("/");
   }
-  if (dataBackend() !== "local") redirect("/login?error=provider");
+  if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await verifyLocalPassword(email, password);
-  if (!user) redirect("/login?error=signin");
+  if (user === "unverified") {
+    await rememberLocalChallenge(email);
+    redirect("/signin/sent?notice=unverified");
+  }
+  if (!user) {
+    await keepEmail(email);
+    redirect("/signin?error=signin");
+  }
   await finishLocalSignIn(user.id);
 }
 
 export async function createPasswordAccount(formData: FormData) {
   const email = clip(formData.get("email"), 160).toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!isEmail(email)) redirect("/login?error=email");
-  if (password.length < 8) redirect("/login?error=password");
+  if (!isEmail(email)) redirect("/signin?error=email");
+  if (password.length < 8) redirect("/signin?error=password");
 
   if (dataBackend() === "supabase") {
-    const supabase = await createClient();
+    const supabase = await createClient({ allowAuthClear: true });
     const current = await getSessionUser();
-    if (current?.guest) {
-      const { error } = await supabase.auth.updateUser({ email, password });
-      if (error) redirect("/login?error=taken");
-      redirect(`/login/sent?email=${encodeURIComponent(email)}`);
-    }
     const origin = siteOriginFromHeaders(await headers());
+    if (current?.guest) {
+      await rememberGuest(current.id);
+      await supabase.auth.signOut();
+    }
+    await rememberEmailKind("signup");
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${origin}/auth/callback`,
+        data: current?.guest ? { link_guest: current.id } : undefined,
+      },
     });
-    if (error) redirect("/login?error=taken");
-    redirect(`/login/sent?email=${encodeURIComponent(email)}`);
+    if (error) {
+      await keepEmail(email);
+      redirect(authErrorPath(classifyAuthError(error)));
+    }
+    await keepEmail(email);
+    redirect("/signin/sent");
   }
-  if (dataBackend() !== "local") redirect("/login?error=provider");
+  if (dataBackend() !== "local") redirect("/signin?error=provider");
+  await rememberEmailKind("signup");
   const created = await createLocalPasswordAccount(email, password);
-  if (created === "taken") redirect("/login?error=taken");
-  if (created === "password") redirect("/login?error=password");
-  await finishLocalSignIn(created.id);
+  if (created === "taken") redirect("/signin?error=taken");
+  if (created === "password") redirect("/signin?error=password");
+  await rememberLocalChallenge(email);
+  redirect("/signin/sent");
 }
 
 export async function verifyEmailCode(formData: FormData) {
   const cookieStore = await cookies();
   const email = (cookieStore.get(PENDING_EMAIL_COOKIE)?.value || clip(formData.get("email"), 160)).toLowerCase();
-  const code = clip(formData.get("code"), 12).replace(/\s+/g, "");
-  if (!isEmail(email) || code.length < 6) {
-    redirect(`/login/sent?error=code&email=${encodeURIComponent(email)}`);
+  const code = normalizeEmailCode(clip(formData.get("code"), 16));
+  if (!isEmail(email) || !isCompleteEmailCode(code)) {
+    redirect("/signin/sent?error=incomplete");
   }
   if (dataBackend() === "supabase") {
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
-    if (error) redirect(`/login/sent?error=code&email=${encodeURIComponent(email)}`);
+    const types = ["signup", "email", "magiclink"] as const;
+    let verified = false;
+    for (const type of types) {
+      const { error } = await supabase.auth.verifyOtp({ email, token: code, type });
+      if (!error) {
+        verified = true;
+        break;
+      }
+    }
+    if (!verified) redirect("/signin/sent?error=code");
+    const { data } = await supabase.auth.getUser();
+    if (data.user) await consumeGuestLink(data.user.id);
     redirect("/");
   }
-  if (dataBackend() !== "local") redirect("/login?error=provider");
+  if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await consumeEmailCode(email, code);
-  if (!user) redirect(`/login/sent?error=code&email=${encodeURIComponent(email)}`);
+  if (!user) redirect("/signin/sent?error=code");
   await finishLocalSignIn(user.id);
+}
+
+export async function resendVerification(formData: FormData) {
+  const email = clip(formData.get("email"), 160).toLowerCase();
+  if (!isEmail(email)) redirect("/signin?error=email");
+  const cookieStore = await cookies();
+  const last = Number(cookieStore.get("pr_resend_at")?.value || 0);
+  if (Date.now() - last < 60_000) {
+    redirect(authErrorPath({ code: "rate_limit", retryAfterSeconds: Math.ceil((60_000 - (Date.now() - last)) / 1000), message: "" }));
+  }
+  if (dataBackend() === "supabase") {
+    const supabase = await createClient();
+    await rememberEmailKind("signup");
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    if (error) {
+      await keepEmail(email);
+      redirect(authErrorPath(classifyAuthError(error)));
+    }
+  }
+  await keepEmail(email);
+  cookieStore.set("pr_resend_at", String(Date.now()), { ...linkCookie, maxAge: 120 });
+  redirect("/signin/sent?notice=resent");
 }
 
 export async function chooseIndustry(formData: FormData) {

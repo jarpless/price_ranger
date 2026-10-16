@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your Price Ranger sign-in code</title>
+  </head>
+  <body style="margin:0;background:#f3eee4;color:#1c1915;font-family:Georgia, 'Iowan Old Style', serif;">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Your 8-digit code is {{ .Token }}. It expires in one hour.</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3eee4;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background:#fffdf8;border:1px solid #e3dacd;border-radius:24px;padding:32px 28px;">
+            <tr>
+              <td>
+                <p style="margin:0;font-family:Georgia, serif;font-size:22px;color:#1e4636;">Price Ranger</p>
+                <h1 style="margin:16px 0 8px;font-size:28px;line-height:1.2;font-weight:600;">Your sign-in code</h1>
+                <p style="margin:0 0 20px;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;color:#5e564e;">
+                  Enter this 8-digit code to sign in. It expires in one hour.
+                </p>
+                <p style="margin:0 0 24px;padding:16px 12px;border:2px solid #1e4636;border-radius:16px;text-align:center;font-family:Arial, Helvetica, sans-serif;font-size:36px;letter-spacing:8px;font-weight:700;color:#1e4636;">{{ .Token }}</p>
+                <p style="margin:0 0 16px;font-family:Arial, Helvetica, sans-serif;font-size:16px;line-height:1.5;">
+                  <a href="{{ .ConfirmationURL }}" style="color:#1e4636;">Or open this sign-in link</a>
+                </p>
+                <p style="margin:0;font-family:Arial, Helvetica, sans-serif;font-size:13px;line-height:1.4;color:#5e564e;">
+                  If you didn't ask to sign in to Price Ranger, you can ignore this email.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="font-family:Arial, Helvetica, sans-serif;font-size:12px;color:#5e564e;">Sent for {{ .Email }} · priceranger.app</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

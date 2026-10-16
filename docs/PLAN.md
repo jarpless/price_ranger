@@ -153,9 +153,9 @@ Providers, each turned on in the Supabase dashboard and then with a public flag 
 
 Apple stays hidden. v2.4 Outpost is where Sign in with Apple turns on, because an iOS app that offers other social logins has to offer it. Leave the flag unset until then.
 
-Email can be a magic link or the 6-digit code from the same message. Add `{{ .Token }}` to the Supabase magic-link email template or the code is not in the message. Email and password are available from the same screen. Passkeys use Supabase's Passkey provider: turn it on in the dashboard, then the signed-in settings screen offers "Add a passkey". `signInWithPasskey` is on the sign-in screen when Supabase is configured.
+Email can be a magic link or the 8-digit code from the same message. Add `{{ .Token }}` to the Supabase magic-link email template or the code is not in the message. Email and password are available from the same screen. Passkeys use Supabase's Passkey provider: turn it on in the dashboard, then the signed-in settings screen offers "Add a passkey". `signInWithPasskey` is on the sign-in screen when Supabase is configured.
 
-Local development, when both Supabase variables are unset: the server stores a hash of a single-use token and a 6-digit code for 15 minutes and the next screen shows both. The session is an HMAC cookie (`pr_session`) lasting 30 days, plus `pr_kind` (`guest` or `user`). The dev secret is fixed and is not used in production. Set `LOCAL_AUTH_SECRET` only if you want a private local secret.
+Local development, when both Supabase variables are unset: the server stores a hash of a single-use token and an 8-digit code for 15 minutes and the next screen shows both. The session is an HMAC cookie (`pr_session`) lasting 30 days, plus `pr_kind` (`guest` or `user`). The dev secret is fixed and is not used in production. Set `LOCAL_AUTH_SECRET` only if you want a private local secret.
 
 Set both Supabase variables or neither. Setting only one is treated as not configured.
 
@@ -243,7 +243,7 @@ Production checklist for the owner:
 
 1. Create a new Supabase project. Do not try to restore ref `whiwvlhjspyrunijzvtz`.
 2. Run `supabase/migrations/20261012000000_init.sql`, then `supabase/migrations/20261012010000_basecamp.sql`, then `supabase/migrations/20261012020000_account.sql`, in the SQL editor. The second file adds feedback, guided tours, and the private `feedback` storage bucket. The third adds industry, plan, assistant usage, and the public price-sheet token.
-3. Authentication → Providers. Enable Email. Add `{{ .Token }}` to the magic-link template so the 6-digit code is in the message. Enable Google, Facebook, and Azure only after each provider's client id and secret are saved, then set the matching `NEXT_PUBLIC_AUTH_*` flag. Leave Apple off. Enable Passkeys when you want the settings offer. Enable anonymous sign-ins so a guest draft can exist. Add `https://www.priceranger.app/auth/callback` and `http://localhost:3000/auth/callback` to the redirect allow list. Set the site URL to `https://www.priceranger.app`.
+3. Authentication → Providers. Enable Email. Add `{{ .Token }}` to the magic-link template so the 8-digit code is in the message. Do not change the project's OTP length. Enable Google, Facebook, and Azure only after each provider's client id and secret are saved, then set the matching `NEXT_PUBLIC_AUTH_*` flag. Leave Apple off. Enable Passkeys when you want the settings offer. Enable anonymous sign-ins so a guest draft can exist. Add `https://www.priceranger.app/auth/callback` and `http://localhost:3000/auth/callback` to the redirect allow list. Set the site URL to `https://www.priceranger.app`.
 4. In the Vercel project `price-ranger`, set the three variables above. Remove any old variables that point at the paused project.
 5. Confirm a magic link arrives, then sign in on a phone.
 6. Revoke unused Supabase personal access tokens. One was committed in the old tree at `app/.cursor/mcp.json`.

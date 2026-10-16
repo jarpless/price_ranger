@@ -2,16 +2,20 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { LINK_COOKIE } from "./account/link";
+import { classifyAuthError, type ClassifiedAuthError } from "./auth-errors";
 import { dataBackend } from "./env";
 import { effectivePlan, isPlanId, type PlanId } from "./plans";
 import {
   createSessionValue,
+  EMAIL_KIND_COOKIE,
   KIND_COOKIE,
   readSessionValue,
   SESSION_COOKIE,
   sessionSecret,
 } from "./session";
 import { getLocalUser, issueEmailCode, issueMagicLink } from "./store/local";
+import { readFreshSupabaseSession, readSupabaseCookieUser } from "./supabase/cookie-session";
 import { createClient } from "./supabase/server";
 import type { SessionUser } from "./types";
 import { isIndustryId } from "./vocabulary";
@@ -42,35 +46,83 @@ function accountFromRow(user: {
 }
 
 export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
+  try {
+    return await readSessionUser();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "Sign-in session could not be read.");
+    return sessionFromAuthCookie();
+  }
+});
+
+async function sessionFromAuthCookie(): Promise<SessionUser | null> {
+  if (dataBackend() !== "supabase") return null;
+  const cookieStore = await cookies();
+  const user = readSupabaseCookieUser(cookieStore.getAll());
+  if (!user) return null;
+  return accountFromRow({
+    id: user.id,
+    email: user.email || "",
+    guest: user.is_anonymous,
+    industry: null,
+    plan: "free",
+  });
+}
+
+async function profileFor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<{ industry: string | null; plan: string | null; passExpiresAt: string | null }> {
+  const empty = { industry: null, plan: "free" as string | null, passExpiresAt: null as string | null };
+  const profile = await supabase
+    .from("profiles")
+    .select("industry, plan, pass_expires_at")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profile.error || !profile.data) return empty;
+  const row = profile.data as { industry?: string | null; plan?: string | null; pass_expires_at?: string | null };
+  return {
+    industry: row.industry ?? null,
+    plan: row.plan ?? "free",
+    passExpiresAt: row.pass_expires_at ?? null,
+  };
+}
+
+async function readSessionUser(): Promise<SessionUser | null> {
   const backend = dataBackend();
   if (backend === "supabase") {
+    const cookieStore = await cookies();
+    const pairs = cookieStore.getAll();
+    const fresh = readFreshSupabaseSession(pairs);
+    if (fresh.status === "known" && !fresh.user) return null;
+
     const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    const authUser = data.user;
-    if (!authUser?.id) return null;
-    const guest = Boolean(authUser.is_anonymous) || !authUser.email;
-    let industry: string | null = null;
-    let plan: string | null = "free";
-    let passExpiresAt: string | null = null;
-    const profile = await supabase
-      .from("profiles")
-      .select("industry, plan, pass_expires_at")
-      .eq("id", authUser.id)
-      .maybeSingle();
-    if (!profile.error && profile.data) {
-      const row = profile.data as { industry?: string | null; plan?: string | null; pass_expires_at?: string | null };
-      industry = row.industry ?? null;
-      plan = row.plan ?? "free";
-      passExpiresAt = row.pass_expires_at ?? null;
+    let id = "";
+    let email = "";
+    let guest = false;
+
+    // A readable auth cookie is the session. Calling Auth from a Server Component
+    // rotates or clears that cookie, and the welcome page then looks signed out.
+    const cookieUser = readSupabaseCookieUser(pairs);
+    if (cookieUser) {
+      id = cookieUser.id;
+      email = cookieUser.email || "";
+      guest = cookieUser.is_anonymous;
+    } else if (fresh.status === "known") {
+      return null;
+    } else {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user?.id) return null;
+      id = data.user.id;
+      email = data.user.email || "";
+      guest = Boolean(data.user.is_anonymous) || !data.user.email;
     }
-    return accountFromRow({
-      id: authUser.id,
-      email: authUser.email || "",
-      guest,
-      industry,
-      plan,
-      passExpiresAt,
-    });
+
+    const profile = await profileFor(supabase, id).catch(() => ({
+      industry: null,
+      plan: "free" as string | null,
+      passExpiresAt: null as string | null,
+    }));
+    return accountFromRow({ id, email, guest, ...profile });
   }
   if (backend !== "local") return null;
 
@@ -80,7 +132,7 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Ses
   const user = await getLocalUser(userId);
   if (!user) return null;
   return accountFromRow(user);
-});
+}
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
@@ -100,27 +152,26 @@ export async function setLocalSession(userId: string, kind: "guest" | "user") {
 export async function requestMagicLink(
   email: string,
   origin: string,
-): Promise<{ devLink?: string; devCode?: string }> {
+): Promise<{ devLink?: string; devCode?: string; error?: ClassifiedAuthError }> {
   const backend = dataBackend();
   if (backend === "supabase") {
-    const supabase = await createClient();
+    const supabase = await createClient({ allowAuthClear: true });
+    const cookieStore = await cookies();
     const current = await getSessionUser();
     if (current?.guest) {
-      const { error } = await supabase.auth.updateUser(
-        { email },
-        { emailRedirectTo: `${origin}/auth/callback` },
-      );
-      if (error) throw new Error(error.message);
-      return {};
+      cookieStore.set(LINK_COOKIE, current.id, { ...cookieOptions, maxAge: 60 * 60 * 24 * 30 });
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) return { error: classifyAuthError(signOutError) };
     }
+    cookieStore.set(EMAIL_KIND_COOKIE, "signin", { ...cookieOptions, maxAge: 60 * 30 });
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${origin}/auth/callback` },
     });
-    if (error) throw new Error(error.message);
+    if (error) return { error: classifyAuthError(error) };
     return {};
   }
-  if (backend !== "local") throw new Error("Sign-in is not configured.");
+  if (backend !== "local") return { error: classifyAuthError({ code: "signup_disabled", message: "Sign-in is not configured." }) };
 
   const token = await issueMagicLink(email);
   const code = await issueEmailCode(email);
@@ -132,8 +183,9 @@ export async function requestMagicLink(
 }
 
 export async function signOutUser() {
+  // The guest id cookie stays. Sign-out must not orphan prices that still belong to this browser.
   if (dataBackend() === "supabase") {
-    const supabase = await createClient();
+    const supabase = await createClient({ allowAuthClear: true });
     await supabase.auth.signOut();
     return;
   }

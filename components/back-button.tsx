@@ -17,7 +17,7 @@ export function BackButton({ className = "" }: { className?: string }) {
       aria-label="Back"
       onClick={() => {
         vibrate();
-        router.push(backTarget(pathname));
+        router.push(backTarget(pathname, window.matchMedia("(min-width: 64rem)").matches));
       }}
       className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-current ${className}`}
     >

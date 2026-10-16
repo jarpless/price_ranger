@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requestMagicLink, requireUser, signOutUser } from "@/lib/auth";
+import { authErrorPath, classifyAuthError, isNextRedirect } from "@/lib/auth-errors";
 import { siteOriginFromHeaders } from "@/lib/env";
 import { clip, isEmail } from "@/lib/form";
 import { parseDollarsToCents, parseQuantity } from "@/lib/money";
@@ -21,10 +22,10 @@ function refresh() {
 
 export async function sendMagicLink(formData: FormData) {
   const email = clip(formData.get("email"), 160).toLowerCase();
-  if (!isEmail(email)) redirect("/login?error=email");
+  if (!isEmail(email)) redirect("/signin?error=email");
 
   const origin = siteOriginFromHeaders(await headers());
-  const result = await requestMagicLink(email, origin);
+  let result: Awaited<ReturnType<typeof requestMagicLink>>;
   const cookieStore = await cookies();
   cookieStore.set(PENDING_EMAIL_COOKIE, email, {
     httpOnly: true,
@@ -33,6 +34,13 @@ export async function sendMagicLink(formData: FormData) {
     path: "/",
     maxAge: 60 * 15,
   });
+  try {
+    result = await requestMagicLink(email, origin);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    redirect(authErrorPath(classifyAuthError(error)));
+  }
+  if (result.error) redirect(authErrorPath(result.error));
   if (result.devLink) {
     cookieStore.set(DEV_LINK_COOKIE, result.devLink, {
       httpOnly: true,
@@ -51,12 +59,12 @@ export async function sendMagicLink(formData: FormData) {
       maxAge: 60 * 15,
     });
   }
-  redirect(`/login/sent?email=${encodeURIComponent(email)}`);
+  redirect("/signin/sent");
 }
 
 export async function signOut() {
   await signOutUser();
-  redirect("/login");
+  redirect("/signin");
 }
 
 export async function createQuote(formData: FormData) {
@@ -154,7 +162,7 @@ export async function deleteTier(formData: FormData) {
 export async function presentQuote(formData: FormData) {
   const user = await requireUser();
   const quoteId = clip(formData.get("quoteId"), 80);
-  if (user.guest) redirect(`/login?reason=save&next=/quotes/${quoteId}`);
+  if (user.guest) redirect(`/signin?reason=save&next=/quotes/${quoteId}`);
   const data = await getData();
   const quote = await data.getQuote(user.id, quoteId);
   if (!quote) redirect("/");
