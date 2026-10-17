@@ -149,6 +149,8 @@ test("titles skip labels and priced lines, then fall back to a file name", () =>
   assert.equal(draft.customerName, "Dana Lee");
   const listing = draftFromRules([{ name: "Pasted text", kind: "text", tabular: false, text: "Nintendo Switch OLED, white. Barely used, with case. Asking $250-$300" }], ["Pasted text"]);
   assert.equal(listing.title, "Nintendo Switch OLED");
+  const longer = draftFromRules([{ name: "Pasted text", kind: "text", tabular: false, text: "Nintendo Switch OLED, white. Barely used, with case and box. Asking $250-$300" }], ["Pasted text"]);
+  assert.equal(longer.title, "Nintendo Switch OLED");
   assert.equal(parseTextLine("Plus 3 hours of patching at $65")?.name, "Patching");
 });
 

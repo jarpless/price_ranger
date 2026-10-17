@@ -262,7 +262,7 @@ function firstTitle(inputs: ReadContext[]): string {
     if (input.tabular || input.kind === "transcript") continue;
     for (const raw of input.text.split("\n").slice(0, 12)) {
       const line = raw.replace(/^#+\s*/, "").trim();
-      if (!line || line.length > 70 || !/[a-z]/i.test(line)) continue;
+      if (!line || line.length > 240 || !/[a-z]/i.test(line)) continue;
       if (/^(?:estimate|quote|invoice|bid|proposal)\s*#?\s*\d*$/i.test(line)) continue;
       if (/^[A-Za-z][\w ]{0,24}:\s*\S/.test(line)) continue;
       const parsed = parseTextLine(line);
@@ -271,7 +271,8 @@ function firstTitle(inputs: ReadContext[]): string {
         if (inputs.length > 1) continue;
         return shortTitle(parsed.name);
       }
-      return line.replace(/[:.]+$/, "").slice(0, 80);
+      const title = shortTitle(line.replace(/[:.]+$/, ""));
+      if (title.length <= 70) return title;
     }
   }
   for (const input of inputs) {
@@ -343,7 +344,7 @@ export function draftFromRules(inputs: ReadContext[], sourceNames: string[]): Co
   const lines = kept.flatMap((section) => section.lines);
   const units = new Set(lines.map((line) => line.unit));
   const format = lines.length > 1 || kept.length > 1 || [...units].some((unit) => unit !== "each") ? "job" : "item";
-  const title = firstTitle(inputs) || lines[0]?.name || "";
+  const title = firstTitle(inputs) || shortTitle(lines[0]?.name || "");
   const missing: string[] = [];
   const unpriced = lines.filter((line) => line.unitPriceCents == null).length;
   if (unpriced) missing.push(`${unpriced} ${unpriced === 1 ? "line has" : "lines have"} no price in what you added.`);
