@@ -1,8 +1,8 @@
 /**
  * Builds the Price Ranger ranger badge.
- * The outline is a traced, symmetrized silhouette: raised crown, concave
- * shoulders, slightly bulged sides, and a curved tip. Lettering, stripes,
- * and the ranger figure are original.
+ * The outline is a few smooth curves fit to the reference silhouette:
+ * a flat raised plateau, concave dips into rounded shoulders, a slight
+ * side bulge, and a soft tip. Lettering, stripes, and the figure are original.
  *
  * Run: node scripts/build-emblems.mjs
  * Needs fontkit, @resvg/resvg-js, and sharp resolvable from /tmp/badge-tools
@@ -35,62 +35,100 @@ const pine = "#1E4636";
 const cream = "#F3EEE4";
 const paper = "#FFFDF8";
 const stripeDark = "#10281C";
-const stripeLight = "#D5C6B0";
+const stripeLight = "#8A7964";
 
-// Half-width of the traced metal silhouette, top to bottom, in source pixels
-// over a height of 1280. One chipped sample on the lower curve is repaired.
-const halfSrc = [
-  0, 168.5, 178.5, 314.5, 432, 440.5, 449.5, 458, 466, 474, 483.5, 492.5, 501, 517, 529, 537.5, 545.5, 548.5,
-  544, 535, 522.5, 514, 506, 501.5, 499.5, 499.5, 498.5, 499, 499, 500, 499, 499.5, 500, 499.5, 500, 499, 500,
-  500, 499.5, 499.5, 499.5, 496.5, 493.5, 496, 495, 495, 494.5, 497, 496.5, 496, 496, 496, 495.5, 496.5, 496.5,
-  495.5, 494.5, 496, 495.5, 496, 495.5, 494.5, 494.5, 494, 494.5, 494.5, 493, 493.5, 492, 488.5, 485, 481.5,
-  480.5, 474.5, 475, 467, 463, 454.5, 447, 437, 425, 412.5, 401, 386.5, 367.5, 350, 323.5, 294.5, 262.5, 229.5,
-  198, 173, 148, 127, 104.5, 81, 65, 47.5, 34, 19.5, 1,
-];
-const SRC_H = 1280;
+// Clean crown, shoulder, side, and tip. Points are on the reference silhouette
+// (photo pixels), then scaled into the badge. A flat plateau, a concave dip,
+// and a rounded shoulder are explicit, so the stroke stays smooth.
+const photoCx = 618.5;
+const photoTop = 124;
+const photoTip = 1402;
 const badgeTop = 36;
-const badgeH = 952;
+const badgeTip = 988;
 const badgeCx = 512;
-const toBadge = badgeH / SRC_H;
-const dividerT = 0.188;
+const fit = (badgeTip - badgeTop) / (photoTip - photoTop);
+const rightPhoto = [
+  [photoCx + 165, photoTop],
+  [photoCx + 182, photoTop + 22],
+  [photoCx + 205, photoTop + 46],
+  [photoCx + 240, photoTop + 66],
+  [photoCx + 280, photoTop + 77],
+  [photoCx + 315, photoTop + 79],
+  [photoCx + 360, photoTop + 72],
+  [photoCx + 405, photoTop + 54],
+  [photoCx + 430, photoTop + 62],
+  [photoCx + 460, photoTop + 108],
+  [photoCx + 500, photoTop + 168],
+  [photoCx + 534, photoTop + 230],
+  [photoCx + 548, photoTop + 280],
+  [photoCx + 534, photoTop + 500],
+  [photoCx + 514, photoTop + 700],
+  [photoCx + 498, photoTop + 880],
+  [photoCx + 420, photoTop + 1045],
+  [photoCx + 280, photoTop + 1165],
+  [photoCx + 140, photoTop + 1255],
+  [photoCx + 48, photoTop + 1318],
+  [photoCx, photoTip],
+];
 
-function halfAt(t) {
-  const x = Math.max(0, Math.min(100, t * 100));
-  const i = Math.min(99, Math.floor(x));
-  const f = x - i;
-  return (halfSrc[i] * (1 - f) + halfSrc[i + 1] * f) * toBadge;
+function mapPoint([x, y]) {
+  return [badgeCx + (x - photoCx) * fit, badgeTop + (y - photoTop) * fit];
+}
+
+function reflect([x, y]) {
+  return [2 * badgeCx - x, y];
 }
 
 function outlinePath() {
-  const right = [];
-  for (let i = 0; i <= 100; i++) {
-    const t = i / 100;
-    right.push([badgeCx + halfAt(t), badgeTop + t * badgeH]);
-  }
-  right[0] = [badgeCx, badgeTop];
-  right[100] = [badgeCx, badgeTop + badgeH];
-  const pts = right.slice();
-  for (let i = 99; i >= 1; i--) pts.push([badgeCx - (right[i][0] - badgeCx), right[i][1]]);
-  const n = pts.length;
+  const right = rightPhoto.map(mapPoint);
+  const leftPlat = mapPoint([photoCx - 165, photoTop]);
   const num = (v) => v.toFixed(2);
-  let d = `M${num(pts[0][0])} ${num(pts[0][1])}`;
-  for (let i = 0; i < n; i++) {
-    const p0 = pts[(i - 1 + n) % n];
-    const p1 = pts[i];
-    const p2 = pts[(i + 1) % n];
-    const p3 = pts[(i + 2) % n];
-    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += `C${num(c1x)} ${num(c1y)} ${num(c2x)} ${num(c2y)} ${num(p2[0])} ${num(p2[1])}`;
+  const cubics = [];
+  for (let i = 0; i < right.length - 1; i++) {
+    const p0 = i === 0 ? mapPoint([photoCx + 60, photoTop]) : right[i - 1];
+    const p1 = right[i];
+    const p2 = right[i + 1];
+    const p3 = right[Math.min(right.length - 1, i + 2)];
+    const last = i === right.length - 2;
+    let c1x;
+    let c1y;
+    let c2x;
+    let c2y;
+    if (last) {
+      const dirx = p1[0] - p0[0];
+      const diry = p1[1] - p0[1];
+      const len = Math.hypot(dirx, diry) || 1;
+      c1x = p1[0] + (dirx / len) * 28;
+      c1y = p1[1] + (diry / len) * 28;
+      c2x = p2[0];
+      c2y = p2[1] - 18;
+    } else {
+      c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    }
+    cubics.push({ c1: [c1x, c1y], c2: [c2x, c2y], end: p2 });
+  }
+  let d = `M${num(leftPlat[0])} ${num(leftPlat[1])}L${num(right[0][0])} ${num(right[0][1])}`;
+  for (const seg of cubics) {
+    d += `C${num(seg.c1[0])} ${num(seg.c1[1])} ${num(seg.c2[0])} ${num(seg.c2[1])} ${num(seg.end[0])} ${num(seg.end[1])}`;
+  }
+  for (let i = cubics.length - 1; i >= 0; i--) {
+    const seg = cubics[i];
+    const start = i === 0 ? right[0] : cubics[i - 1].end;
+    const c1 = reflect(seg.c2);
+    const c2 = reflect(seg.c1);
+    const end = reflect(start);
+    d += `C${num(c1[0])} ${num(c1[1])} ${num(c2[0])} ${num(c2[1])} ${num(end[0])} ${num(end[1])}`;
   }
   return `${d}Z`;
 }
 
 const outline = outlinePath();
-const dividerY = badgeTop + dividerT * badgeH;
-const seal = { cx: badgeCx, cy: 560 };
+const dividerY = mapPoint([photoCx, 364])[1];
+const shoulderX = mapPoint([photoCx + 548, photoTop])[0];
+const seal = { cx: badgeCx, cy: 568 };
 
 function place(box) {
   const scale = Math.min(box.w / vb.w, box.h / vb.h);
@@ -128,33 +166,39 @@ function textPath(font, text, { cx, baseline, cap, tracking, align = "center" })
 }
 
 function bannerText() {
-  // Both lines sit in the raised crown, above the shoulder rule.
-  const cap = 42;
+  // Even gaps: inner rim, PRICE, RANGER, then the shoulder rule.
+  const cap = 34;
   const scale = cap / (outfit.capHeight || 700);
   const price = textPath(outfit, "PRICE", {
     cx: badgeCx,
-    baseline: 128,
+    baseline: 126,
     cap,
-    tracking: trackingFor(outfit, "PRICE", 420, scale),
+    tracking: trackingFor(outfit, "PRICE", 280, scale),
   });
   const rangerLine = textPath(outfit, "RANGER", {
     cx: badgeCx,
     baseline: 184,
     cap,
-    tracking: trackingFor(outfit, "RANGER", 520, scale),
+    tracking: trackingFor(outfit, "RANGER", 360, scale),
   });
   return `${price} ${rangerLine}`;
 }
 
 const banner = bannerText();
 
+function stripeXs() {
+  const gap = 28;
+  const reach = shoulderX - badgeCx - 36;
+  const steps = Math.floor(reach / gap);
+  const xs = [];
+  for (let i = -steps; i <= steps; i++) xs.push(badgeCx + i * gap);
+  return xs;
+}
+
 function stripes(color, width) {
-  const lines = [];
-  const reach = halfAt(0.5) - 24;
-  for (let x = badgeCx - reach; x <= badgeCx + reach; x += 28) {
-    lines.push(`<line x1="${x.toFixed(1)}" y1="${dividerY + 8}" x2="${x.toFixed(1)}" y2="1040" stroke="${color}" stroke-width="${width}" />`);
-  }
-  return lines.join("");
+  return stripeXs()
+    .map((x) => `<line x1="${x.toFixed(1)}" y1="${(dividerY + 10).toFixed(1)}" x2="${x.toFixed(1)}" y2="1040" stroke="${color}" stroke-width="${width}" />`)
+    .join("");
 }
 
 function metrics(simplified) {
@@ -181,9 +225,9 @@ function emblem({ field, ink, stripe, sealFill, figureFill, simplified }) {
     ? ""
     : `<g clip-path="url(#badge-clip)">${stripes(stripe, 8)}</g>`;
   const words = simplified ? "" : `<g clip-path="url(#badge-clip)"><path fill="${ink}" d="${banner}"/></g>`;
-  const ruleHalf = halfAt(dividerT) - (simplified ? 52 : 34);
-  const rule = `<line x1="${(badgeCx - ruleHalf).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + ruleHalf).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="${ink}" stroke-width="${simplified ? 20 : 12}" stroke-linecap="butt"/>`;
-  const discR = m.innerEdge + 1;
+  const ruleHalf = shoulderX - badgeCx - (simplified ? 64 : 56);
+  const rule = `<line x1="${(badgeCx - ruleHalf).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + ruleHalf).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="${ink}" stroke-width="${simplified ? 18 : 11}" stroke-linecap="butt"/>`;
+  const discR = m.sealR + m.outerRing / 2 + 1;
   return `
   <defs>
     <clipPath id="badge-clip"><path d="${outline}"/></clipPath>
@@ -197,7 +241,7 @@ function emblem({ field, ink, stripe, sealFill, figureFill, simplified }) {
   ${figure(figureFill, m.figR, m.sealCy)}
   ${rule}
   ${words}
-  <g clip-path="url(#badge-clip)"><path fill="none" stroke="${ink}" stroke-width="${m.rim * 2}" stroke-linejoin="round" d="${outline}"/></g>
+  <g clip-path="url(#badge-clip)"><path fill="none" stroke="${ink}" stroke-width="${m.rim * 2}" stroke-linejoin="round" stroke-linecap="round" d="${outline}"/></g>
 `;
 }
 
@@ -205,14 +249,14 @@ function knockout({ simplified }) {
   const m = metrics(simplified);
   const holes = [];
   if (!simplified) {
-    for (let x = 180; x <= 844; x += 36) {
-      holes.push(`<line x1="${x}" y1="${dividerY + 12}" x2="${x}" y2="1000" stroke="#000" stroke-width="8"/>`);
+    for (const x of stripeXs()) {
+      holes.push(`<line x1="${x.toFixed(1)}" y1="${(dividerY + 10).toFixed(1)}" x2="${x.toFixed(1)}" y2="1040" stroke="#000" stroke-width="8"/>`);
     }
   }
   const box = m.figR * 1.7;
   const transform = place({ x: seal.cx - box / 2, y: m.sealCy - box / 2 - 2, w: box, h: box });
   const words = simplified ? "" : `<path fill="#000" d="${banner}"/>`;
-  const ruleHalf = halfAt(dividerT) - (simplified ? 52 : 34);
+  const ruleHalf = shoulderX - badgeCx - (simplified ? 64 : 56);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="${W}" height="${W}" role="img" aria-label="Price Ranger badge, one color">
   <title>Price Ranger badge, one color</title>
