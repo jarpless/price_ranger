@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { createPricedDraft, startAndPriceDirect } from "@/app/guide-actions";
 import { CAPTURE_STATE_KEY, readCaptureState, withCaptureState } from "@/lib/capture-state";
-import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market";
+import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market-shared";
 
 import { IconCamera } from "./icons";
 import { PhotoField } from "./photo-field";

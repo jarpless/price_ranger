@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { brandWordIn } from "./brand-words";
-import { suggestPrice } from "./guide/flow";
+import { suggestPrice } from "./guide/suggest";
 import { LANDING_CATEGORIES, landingStartHref, newPriceHref } from "./landing-categories";
 
 test("the landing page offers several industries, each with items one tap away", () => {
