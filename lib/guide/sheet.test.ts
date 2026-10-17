@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { linesAtAsking, settledTotal } from "./pricing";
-import { alignSheet, moveRow, sheetDisplay, sheetFromLines, sheetFromSources, sheetToMoneyLines, sheetTotalCents, sourcesWithSheet } from "./sheet";
+import { alignSheet, cellFormulaError, moveColumn, moveRow, sheetDisplay, sheetFromLines, sheetFromSources, sheetToMoneyLines, sheetTotalCents, sourcesWithSheet } from "./sheet";
 
 const oak = [
   { name: "Oak dining table", quantity: 1, unitPriceCents: 18000 },
@@ -72,6 +72,54 @@ test("rows move without changing the settled total", () => {
     sheetTotalCents(sheet, { percent: 0, includeFees: false }),
   );
   assert.equal(moveRow(sheet, 0, -1), sheet);
+});
+
+test("a delivery row keeps quantity and rate on the grid", () => {
+  const sheet = sheetFromLines([{ name: "Delivery", quantity: 2, unitPriceCents: 1500 }]);
+  const grid = sheetDisplay(sheet, { percent: 0, includeFees: false }, null);
+  assert.deepEqual(grid.columns, ["Item", "Qty", "Rate", "Amount"]);
+  assert.equal(grid.rows[0][0], "Delivery");
+  assert.equal(grid.rows[0][1], "2");
+  assert.equal(grid.rows[0][2], "15");
+  assert.equal(grid.rows[0][3], "$30");
+  assert.equal(sheetToMoneyLines(sheet)[0].quantity, 2);
+  assert.equal(sheetToMoneyLines(sheet)[0].unitPriceCents, 1500);
+});
+
+test("a calculated column counts toward the total only when asked", () => {
+  const sheet = sheetFromLines([{ name: "Labor", quantity: 2, unitPriceCents: 1500 }]);
+  sheet.columns.push({ id: "labor", label: "Labor", type: "formula", formula: "qty * 5" });
+  assert.equal(sheetTotalCents(sheet, { percent: 0, includeFees: false }), 3000);
+  const labor = sheet.columns.find((column) => column.id === "labor");
+  if (!labor) throw new Error("missing labor");
+  labor.countsInTotal = true;
+  assert.equal(sheetTotalCents(sheet, { percent: 0, includeFees: false }), 4000);
+  const grid = sheetDisplay(sheet, { percent: 0, includeFees: false }, null);
+  assert.equal(grid.columns[4], "Labor");
+  assert.equal(grid.rows[0][4], "$10");
+  assert.equal(grid.rows[0][1], "2");
+});
+
+test("a cell formula overrides the column and a loop is an error", () => {
+  const sheet = sheetFromLines([{ name: "Labor", quantity: 2, unitPriceCents: 1500 }]);
+  sheet.rows[0].formulas = { amount: "qty * 10" };
+  assert.equal(sheetToMoneyLines(sheet)[0].unitPriceCents, 2000);
+  const amount = sheet.columns.find((column) => column.id === "amount");
+  const rate = sheet.columns.find((column) => column.id === "rate");
+  if (!amount || !rate) throw new Error("missing column");
+  amount.formula = "rate";
+  rate.formula = "amount";
+  delete sheet.rows[0].formulas;
+  assert.equal(cellFormulaError(sheet, sheet.rows[0], "amount"), "This formula refers to itself.");
+  assert.equal(cellFormulaError(sheet, sheet.rows[0], "rate"), "This formula refers to itself.");
+});
+
+test("columns move left and right", () => {
+  const sheet = sheetFromLines([{ name: "Labor", quantity: 1, unitPriceCents: 1000 }]);
+  const moved = moveColumn(sheet, 2, -1);
+  assert.equal(moved.columns[1].id, "rate");
+  assert.equal(moved.columns[2].id, "qty");
+  assert.equal(moveColumn(sheet, 0, -1), sheet);
 });
 
 test("the sheet round-trips through sources and a nudge can update the rate", () => {

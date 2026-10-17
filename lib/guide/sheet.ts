@@ -9,11 +9,18 @@ export interface SheetColumn {
   label: string;
   type: SheetColumnType;
   formula?: string;
+  /** Extra calculated columns add into the line total only when this is true. Amount always counts. */
+  countsInTotal?: boolean;
 }
 
 export interface SheetRow {
   id: string;
   cells: Record<string, string>;
+  /**
+   * A formula for one cell. It overrides the column formula.
+   * An empty string means the typed cell value wins and the column formula is skipped.
+   */
+  formulas?: Record<string, string>;
 }
 
 export interface QuoteSheet {
@@ -106,11 +113,19 @@ export function normalizeSheet(value: unknown): QuoteSheet | null {
     const label = typeof column.label === "string" ? column.label.trim().slice(0, 40) : "";
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id) || id.length > 32 || !label || ids.has(id)) return null;
     ids.add(id);
-    if (type === "formula") {
-      const formula = typeof column.formula === "string" ? column.formula.trim().slice(0, 180) : "";
+    const countsInTotal = (entry as { countsInTotal?: unknown }).countsInTotal === true;
+    const rawFormula = typeof column.formula === "string" ? column.formula.trim().slice(0, 180) : "";
+    if (type === "formula" || rawFormula) {
+      const formula = rawFormula;
       const parsed = parseFormula(formula);
       if (!parsed.ok) return null;
-      columns.push({ id, label, type, formula });
+      columns.push({
+        id,
+        label,
+        type,
+        formula,
+        ...(countsInTotal ? { countsInTotal: true } : {}),
+      });
     } else {
       columns.push({ id, label, type });
     }
@@ -127,7 +142,24 @@ export function normalizeSheet(value: unknown): QuoteSheet | null {
       cells[column.id] = typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, 80) : "";
     }
     const id = typeof row.id === "string" && row.id.length > 0 && row.id.length < 40 ? row.id : `row-${index + 1}`;
-    rows.push({ id, cells });
+    const formulas: Record<string, string> = {};
+    const rawFormulas =
+      (entry as { formulas?: unknown }).formulas && typeof (entry as { formulas?: unknown }).formulas === "object"
+        ? ((entry as { formulas?: unknown }).formulas as Record<string, unknown>)
+        : {};
+    for (const column of columns) {
+      if (!Object.prototype.hasOwnProperty.call(rawFormulas, column.id)) continue;
+      const value = rawFormulas[column.id];
+      if (typeof value !== "string") continue;
+      const formula = value.trim().slice(0, 180);
+      if (!formula) {
+        formulas[column.id] = "";
+        continue;
+      }
+      if (!parseFormula(formula).ok) continue;
+      formulas[column.id] = formula;
+    }
+    rows.push({ id, cells, ...(Object.keys(formulas).length > 0 ? { formulas } : {}) });
   });
   return { version: 1, columns, rows };
 }
@@ -148,12 +180,29 @@ export function sourcesWithSheet(sources: string[], sheet: QuoteSheet): string[]
 }
 
 export function moveRow(sheet: QuoteSheet, index: number, direction: -1 | 1): QuoteSheet {
-  const next = index + direction;
-  if (index < 0 || next < 0 || index >= sheet.rows.length || next >= sheet.rows.length) return sheet;
-  const rows = sheet.rows.slice();
-  const [row] = rows.splice(index, 1);
-  rows.splice(next, 0, row);
-  return { ...sheet, rows };
+  return moveRowTo(sheet, index, index + direction);
+}
+
+export function moveRowTo(sheet: QuoteSheet, from: number, to: number): QuoteSheet {
+  const rows = reorder(sheet.rows, from, to);
+  return rows === sheet.rows ? sheet : { ...sheet, rows };
+}
+
+export function moveColumn(sheet: QuoteSheet, index: number, direction: -1 | 1): QuoteSheet {
+  return moveColumnTo(sheet, index, index + direction);
+}
+
+export function moveColumnTo(sheet: QuoteSheet, from: number, to: number): QuoteSheet {
+  const columns = reorder(sheet.columns, from, to);
+  return columns === sheet.columns ? sheet : { ...sheet, columns };
+}
+
+function reorder<T>(items: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return items;
+  const next = items.slice();
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
 }
 
 export function blankRow(sheet: QuoteSheet, index: number): SheetRow {
@@ -180,7 +229,11 @@ export function alignSheet(sheet: QuoteSheet, lines: MoneyLine[]): QuoteSheet {
       if (sheet.columns.some((column) => column.id === "rate")) cells.rate = dollarsInputValue(line.unitPriceCents);
     }
     for (const column of sheet.columns) cells[column.id] ??= "";
-    return { id: prev?.id ?? `row-${index + 1}`, cells };
+    return {
+      id: prev?.id ?? `row-${index + 1}`,
+      cells,
+      ...(prev?.formulas ? { formulas: { ...prev.formulas } } : {}),
+    };
   });
   const extras = sheet.rows.slice(lines.length).filter((row) => {
     const name = item ? row.cells[item.id] || "" : "";
@@ -190,30 +243,7 @@ export function alignSheet(sheet: QuoteSheet, lines: MoneyLine[]): QuoteSheet {
 }
 
 export function sheetToMoneyLines(sheet: QuoteSheet): MoneyLine[] {
-  const item = textColumn(sheet);
-  const amount = amountColumn(sheet);
-  const lines: MoneyLine[] = [];
-  for (const row of sheet.rows) {
-    const name = (item ? row.cells[item.id] : "").trim();
-    if (!name) continue;
-    const scope = rowScope(sheet, row);
-    const hasQty = sheet.columns.some((column) => column.id === "qty");
-    const qtyValue = numericCell(sheet, row, "qty", scope);
-    const qty = hasQty ? (Number.isFinite(qtyValue) && qtyValue > 0 ? qtyValue : 0) : 1;
-    const rateCents = moneyCents(row.cells.rate || "");
-    if (qty <= 0) {
-      lines.push({ name, quantity: 1, unitPriceCents: 0 });
-      continue;
-    }
-    const computed = amount ? formulaCents(amount, scope) : null;
-    const classicCents = Math.round(qty * rateCents);
-    if (computed == null || Math.abs(computed - classicCents) <= 1) {
-      lines.push({ name, quantity: qty, unitPriceCents: rateCents });
-    } else {
-      lines.push({ name, quantity: 1, unitPriceCents: computed });
-    }
-  }
-  return lines;
+  return projectLines(sheet, true);
 }
 
 export function sheetTotalCents(sheet: QuoteSheet, adjustment: Adjustment, askingCents: number | null = null): number {
@@ -221,41 +251,171 @@ export function sheetTotalCents(sheet: QuoteSheet, adjustment: Adjustment, askin
   return lines.length ? settledTotal(lines, adjustment) : 0;
 }
 
-/** Buyer-facing cells. The amount column is the settled price, so the share page matches. */
+/** Buyer-facing cells. The amount column is the settled line amount, so the share page matches. */
 export function sheetDisplay(sheet: QuoteSheet, adjustment: Adjustment, askingCents: number | null = null): SheetGrid {
-  const money = linesAtAsking(sheetToMoneyLines(sheet), askingCents, adjustment);
+  const base = projectLines(sheet, false);
+  const fullTotal = sheetTotalCents(sheet, adjustment, null);
+  const askingAdjustsBase = askingCents != null && askingCents !== fullTotal;
+  const money = linesAtAsking(base, askingAdjustsBase ? askingCents : null, adjustment);
   const settled = money.map((line) => lineSettlement(line, adjustment));
-  const named = sheet.rows.filter((row) => {
-    const item = textColumn(sheet);
-    return item ? Boolean((row.cells[item.id] || "").trim()) : false;
-  });
+  const named = namedRows(sheet);
   const amount = amountColumn(sheet);
   return {
     columns: sheet.columns.map((column) => column.label),
-    rows: named.map((row, index) =>
-      sheet.columns.map((column) => {
+    rows: named.map((row, index) => {
+      const solved = solveRow(sheet, row);
+      return sheet.columns.map((column) => {
         if (amount && column.id === amount.id) return settled[index] ? formatUsd(settled[index].cents) : "";
-        if (column.type === "formula") {
-          const scope = rowScope(sheet, row);
-          const cents = formulaCents(column, scope);
-          return cents == null ? "" : formatUsd(cents);
+        if (effectiveFormula(column, row) || column.type === "formula") {
+          if (solved.errors[column.id]) return "—";
+          const value = solved.scope[column.id];
+          return Number.isFinite(value) ? formatUsd(Math.round(value * 100)) : "";
         }
         return row.cells[column.id] || "";
-      }),
-    ),
+      });
+    }),
   };
+}
+
+export interface SolvedRow {
+  scope: Record<string, number>;
+  errors: Record<string, string>;
+}
+
+/** The formula that applies to one cell. A cell formula wins; otherwise the column formula. */
+export function effectiveFormula(column: SheetColumn, row: SheetRow): string {
+  if (row.formulas && Object.prototype.hasOwnProperty.call(row.formulas, column.id)) {
+    return row.formulas[column.id].trim();
+  }
+  if (column.type === "text") return "";
+  return (column.formula || "").trim();
+}
+
+export function solveRow(sheet: QuoteSheet, row: SheetRow): SolvedRow {
+  const scope: Record<string, number> = {};
+  const errors: Record<string, string> = {};
+  const formulas = new Map<string, string>();
+  for (const column of sheet.columns) {
+    if (column.type === "text") continue;
+    const formula = effectiveFormula(column, row);
+    if (formula) formulas.set(column.id, formula);
+    else if (column.type === "money") scope[column.id] = moneyCents(row.cells[column.id] || "") / 100;
+    else scope[column.id] = numberValue(row.cells[column.id] || "");
+  }
+  const state = new Map<string, "visiting" | "done">();
+
+  function solve(id: string, stack: string[]): number {
+    if (state.get(id) === "done") return scope[id] ?? Number.NaN;
+    if (state.get(id) === "visiting" || stack.includes(id)) {
+      errors[id] = "This formula refers to itself.";
+      scope[id] = Number.NaN;
+      state.set(id, "done");
+      return Number.NaN;
+    }
+    const formula = formulas.get(id);
+    if (!formula) return scope[id] ?? Number.NaN;
+    state.set(id, "visiting");
+    const nextStack = [...stack, id];
+    for (const ref of formulaRefs(formula)) {
+      if (formulas.has(ref)) solve(ref, nextStack);
+    }
+    if (errors[id] || nextStack.some((item) => errors[item] === "This formula refers to itself.")) {
+      errors[id] = "This formula refers to itself.";
+      scope[id] = Number.NaN;
+      state.set(id, "done");
+      return Number.NaN;
+    }
+    const result = evaluateFormula(formula, scope);
+    if (!result.ok) {
+      errors[id] = result.error;
+      scope[id] = Number.NaN;
+    } else {
+      scope[id] = result.value;
+    }
+    state.set(id, "done");
+    return scope[id];
+  }
+
+  for (const id of formulas.keys()) solve(id, []);
+  return { scope, errors };
+}
+
+export function cellFormulaError(sheet: QuoteSheet, row: SheetRow, columnId: string): string {
+  return solveRow(sheet, row).errors[columnId] || "";
 }
 
 export function formulaCellLabel(sheet: QuoteSheet, row: SheetRow, columnId: string): string {
   const column = sheet.columns.find((item) => item.id === columnId);
-  if (!column || column.type !== "formula" || !column.formula) return "—";
-  const result = evaluateFormula(column.formula, rowScope(sheet, row));
-  if (!result.ok) return "—";
-  return formatUsd(Math.round(result.value * 100));
+  if (!column) return "—";
+  const formula = effectiveFormula(column, row);
+  if (!formula && column.type !== "formula") return "—";
+  const solved = solveRow(sheet, row);
+  if (solved.errors[columnId]) return "—";
+  const value = solved.scope[columnId];
+  if (!Number.isFinite(value)) return "—";
+  return formatUsd(Math.round(value * 100));
 }
 
 export function formulaHints(sheet: QuoteSheet): FormulaColumnHint[] {
   return sheet.columns.map((column) => ({ id: column.id, label: column.label, type: column.type }));
+}
+
+function namedRows(sheet: QuoteSheet): SheetRow[] {
+  const item = textColumn(sheet);
+  return sheet.rows.filter((row) => (item ? Boolean((row.cells[item.id] || "").trim()) : false));
+}
+
+function projectLines(sheet: QuoteSheet, includeExtras: boolean): MoneyLine[] {
+  const item = textColumn(sheet);
+  const amount = amountColumn(sheet);
+  const lines: MoneyLine[] = [];
+  for (const row of namedRows(sheet)) {
+    const name = (item ? row.cells[item.id] : "").trim();
+    const solved = solveRow(sheet, row);
+    const hasQty = sheet.columns.some((column) => column.id === "qty");
+    const qtyValue = solved.scope.qty;
+    const qty = hasQty ? (Number.isFinite(qtyValue) && qtyValue > 0 ? qtyValue : 0) : 1;
+    const rateCents = Math.round((Number.isFinite(solved.scope.rate) ? solved.scope.rate : 0) * 100);
+    if (qty <= 0) {
+      lines.push({ name, quantity: 1, unitPriceCents: 0 });
+      continue;
+    }
+    const amountFormula = amount ? effectiveFormula(amount, row) : "";
+    const classicFormula = amountFormula.replace(/\s+/g, "") === "qty*rate";
+    const amountCents =
+      amount && !solved.errors[amount.id] && Number.isFinite(solved.scope[amount.id])
+        ? Math.round(solved.scope[amount.id] * 100)
+        : null;
+    const extra = includeExtras ? extraCents(sheet, row, solved, amount?.id) : 0;
+    const classicCents = Math.round(qty * rateCents);
+    if (
+      classicFormula &&
+      extra === 0 &&
+      amountCents != null &&
+      Math.abs(amountCents - classicCents) <= 1 &&
+      !solved.errors.qty &&
+      !solved.errors.rate
+    ) {
+      lines.push({ name, quantity: qty, unitPriceCents: rateCents });
+    } else {
+      const base = amountCents == null || (amount && solved.errors[amount.id]) ? 0 : amountCents;
+      lines.push({ name, quantity: 1, unitPriceCents: base + extra });
+    }
+  }
+  return lines;
+}
+
+function extraCents(sheet: QuoteSheet, row: SheetRow, solved: SolvedRow, amountId: string | undefined): number {
+  let extra = 0;
+  for (const column of sheet.columns) {
+    if (amountId && column.id === amountId) continue;
+    if (column.countsInTotal !== true) continue;
+    if (!effectiveFormula(column, row) || solved.errors[column.id]) continue;
+    const value = solved.scope[column.id];
+    if (!Number.isFinite(value)) continue;
+    extra += Math.round(value * 100);
+  }
+  return extra;
 }
 
 function formatQuantity(quantity: number): string {
@@ -266,48 +426,6 @@ function formatQuantity(quantity: number): string {
 function moneyCents(value: string): number {
   const parsed = parseDollarsToCents(value.replace(/[$,\s]/g, ""));
   return parsed == null ? 0 : parsed;
-}
-
-function numericCell(sheet: QuoteSheet, row: SheetRow, id: string, scope: Record<string, number>): number {
-  const column = sheet.columns.find((item) => item.id === id);
-  if (!column) return 0;
-  if (column.type === "money") return moneyCents(row.cells[id] || "") / 100;
-  if (column.type === "number") return scope[id] ?? 0;
-  return 0;
-}
-
-function formulaCents(column: SheetColumn, scope: Record<string, number>): number | null {
-  if (column.type !== "formula" || !column.formula) return null;
-  const result = evaluateFormula(column.formula, scope);
-  if (!result.ok) return null;
-  return Math.round(result.value * 100);
-}
-
-function rowScope(sheet: QuoteSheet, row: SheetRow): Record<string, number> {
-  const scope: Record<string, number> = {};
-  const pending = sheet.columns.filter((column) => column.type === "formula");
-  for (const column of sheet.columns) {
-    if (column.type === "money") scope[column.id] = moneyCents(row.cells[column.id] || "") / 100;
-    else if (column.type === "number") scope[column.id] = numberValue(row.cells[column.id] || "");
-  }
-  const seen = new Set<string>();
-  function solve(column: SheetColumn, stack: string[]): number {
-    if (Object.prototype.hasOwnProperty.call(scope, column.id)) return scope[column.id];
-    if (stack.includes(column.id)) return Number.NaN;
-    if (!column.formula) return Number.NaN;
-    const refs = formulaRefs(column.formula);
-    for (const ref of refs) {
-      const next = pending.find((item) => item.id === ref);
-      if (next && !seen.has(next.id)) solve(next, [...stack, column.id]);
-    }
-    const result = evaluateFormula(column.formula, scope);
-    const value = result.ok ? result.value : Number.NaN;
-    scope[column.id] = value;
-    seen.add(column.id);
-    return value;
-  }
-  for (const column of pending) solve(column, []);
-  return scope;
 }
 
 function numberValue(value: string): number {
