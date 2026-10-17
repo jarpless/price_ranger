@@ -1,5 +1,5 @@
 import { getSessionUser } from "@/lib/auth";
-import { featureRequestBody, featureRequestTitle, isTradeId, tradeLabelName } from "@/lib/beta";
+import { featureRequestBody, featureRequestTitle, isTradeId, needIsValid, tradeLabelName } from "@/lib/beta";
 import { buildStamp } from "@/lib/build-info";
 import { intakeFeedback } from "@/lib/feedback/intake";
 import { composeFeedbackBody, type FeedbackKind } from "@/lib/feedback/note";
@@ -31,6 +31,7 @@ async function featureRequest(form: FormData, user: SessionUser): Promise<Respon
   const trade = String(form.get("trade") || "");
   if (!isTradeId(trade)) return Response.json({ error: "Pick the trade this is for." }, { status: 400 });
   const need = String(form.get("need") || "").trim().slice(0, 1500);
+  if (!needIsValid(need)) return Response.json({ error: "Tell us what you need." }, { status: 400 });
   const route = String(form.get("route") || "/").slice(0, 200);
   const body = featureRequestBody({ trade, need, followUp: form.get("followUp") === "1", route });
   const stamp = buildStamp();
