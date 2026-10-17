@@ -2,6 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { redirect } from "next/navigation";
 
 import { startSample } from "@/app/guide-actions";
+import { BetaNote } from "@/components/beta";
 import { GuideSetupNotice } from "@/components/guide-setup-notice";
 import { PrimaryDock } from "@/components/primary-dock";
 import { SubmitButton } from "@/components/ui";
@@ -59,6 +60,7 @@ export default async function HomePage() {
                 Try a sample
               </SubmitButton>
             </form>
+            <BetaNote variant="home" />
           </div>
           <ol className="page-stack">
             {[
@@ -107,6 +109,7 @@ export default async function HomePage() {
           </Link>
         ) : null}
       </div>
+      <BetaNote variant="home" />
       <div className="content-split">
         <ul className="list-card">
           {quotes.slice(0, 12).map((quote) => (
