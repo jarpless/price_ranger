@@ -27,7 +27,7 @@ Apple and Google buttons are always shown. They work after those providers are e
 
 Enable anonymous sign-ins for guest drafts. Enable Passkeys in the dashboard before the passkey button can succeed.
 
-Plan prices and assistant caps live in `lib/plans.ts`. Stripe checkout stays in test mode (`sk_test_` only). `SUPABASE_SERVICE_ROLE_KEY` stays on the server and is required to link a guest, update a plan, and delete an account.
+Plan prices and assistant caps live in `lib/plans.ts`. Stripe stays in test mode unless `STRIPE_SECRET_KEY` is an `sk_live_` key. Price ids, the webhook secret, and the secret key all come from the environment. The live-mode checklist is [docs/STRIPE_LIVE_CHECKLIST.md](docs/STRIPE_LIVE_CHECKLIST.md). `SUPABASE_SERVICE_ROLE_KEY` stays on the server and is required to link a guest, update a plan, and delete an account.
 
 Optional, all server-side:
 

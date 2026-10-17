@@ -5,7 +5,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireUser, safeNext } from "@/lib/auth";
-import { createCheckout, parseCheckoutChoice, readCheckout, stripeTestKey } from "@/lib/billing";
+import { createCheckout, parseCheckoutChoice, readCheckout, stripeSecretKey } from "@/lib/billing";
 import { saveBillingProfile } from "@/lib/account/billing-profile";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip } from "@/lib/form";
@@ -562,7 +562,7 @@ export async function startCheckout(formData?: FormData) {
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
   await recordFunnel(user.id, "upgrade_viewed", { variant: guide.variant, source: "checkout" });
-  if (!stripeTestKey()) redirect("/upgrade?error=payments");
+  if (!stripeSecretKey()) redirect("/upgrade?error=payments");
   const choice = parseCheckoutChoice(
     clip(formData?.get("plan") ?? "plus", 20),
     clip(formData?.get("interval") ?? "month", 10),
@@ -585,7 +585,7 @@ export async function startCheckout(formData?: FormData) {
 
 export async function startPortal() {
   const user = await requireUser();
-  if (!stripeTestKey()) redirect("/settings/billing?notice=unavailable");
+  if (!stripeSecretKey()) redirect("/settings/billing?notice=unavailable");
   const { readBillingProfile } = await import("@/lib/account/billing-profile");
   const { createPortal, findCustomerId } = await import("@/lib/billing");
   const profile = await readBillingProfile(user.id);
@@ -652,7 +652,7 @@ export async function finishCheckout(sessionId: string) {
 
 export async function cancelSubscription() {
   const user = await requireUser();
-  if (!stripeTestKey()) redirect("/settings/billing?notice=unavailable");
+  if (!stripeSecretKey()) redirect("/settings/billing?notice=unavailable");
   const { readBillingProfile } = await import("@/lib/account/billing-profile");
   const { cancelActiveSubscriptions, findCustomerId } = await import("@/lib/billing");
   const profile = await readBillingProfile(user.id);

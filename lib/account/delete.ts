@@ -1,4 +1,4 @@
-import { cancelActiveSubscriptions, findCustomerId, stripeTestKey } from "../billing";
+import { cancelActiveSubscriptions, findCustomerId, stripeSecretKey } from "../billing";
 import { dataBackend } from "../env";
 import { deleteGuideAccount } from "../guide/store";
 import { signOutUser } from "../auth";
@@ -20,7 +20,7 @@ export const SERVICE_ROLE_ENV = "SUPABASE_SERVICE_ROLE_KEY";
  * and is never returned to the client.
  */
 async function cancelStripeFor(userId: string, email: string): Promise<string> {
-  if (!stripeTestKey()) return "";
+  if (!stripeSecretKey()) return "";
   try {
     const { readBillingProfile } = await import("./billing-profile");
     const profile = await readBillingProfile(userId);

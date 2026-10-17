@@ -33,10 +33,59 @@ export interface ConfirmedCheckout {
   renewsAt: string | null;
 }
 
-export function stripeTestKey(): string | null {
+export type StripeMode = "off" | "test" | "live";
+
+/**
+ * Test mode is the default. A missing key, or any key that is not an sk_test_ or
+ * sk_live_ secret, leaves payments off. Live mode starts only when STRIPE_SECRET_KEY
+ * is an sk_live_ secret. The key itself is never returned to the browser or logs.
+ */
+export function stripeMode(): StripeMode {
   const key = process.env.STRIPE_SECRET_KEY?.trim() || "";
-  if (!key.startsWith("sk_test_")) return null;
-  return key;
+  if (key.startsWith("sk_live_")) return "live";
+  if (key.startsWith("sk_test_")) return "test";
+  return "off";
+}
+
+export function stripeSecretKey(): string | null {
+  if (stripeMode() === "off") return null;
+  return process.env.STRIPE_SECRET_KEY!.trim();
+}
+
+/** The secret only when the configured key is an sk_test_ key. */
+export function stripeTestKey(): string | null {
+  if (stripeMode() !== "test") return null;
+  return process.env.STRIPE_SECRET_KEY!.trim();
+}
+
+export function stripeWebhookSecret(): string {
+  return process.env.STRIPE_WEBHOOK_SECRET?.trim() || "";
+}
+
+export function stripeModeLabel(): string {
+  const mode = stripeMode();
+  if (mode === "live") return "Stripe live mode.";
+  if (mode === "test") return "Stripe test mode.";
+  return "Stripe is off. Test mode is the default until a test or live secret key is set.";
+}
+
+let loggedStripeMode = "";
+
+/** Logs the mode name only. Never logs the secret, webhook secret, or price ids. */
+export function logStripeMode(where: string): void {
+  const mode = stripeMode();
+  const stamp = `${mode}|${where}`;
+  if (loggedStripeMode === stamp) return;
+  loggedStripeMode = stamp;
+  console.info(`Stripe mode: ${mode} (${where}).`);
+}
+
+/** True when a webhook object's livemode flag matches the configured key. */
+export function stripeEventMatchesConfiguredMode(livemode: unknown): boolean {
+  const mode = stripeMode();
+  if (mode === "test") return livemode === false;
+  if (mode === "live") return livemode === true;
+  return false;
 }
 
 export function parseCheckoutChoice(plan: string, interval: string): CheckoutChoice | null {
@@ -46,11 +95,32 @@ export function parseCheckoutChoice(plan: string, interval: string): CheckoutCho
   return null;
 }
 
-function priceEnv(choice: CheckoutChoice): string {
-  if (choice.plan === "pass") return process.env.STRIPE_PRICE_PASS?.trim() || "";
-  if (choice.plan === "plus" && choice.interval === "year") return process.env.STRIPE_PRICE_PLUS_YEAR?.trim() || "";
-  if (choice.plan === "plus") return process.env.STRIPE_PRICE_PLUS_MONTH?.trim() || "";
-  return process.env.STRIPE_PRICE_PRO_MONTH?.trim() || "";
+export function stripePriceEnvName(choice: CheckoutChoice): string {
+  if (choice.plan === "pass") return "STRIPE_PRICE_PASS";
+  if (choice.plan === "plus" && choice.interval === "year") return "STRIPE_PRICE_PLUS_YEAR";
+  if (choice.plan === "plus") return "STRIPE_PRICE_PLUS_MONTH";
+  return "STRIPE_PRICE_PRO_MONTH";
+}
+
+/** Price id from the environment. Empty when that variable is unset. Never a hard-coded id. */
+export function stripePriceId(choice: CheckoutChoice): string {
+  return process.env[stripePriceEnvName(choice)]?.trim() || "";
+}
+
+export type CheckoutPrice =
+  | { source: "env"; priceId: string }
+  | { source: "inline"; amountCents: number }
+  | { source: "missing"; envName: string };
+
+/**
+ * Live checkout requires a price id from the environment.
+ * Test mode uses that id when it is set, and otherwise the amounts in lib/plans.ts.
+ */
+export function resolveCheckoutPrice(choice: CheckoutChoice): CheckoutPrice {
+  const priceId = stripePriceId(choice);
+  if (priceId) return { source: "env", priceId };
+  if (stripeMode() === "live") return { source: "missing", envName: stripePriceEnvName(choice) };
+  return { source: "inline", amountCents: amountFor(choice) };
 }
 
 function amountFor(choice: CheckoutChoice): number {
@@ -68,7 +138,8 @@ function productName(choice: CheckoutChoice): string {
 }
 
 async function stripeFetch(path: string, init?: { method?: string; body?: URLSearchParams }): Promise<Response> {
-  const key = stripeTestKey();
+  logStripeMode("api");
+  const key = stripeSecretKey();
   if (!key) throw new Error("Payments are coming soon.");
   return fetch(`https://api.stripe.com/v1/${path}`, {
     method: init?.method || (init?.body ? "POST" : "GET"),
@@ -106,16 +177,21 @@ export async function createCheckout(input: {
     body.set("subscription_data[metadata][plan]", choice.plan);
   }
   if (input.email) body.set("customer_email", input.email);
-  const price = priceEnv(choice);
-  if (price) {
-    body.set("line_items[0][price]", price);
+  if (input.email && choice.interval === "once") body.set("payment_intent_data[receipt_email]", input.email);
+  if (process.env.STRIPE_AUTOMATIC_TAX?.trim() === "true") body.set("automatic_tax[enabled]", "true");
+  const price = resolveCheckoutPrice(choice);
+  if (price.source === "missing") {
+    throw new Error(`Set ${price.envName} before live checkout.`);
+  }
+  if (price.source === "env") {
+    body.set("line_items[0][price]", price.priceId);
   } else if (choice.interval === "once") {
     body.set("line_items[0][price_data][currency]", "usd");
-    body.set("line_items[0][price_data][unit_amount]", String(amountFor(choice)));
+    body.set("line_items[0][price_data][unit_amount]", String(price.amountCents));
     body.set("line_items[0][price_data][product_data][name]", productName(choice));
   } else {
     body.set("line_items[0][price_data][currency]", "usd");
-    body.set("line_items[0][price_data][unit_amount]", String(amountFor(choice)));
+    body.set("line_items[0][price_data][unit_amount]", String(price.amountCents));
     body.set("line_items[0][price_data][recurring][interval]", choice.interval);
     body.set("line_items[0][price_data][product_data][name]", productName(choice));
   }
@@ -123,7 +199,7 @@ export async function createCheckout(input: {
   const response = await stripeFetch("checkout/sessions", { body });
   const payload = (await response.json()) as { url?: string; error?: { message?: string } };
   if (!response.ok || !payload.url) {
-    throw new Error(payload.error?.message || "Stripe could not start the test checkout.");
+    throw new Error(payload.error?.message || "Stripe could not start checkout.");
   }
   return payload.url;
 }
@@ -143,12 +219,12 @@ async function subscriptionRenews(subscriptionId: string | null): Promise<string
 }
 
 export async function readCheckout(sessionId: string, userId: string): Promise<ConfirmedCheckout | null> {
-  const key = stripeTestKey();
+  const key = stripeSecretKey();
   if (!key || !sessionId.startsWith("cs_")) return null;
   const response = await stripeFetch(`checkout/sessions/${encodeURIComponent(sessionId)}`);
   if (!response.ok) return null;
   const session = (await response.json()) as StripeSession;
-  if (session.livemode) return null;
+  if (!stripeEventMatchesConfiguredMode(session.livemode)) return null;
   const owner = session.metadata?.userId || session.client_reference_id;
   if (owner !== userId) return null;
   const plan = session.metadata?.plan === "pass" || session.metadata?.plan === "pro" || session.metadata?.plan === "plus"
@@ -188,7 +264,7 @@ export async function createPortal(input: { customerId: string; origin: string }
   const response = await stripeFetch("billing_portal/sessions", { body });
   const payload = (await response.json()) as { url?: string; error?: { message?: string } };
   if (!response.ok || !payload.url) {
-    throw new Error(payload.error?.message || "The billing portal is not available in this test account yet.");
+    throw new Error(payload.error?.message || "The billing portal is not available yet.");
   }
   return payload.url;
 }
@@ -216,7 +292,7 @@ export interface BillingInvoice {
 }
 
 export async function readBillingDetails(customerId: string | null): Promise<{ card: BillingCard | null; invoices: BillingInvoice[] }> {
-  if (!customerId || !stripeTestKey()) return { card: null, invoices: [] };
+  if (!customerId || !stripeSecretKey()) return { card: null, invoices: [] };
   const [cards, invoices] = await Promise.all([
     stripeFetch(`payment_methods?customer=${encodeURIComponent(customerId)}&type=card&limit=1`).catch(() => null),
     stripeFetch(`invoices?customer=${encodeURIComponent(customerId)}&limit=6`).catch(() => null),
@@ -247,7 +323,7 @@ export async function readBillingDetails(customerId: string | null): Promise<{ c
   return { card, invoices: list };
 }
 
-/** Cancels every active or trialing test-mode subscription for this customer. */
+/** Cancels every active, trialing, or past-due subscription in the configured Stripe mode. */
 export async function cancelActiveSubscriptions(customerId: string): Promise<number> {
   const response = await stripeFetch(`subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=20`);
   if (!response.ok) return 0;
@@ -314,10 +390,19 @@ async function setWebhookPlan(userId: string, plan: PlanId, passExpires: string 
   }
 }
 
-/** Applies a verified test-mode Stripe event. Live-mode events are ignored. */
-export async function applyStripeWebhook(event: { type?: string; data?: { object?: Record<string, unknown> } }): Promise<void> {
+/** Applies a verified Stripe event when its livemode matches the configured key. */
+export async function applyStripeWebhook(event: {
+  type?: string;
+  livemode?: boolean;
+  data?: { object?: Record<string, unknown> };
+}): Promise<void> {
   const object = event.data?.object;
-  if (!object || object.livemode === true) return;
+  if (!object) return;
+  const livemode = object.livemode !== undefined ? object.livemode : event.livemode;
+  if (!stripeEventMatchesConfiguredMode(livemode)) {
+    console.info(`Stripe event ignored. Configured mode is ${stripeMode()}, event livemode is ${String(livemode)}.`);
+    return;
+  }
   const userId = eventMeta(object, "userId");
   if (!userId) return;
   const { saveBillingProfile, readBillingProfile } = await import("./account/billing-profile");
