@@ -160,7 +160,8 @@ export async function signInWithPassword(formData: FormData) {
       await consumeGuestLink(data.user.id);
     } catch (error) {
       if (isNextRedirect(error)) throw error;
-      redirect("/signin?error=auth");
+      await keepEmail(email).catch(() => undefined);
+      redirect(authErrorPath(classifyAuthError(error)));
     }
     redirect(await takeNext());
   }
@@ -184,37 +185,43 @@ export async function createPasswordAccount(formData: FormData) {
   if (!isEmail(email)) redirect("/signin?error=email");
   if (password.length < 8) redirect("/signin?error=password");
 
-  if (dataBackend() === "supabase") {
-    const supabase = await createClient({ allowAuthClear: true });
-    const current = await getSessionUser();
-    const origin = siteOriginFromHeaders(await headers());
-    if (current?.guest) {
-      await rememberGuest(current.id);
-      await supabase.auth.signOut();
-    }
-    await rememberEmailKind("signup");
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-        data: current?.guest ? { link_guest: current.id } : undefined,
-      },
-    });
-    if (error) {
+  try {
+    if (dataBackend() === "supabase") {
+      const supabase = await createClient({ allowAuthClear: true });
+      const current = await getSessionUser();
+      const origin = siteOriginFromHeaders(await headers());
+      if (current?.guest) {
+        await rememberGuest(current.id);
+        await supabase.auth.signOut();
+      }
+      await rememberEmailKind("signup");
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${origin}/auth/callback`,
+          data: current?.guest ? { link_guest: current.id } : undefined,
+        },
+      });
+      if (error) {
+        await keepEmail(email).catch(() => undefined);
+        redirect(authErrorPath(classifyAuthError(error)));
+      }
       await keepEmail(email);
-      redirect(authErrorPath(classifyAuthError(error)));
+      redirect("/signin/sent");
     }
-    await keepEmail(email);
+    if (dataBackend() !== "local") redirect("/signin?error=provider");
+    await rememberEmailKind("signup");
+    const created = await createLocalPasswordAccount(email, password);
+    if (created === "taken") redirect("/signin?error=taken");
+    if (created === "password") redirect("/signin?error=password");
+    await rememberLocalChallenge(email);
     redirect("/signin/sent");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    await keepEmail(email).catch(() => undefined);
+    redirect(authErrorPath(classifyAuthError(error)));
   }
-  if (dataBackend() !== "local") redirect("/signin?error=provider");
-  await rememberEmailKind("signup");
-  const created = await createLocalPasswordAccount(email, password);
-  if (created === "taken") redirect("/signin?error=taken");
-  if (created === "password") redirect("/signin?error=password");
-  await rememberLocalChallenge(email);
-  redirect("/signin/sent");
 }
 
 export async function verifyEmailCode(formData: FormData) {
@@ -255,14 +262,20 @@ export async function resendVerification(formData: FormData) {
   if (Date.now() - last < 60_000) {
     redirect(authErrorPath({ code: "rate_limit", retryAfterSeconds: Math.ceil((60_000 - (Date.now() - last)) / 1000), message: "" }));
   }
-  if (dataBackend() === "supabase") {
-    const supabase = await createClient();
-    await rememberEmailKind("signup");
-    const { error } = await supabase.auth.resend({ type: "signup", email });
-    if (error) {
-      await keepEmail(email);
-      redirect(authErrorPath(classifyAuthError(error)));
+  try {
+    if (dataBackend() === "supabase") {
+      const supabase = await createClient();
+      await rememberEmailKind("signup");
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) {
+        await keepEmail(email).catch(() => undefined);
+        redirect(authErrorPath(classifyAuthError(error)));
+      }
     }
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    await keepEmail(email).catch(() => undefined);
+    redirect(authErrorPath(classifyAuthError(error)));
   }
   await keepEmail(email);
   cookieStore.set("pr_resend_at", String(Date.now()), { ...linkCookie, maxAge: 120 });
