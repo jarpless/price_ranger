@@ -452,3 +452,12 @@ test("onboarding copy differs by group and first-time events record once", () =>
   assert.equal(recordOnce("path_chosen"), false);
   assert.equal(recordOnce("upgrade_viewed"), false);
 });
+
+test("Back to /new after the last free price keeps the search; See price opens Plans", () => {
+  const page = readFileSync(new URL("../app/(app)/new/page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(page, /redirect\("\/upgrade"\)/);
+  assert.match(page, /planStatusLine\(access\)/);
+  assert.match(page, /<CaptureForm initial=\{capture\.description\}/);
+  const form = readFileSync(new URL("../components/capture-form.tsx", import.meta.url), "utf8");
+  assert.match(form, /result\.error === "limit"\) \{\s*router\.push\("\/upgrade"\)/);
+});
