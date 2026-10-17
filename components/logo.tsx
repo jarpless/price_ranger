@@ -3,7 +3,7 @@ import Image from "next/image";
 /**
  * inverse: one-color cream knockout. Holes show whatever is behind it.
  * dark: pine field, paper ranger on a pine seal. For tan, cream, and paper.
- * light: paper field, pine ranger on a paper seal. For the dark green sidebar.
+ * light: paper field, same pine seal and paper ranger. For the dark green sidebar.
  * At 48px and below the mark drops the banner words and uses thicker strokes.
  */
 export type LogoTone = "inverse" | "dark" | "light";

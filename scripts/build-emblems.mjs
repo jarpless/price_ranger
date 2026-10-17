@@ -1,8 +1,8 @@
 /**
  * Builds the Price Ranger ranger badge.
- * Shape only is borrowed from a park-badge silhouette: a flat-topped banner
- * with angled shoulders, straight sides, and a pointed bottom. The figure,
- * lettering, and seal are original.
+ * The outline is a traced, symmetrized silhouette: raised crown, concave
+ * shoulders, slightly bulged sides, and a curved tip. Lettering, stripes,
+ * and the ranger figure are original.
  *
  * Run: node scripts/build-emblems.mjs
  * Needs fontkit, @resvg/resvg-js, and sharp resolvable from /tmp/badge-tools
@@ -37,19 +37,60 @@ const paper = "#FFFDF8";
 const stripeDark = "#10281C";
 const stripeLight = "#D5C6B0";
 
-// Flat top, shoulders angling in to vertical sides, pointed shield.
-// The banner is its own panel: the band above the bottom rule.
-const topL = [72, 56];
-const topR = [952, 56];
-const shoulderL = [156, 236];
-const shoulderR = [868, 236];
-const sideBottomL = [156, 652];
-const sideBottomR = [868, 652];
-const point = [512, 988];
-const dividerY = 236;
-const outline = `M${topL[0]} ${topL[1]} L${topR[0]} ${topR[1]} L${shoulderR[0]} ${shoulderR[1]} L${sideBottomR[0]} ${sideBottomR[1]} L${point[0]} ${point[1]} L${sideBottomL[0]} ${sideBottomL[1]} L${shoulderL[0]} ${shoulderL[1]} Z`;
+// Half-width of the traced metal silhouette, top to bottom, in source pixels
+// over a height of 1280. One chipped sample on the lower curve is repaired.
+const halfSrc = [
+  0, 168.5, 178.5, 314.5, 432, 440.5, 449.5, 458, 466, 474, 483.5, 492.5, 501, 517, 529, 537.5, 545.5, 548.5,
+  544, 535, 522.5, 514, 506, 501.5, 499.5, 499.5, 498.5, 499, 499, 500, 499, 499.5, 500, 499.5, 500, 499, 500,
+  500, 499.5, 499.5, 499.5, 496.5, 493.5, 496, 495, 495, 494.5, 497, 496.5, 496, 496, 496, 495.5, 496.5, 496.5,
+  495.5, 494.5, 496, 495.5, 496, 495.5, 494.5, 494.5, 494, 494.5, 494.5, 493, 493.5, 492, 488.5, 485, 481.5,
+  480.5, 474.5, 475, 467, 463, 454.5, 447, 437, 425, 412.5, 401, 386.5, 367.5, 350, 323.5, 294.5, 262.5, 229.5,
+  198, 173, 148, 127, 104.5, 81, 65, 47.5, 34, 19.5, 1,
+];
+const SRC_H = 1280;
+const badgeTop = 36;
+const badgeH = 952;
+const badgeCx = 512;
+const toBadge = badgeH / SRC_H;
+const dividerT = 0.188;
 
-const seal = { cx: 512, cy: 548 };
+function halfAt(t) {
+  const x = Math.max(0, Math.min(100, t * 100));
+  const i = Math.min(99, Math.floor(x));
+  const f = x - i;
+  return (halfSrc[i] * (1 - f) + halfSrc[i + 1] * f) * toBadge;
+}
+
+function outlinePath() {
+  const right = [];
+  for (let i = 0; i <= 100; i++) {
+    const t = i / 100;
+    right.push([badgeCx + halfAt(t), badgeTop + t * badgeH]);
+  }
+  right[0] = [badgeCx, badgeTop];
+  right[100] = [badgeCx, badgeTop + badgeH];
+  const pts = right.slice();
+  for (let i = 99; i >= 1; i--) pts.push([badgeCx - (right[i][0] - badgeCx), right[i][1]]);
+  const n = pts.length;
+  const num = (v) => v.toFixed(2);
+  let d = `M${num(pts[0][0])} ${num(pts[0][1])}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += `C${num(c1x)} ${num(c1y)} ${num(c2x)} ${num(c2y)} ${num(p2[0])} ${num(p2[1])}`;
+  }
+  return `${d}Z`;
+}
+
+const outline = outlinePath();
+const dividerY = badgeTop + dividerT * badgeH;
+const seal = { cx: badgeCx, cy: 560 };
 
 function place(box) {
   const scale = Math.min(box.w / vb.w, box.h / vb.h);
@@ -87,20 +128,20 @@ function textPath(font, text, { cx, baseline, cap, tracking, align = "center" })
 }
 
 function bannerText() {
-  // Both lines sit in the flat band, inside the angled shoulders and above the rule.
-  const cap = 52;
+  // Both lines sit in the raised crown, above the shoulder rule.
+  const cap = 42;
   const scale = cap / (outfit.capHeight || 700);
   const price = textPath(outfit, "PRICE", {
-    cx: 512,
+    cx: badgeCx,
     baseline: 128,
     cap,
-    tracking: trackingFor(outfit, "PRICE", 520, scale),
+    tracking: trackingFor(outfit, "PRICE", 420, scale),
   });
   const rangerLine = textPath(outfit, "RANGER", {
-    cx: 512,
-    baseline: 196,
+    cx: badgeCx,
+    baseline: 184,
     cap,
-    tracking: trackingFor(outfit, "RANGER", 620, scale),
+    tracking: trackingFor(outfit, "RANGER", 520, scale),
   });
   return `${price} ${rangerLine}`;
 }
@@ -109,8 +150,9 @@ const banner = bannerText();
 
 function stripes(color, width) {
   const lines = [];
-  for (let x = 150; x <= 874; x += 34) {
-    lines.push(`<line x1="${x}" y1="${dividerY + 10}" x2="${x}" y2="1000" stroke="${color}" stroke-width="${width}" />`);
+  const reach = halfAt(0.5) - 24;
+  for (let x = badgeCx - reach; x <= badgeCx + reach; x += 28) {
+    lines.push(`<line x1="${x.toFixed(1)}" y1="${dividerY + 8}" x2="${x.toFixed(1)}" y2="1040" stroke="${color}" stroke-width="${width}" />`);
   }
   return lines.join("");
 }
@@ -139,8 +181,8 @@ function emblem({ field, ink, stripe, sealFill, figureFill, simplified }) {
     ? ""
     : `<g clip-path="url(#badge-clip)">${stripes(stripe, 8)}</g>`;
   const words = simplified ? "" : `<g clip-path="url(#badge-clip)"><path fill="${ink}" d="${banner}"/></g>`;
-  const ruleInset = simplified ? 36 : 22;
-  const rule = `<line x1="${shoulderL[0] + ruleInset}" y1="${dividerY}" x2="${shoulderR[0] - ruleInset}" y2="${dividerY}" stroke="${ink}" stroke-width="${simplified ? 22 : 14}" stroke-linecap="butt"/>`;
+  const ruleHalf = halfAt(dividerT) - (simplified ? 52 : 34);
+  const rule = `<line x1="${(badgeCx - ruleHalf).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + ruleHalf).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="${ink}" stroke-width="${simplified ? 20 : 12}" stroke-linecap="butt"/>`;
   const discR = m.innerEdge + 1;
   return `
   <defs>
@@ -155,7 +197,7 @@ function emblem({ field, ink, stripe, sealFill, figureFill, simplified }) {
   ${figure(figureFill, m.figR, m.sealCy)}
   ${rule}
   ${words}
-  <path fill="none" stroke="${ink}" stroke-width="${m.rim}" stroke-linejoin="miter" stroke-miterlimit="2.2" d="${outline}"/>
+  <g clip-path="url(#badge-clip)"><path fill="none" stroke="${ink}" stroke-width="${m.rim * 2}" stroke-linejoin="round" d="${outline}"/></g>
 `;
 }
 
@@ -170,7 +212,7 @@ function knockout({ simplified }) {
   const box = m.figR * 1.7;
   const transform = place({ x: seal.cx - box / 2, y: m.sealCy - box / 2 - 2, w: box, h: box });
   const words = simplified ? "" : `<path fill="#000" d="${banner}"/>`;
-  const ruleInset = simplified ? 36 : 22;
+  const ruleHalf = halfAt(dividerT) - (simplified ? 52 : 34);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="${W}" height="${W}" role="img" aria-label="Price Ranger badge, one color">
   <title>Price Ranger badge, one color</title>
@@ -182,7 +224,7 @@ function knockout({ simplified }) {
       </g>
       <circle cx="${seal.cx}" cy="${m.sealCy}" r="${m.sealR}" fill="none" stroke="#000" stroke-width="${m.outerRing}"/>
       <circle cx="${seal.cx}" cy="${m.sealCy}" r="${m.sealR - m.ringGap}" fill="none" stroke="#000" stroke-width="${m.innerRing}"/>
-      <line x1="${shoulderL[0] + ruleInset}" y1="${dividerY}" x2="${shoulderR[0] - ruleInset}" y2="${dividerY}" stroke="#000" stroke-width="${simplified ? 22 : 14}" stroke-linecap="butt"/>
+      <line x1="${(badgeCx - ruleHalf).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + ruleHalf).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="#000" stroke-width="${simplified ? 20 : 12}" stroke-linecap="butt"/>
       ${words}
       <g clip-path="url(#seal-clip)"><path fill="#000" fill-rule="evenodd" transform="${transform}" d="${ranger}"/></g>
     </mask>
@@ -211,14 +253,14 @@ const variants = {
     sealFill: pine,
     figureFill: paper,
   },
-  // Paper field for the pine sidebar. The seal is paper and the ranger is pine.
+  // Paper field for the pine sidebar. The seal matches the dark badge.
   light: {
     label: "Light, for dark green and dark backgrounds",
     field: paper,
     ink: pine,
     stripe: stripeLight,
-    sealFill: paper,
-    figureFill: pine,
+    sealFill: pine,
+    figureFill: paper,
   },
 };
 
