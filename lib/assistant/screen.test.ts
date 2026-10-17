@@ -93,3 +93,23 @@ test("walk me through does not recite a step script", () => {
   assert.doesNotMatch(answer, /step \d of \d/);
   assert.match(answer, /Send|condition chip/);
 });
+
+test("how to add shipping on a price names the Ship chips, Add a line, the item, and the Total", () => {
+  const answer = screenAnswer("How do I add a shipping cost?", priced);
+  assert.ok(answer);
+  assert.match(answer, /\*\*Ship \$8\*\*/);
+  assert.match(answer, /\*\*Add a line\*\*/);
+  assert.match(answer, /Nintendo Switch/);
+  assert.match(answer, /\$175 Total/);
+  assert.doesNotMatch(answer, /Shipping or Shipping/);
+  assert.match(screenAnswer("How do I add shipping?", shared) ?? "", /^Tap \*\*Edit price\*\* first/);
+});
+
+test("shipping help when a Ship chip is on or off a price page", () => {
+  const on = screenAnswer("how do I add a shipping cost", { ...priced, quote: { ...priced.quote!, preset: "ship8" } });
+  assert.match(on ?? "", /Ship \$8 is already on/);
+  assert.match(on ?? "", /\*\*Ship \$15\*\* to switch/);
+  const away = screenAnswer("How do I add a shipping cost?", home);
+  assert.match(away ?? "", /Ship \$8/);
+  assert.match(away ?? "", /\[Home\]\(\/\)/);
+});

@@ -472,6 +472,55 @@ export const localStore = {
     return id;
   },
 
+  async createItemQuote(
+    userId: string,
+    input: { title: string; customerName: string; itemName: string; unitPriceCents: number },
+  ): Promise<string> {
+    const id = crypto.randomUUID();
+    const tierId = crypto.randomUUID();
+    const groupId = crypto.randomUUID();
+    const libraryItemId = crypto.randomUUID();
+    const timestamp = nowIso();
+    await update((db) => {
+      db.quotes.push({
+        id,
+        userId,
+        title: input.title,
+        customerName: input.customerName,
+        status: "draft",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        presentedSnapshot: null,
+      });
+      db.tiers.push({ id: tierId, quoteId: id, name: "Standard", note: "", sortOrder: 0, recommended: false });
+      db.groups.push({ id: groupId, userId, name: input.title, summary: "", summaryEdited: false, createdAt: timestamp });
+      db.library.push({
+        id: libraryItemId,
+        userId,
+        skuId: null,
+        connectorSlug: null,
+        name: input.itemName,
+        unit: "each",
+        unitPriceCents: input.unitPriceCents,
+        samplePrice: false,
+        source: "custom",
+        createdAt: timestamp,
+      });
+      db.groupItems.push({
+        id: crypto.randomUUID(),
+        groupId,
+        libraryItemId,
+        name: input.itemName,
+        unit: "each",
+        unitPriceCents: input.unitPriceCents,
+        quantity: 1,
+        sortOrder: 0,
+      });
+      db.tierGroups.push({ tierId, groupId });
+    });
+    return id;
+  },
+
   async updateQuote(
     userId: string,
     quoteId: string,

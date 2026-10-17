@@ -19,6 +19,11 @@ export interface DataStore {
   listQuotes(userId: string): Promise<QuoteListItem[]>;
   getQuote(userId: string, quoteId: string): Promise<QuoteRecord | null>;
   createQuote(userId: string, input: { title: string; customerName: string }): Promise<string>;
+  /** A quote whose Standard tier holds one group with one custom line. */
+  createItemQuote(
+    userId: string,
+    input: { title: string; customerName: string; itemName: string; unitPriceCents: number },
+  ): Promise<string>;
   updateQuote(
     userId: string,
     quoteId: string,

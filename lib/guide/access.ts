@@ -2,10 +2,11 @@ import type { SessionUser } from "../types";
 import { getData } from "../store";
 import { accessLimits, type Variant } from "./flow";
 import { isMissingSchema } from "./schema";
-import { ensureGuideUser, listGuideQuotes, recordFunnel, type GuideUser } from "./store";
+import { ensureGuideUser, listGuideQuotes, recordFunnel, type GuideQuote, type GuideUser } from "./store";
 
 export interface PricingAccess {
   guide: GuideUser;
+  quotes: GuideQuote[];
   limits: ReturnType<typeof accessLimits>;
   used: number;
   ok: boolean;
@@ -14,29 +15,31 @@ export interface PricingAccess {
 }
 
 export async function pricingAccess(user: SessionUser): Promise<PricingAccess> {
-  const guide = await ensureGuideUser(user.id);
+  const [guide, quotes, all] = await Promise.all([
+    ensureGuideUser(user.id),
+    listGuideQuotes(user.id),
+    getData()
+      .then((data) => data.listQuotes(user.id))
+      .catch((error: unknown) => {
+        if (!isMissingSchema(error)) throw error;
+        return [];
+      }),
+  ]);
   const limits = accessLimits(guide.variant, guide.trialStartedAt);
   const paid = user.plan !== "free";
-  const quotes = await listGuideQuotes(user.id);
   const sampleIds = new Set(quotes.filter((quote) => quote.sample).map((quote) => quote.quoteId));
-  let used = 0;
-  try {
-    const all = await (await getData()).listQuotes(user.id);
-    used = all.filter((quote) => !sampleIds.has(quote.id)).length;
-  } catch (error) {
-    if (!isMissingSchema(error)) throw error;
-  }
+  const used = all.filter((quote) => !sampleIds.has(quote.id)).length;
   if (paid) {
-    return { guide, limits, used, ok: true, reason: "ok", paid };
+    return { guide, quotes, limits, used, ok: true, reason: "ok", paid };
   }
   if (limits.expired) {
     await recordFunnel(user.id, "trial_expiry", { variant: guide.variant });
-    return { guide, limits, used, ok: false, reason: "trial", paid };
+    return { guide, quotes, limits, used, ok: false, reason: "trial", paid };
   }
   if (used >= limits.quoteLimit) {
-    return { guide, limits, used, ok: false, reason: "limit", paid };
+    return { guide, quotes, limits, used, ok: false, reason: "limit", paid };
   }
-  return { guide, limits, used, ok: true, reason: "ok", paid };
+  return { guide, quotes, limits, used, ok: true, reason: "ok", paid };
 }
 
 export function planStatusLine(access: PricingAccess): string {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
+import { after } from "next/server";
 import { redirect, RedirectType } from "next/navigation";
 
 import { track } from "@/lib/analytics/track";
@@ -238,13 +239,15 @@ function categoryFromForm(formData: FormData): string | null {
 /** Creates the quote and returns its URL. The browser pushes that URL so Back lands on the search. */
 export async function createPricedDraft(formData: FormData): Promise<{ ok: true; href: string } | { ok: false; error: string }> {
   const user = await requireUser();
+  const photoRead = photoFromForm(user.id, formData);
+  photoRead.catch(() => undefined);
   const access = await pricingAccess(user);
   if (!access.ok) return { ok: false, error: "limit" };
   const path = clip(formData.get("path"), 20);
   if (!isGuidePath(path)) return { ok: false, error: "path" };
   const description = clip(formData.get("description"), 280);
   const category = categoryFromForm(formData);
-  const photo = await photoFromForm(user.id, formData);
+  const photo = await photoRead;
   if (!description && !photo) return { ok: false, error: "missing" };
   let text = description;
   let visionNote = "";
@@ -256,26 +259,21 @@ export async function createPricedDraft(formData: FormData): Promise<{ ok: true;
   if (!text || looksLikeFilename(text)) return { ok: false, error: "photo" };
   await track("price_started", { input: photo ? "camera" : "text", path }, { user });
   const quoteId = await shareDraftWork(draftKey(user.id, text), async () => {
-    const recentId = reusableDraftId(await listGuideQuotes(user.id), text);
+    const recentId = reusableDraftId(access.quotes, text);
     if (recentId) return recentId;
     const suggestion = suggestPrice(text, path);
     if (visionNote) suggestion.note = visionNote;
-    const guide = await ensureGuideUser(user.id);
-    await recordFunnel(user.id, "path_chosen", { path, variant: guide.variant });
+    const variant = access.guide.variant;
+    after(() => recordFunnel(user.id, "path_chosen", { path, variant }));
     const customer = path === "job" ? "Customer" : path === "check" ? "Price check" : "Buyer";
     const data = await getData();
-    const createdId = await data.createQuote(user.id, { title: text.slice(0, 80), customerName: customer });
-    const groupId = await data.createGroup(user.id, text.slice(0, 80));
-    const itemId = await data.createCustomItem(user.id, {
-      name: text.slice(0, 80),
-      unit: "each",
+    const createdId = await data.createItemQuote(user.id, {
+      title: text.slice(0, 80),
+      customerName: customer,
+      itemName: text.slice(0, 80),
       unitPriceCents: suggestion.cents,
     });
-    await data.addGroupItem(user.id, groupId, itemId);
-    const quote = await data.getQuote(user.id, createdId);
-    const tierId = quote?.tiers[0]?.id;
-    if (tierId) await data.toggleTierGroup(user.id, tierId, groupId);
-    await saveGuideQuote({
+    const saved = saveGuideQuote({
       quoteId: createdId,
       userId: user.id,
       path,
@@ -292,8 +290,8 @@ export async function createPricedDraft(formData: FormData): Promise<{ ok: true;
       finishedAt: null,
       updatedAt: new Date().toISOString(),
     });
-    if (photo) await saveQuotePhoto(user.id, createdId, photo.bytes, photo.mime).catch(() => undefined);
-    await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
+    await Promise.all([saved, photo ? saveQuotePhoto(user.id, createdId, photo.bytes, photo.mime).catch(() => undefined) : null]);
+    after(() => recordFunnel(user.id, "first_price_generated", { path, variant }));
     await track("price_result_shown", { path, confidence: suggestion.confidence, input: photo ? "camera" : "text" }, { user });
     return createdId;
   });

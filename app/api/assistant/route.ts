@@ -147,6 +147,7 @@ export async function POST(request: Request) {
             note: row.note,
             condition: conditionLabel(meta?.condition || "good"),
             range: meta?.lowCents && meta?.highCents ? `${formatUsd(meta.lowCents)}–${formatUsd(meta.highCents)}` : "",
+            preset: meta?.preset ?? null,
           }
         : null,
     });
