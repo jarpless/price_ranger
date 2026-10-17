@@ -225,6 +225,23 @@ export async function deliverShareNote(
   return result.sent ? "sent" : "held";
 }
 
+/** Owner id for a share token. Used to hide the seller's own signup prompt. */
+export async function shareOwnerId(token: string): Promise<string | null> {
+  if (!token || token.length > 80) return null;
+  if (dataBackend() !== "supabase") {
+    const { readLocalShareOwner } = await import("./store/local");
+    return readLocalShareOwner(token);
+  }
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const quote = await service.from("quotes").select("user_id").eq("share_token", token).maybeSingle();
+  const userId = (quote.data as { user_id?: string } | null)?.user_id;
+  return userId || null;
+}
+
 export async function readSharedSheet(token: string): Promise<SharedSheet | null> {
   if (!token || token.length > 80) return null;
   if (dataBackend() !== "supabase") {

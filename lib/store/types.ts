@@ -52,6 +52,11 @@ export interface DataStore {
   saveGroupSummary(userId: string, groupId: string, summary: string): Promise<boolean>;
   resetGroupSummary(userId: string, groupId: string): Promise<boolean>;
   addGroupItem(userId: string, groupId: string, libraryItemId: string): Promise<boolean>;
+  replaceGroupLines(
+    userId: string,
+    groupId: string,
+    lines: { name: string; quantity: number; unitPriceCents: number }[],
+  ): Promise<boolean>;
   updateGroupItem(
     userId: string,
     itemId: string,

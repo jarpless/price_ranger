@@ -4,7 +4,8 @@ import { contactAboutPrice } from "@/app/share-contact";
 import { Logo } from "@/components/logo";
 import { formatUsd } from "@/lib/money";
 import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
-import { forPublic, readSharedSheet } from "@/lib/share";
+import { getSessionUser } from "@/lib/auth";
+import { forPublic, readSharedSheet, shareOwnerId } from "@/lib/share";
 import { shareGrowthOffer } from "@/lib/share-growth";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,8 @@ export default async function PublicSheetPage({
   const condition = sheet.condition || (live ? conditionLabel(live.condition) : "");
   const photo = sheet.photo || live?.comparables[0]?.thumbnail || pictureFor(sheet.title);
   const offer = shareGrowthOffer(token);
+  const [viewer, ownerId] = await Promise.all([getSessionUser(), shareOwnerId(token)]);
+  const showGrowth = !viewer || !ownerId || viewer.id !== ownerId;
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
@@ -131,16 +134,18 @@ export default async function PublicSheetPage({
           Download PDF
         </a>
       </div>
-      <aside className="mt-8 rounded-3xl border border-line bg-paper px-5 py-5 text-center">
-        <p className="font-serif text-title leading-8">Keep this price</p>
-        <p className="mt-2 text-body leading-6 text-muted">{offer.detail}</p>
-        <a
-          href={offer.href}
-          className="mt-4 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
-        >
-          {offer.label}
-        </a>
-      </aside>
+      {showGrowth ? (
+        <aside className="mt-8 rounded-3xl border border-line bg-paper px-5 py-5 text-center">
+          <p className="font-serif text-title leading-8">Keep this price</p>
+          <p className="mt-2 text-body leading-6 text-muted">{offer.detail}</p>
+          <a
+            href={offer.href}
+            className="mt-4 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
+          >
+            {offer.label}
+          </a>
+        </aside>
+      ) : null}
     </main>
   );
 }

@@ -558,6 +558,43 @@ export const supabaseStore = {
     return ((data as unknown[]) ?? []).length > 0;
   },
 
+  async replaceGroupLines(
+    userId: string,
+    groupId: string,
+    lines: { name: string; quantity: number; unitPriceCents: number }[],
+  ): Promise<boolean> {
+    const supabase = await client();
+    const group = await one(
+      supabase.from("line_item_groups").select("id").eq("id", groupId).eq("user_id", userId),
+    );
+    if (!group) return false;
+    const removed = await supabase.from("group_items").delete().eq("group_id", groupId);
+    if (removed.error) throw new Error(removed.error.message);
+    if (lines.length === 0) return true;
+    const ids = await Promise.all(
+      lines.map((line) =>
+        this.createCustomItem(userId, {
+          name: line.name,
+          unit: "each",
+          unitPriceCents: line.unitPriceCents,
+        }),
+      ),
+    );
+    const { error } = await supabase.from("group_items").insert(
+      lines.map((line, index) => ({
+        group_id: groupId,
+        library_item_id: ids[index],
+        name: line.name,
+        unit: "each",
+        unit_price_cents: line.unitPriceCents,
+        quantity: line.quantity > 0 ? line.quantity : 1,
+        sort_order: index,
+      })),
+    );
+    if (error) throw new Error(error.message);
+    return true;
+  },
+
   async addGroupItem(userId: string, groupId: string, libraryItemId: string): Promise<boolean> {
     const group = await this.getGroup(userId, groupId);
     const libraryItem = await this.getLibraryItem(userId, libraryItemId);

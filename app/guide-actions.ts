@@ -100,24 +100,15 @@ async function writeCommittedLines(userId: string, quoteId: string, lines: Money
 async function replaceQuoteLines(userId: string, quoteId: string, lines: MoneyLine[]) {
   const { data, group } = await quoteGroup(userId, quoteId);
   if (!group) return false;
-  for (const item of [...group.items]) {
-    await data.removeGroupItem(userId, item.id);
-  }
-  for (const line of lines) {
-    const quantity = line.quantity > 0 ? line.quantity : 1;
-    const itemId = await data.createCustomItem(userId, {
+  return data.replaceGroupLines(
+    userId,
+    group.id,
+    lines.map((line) => ({
       name: line.name,
-      unit: "each",
+      quantity: line.quantity > 0 ? line.quantity : 1,
       unitPriceCents: line.unitPriceCents,
-    });
-    await data.addGroupItem(userId, group.id, itemId);
-    const refreshed = await data.getGroup(userId, group.id);
-    const added = refreshed?.items.find((item) => item.libraryItemId === itemId);
-    if (added && (added.quantity !== quantity || added.unitPriceCents !== line.unitPriceCents)) {
-      await data.updateGroupItem(userId, added.id, { quantity, unitPriceCents: line.unitPriceCents });
-    }
-  }
-  return true;
+    })),
+  );
 }
 
 async function rememberSheet(userId: string, quoteId: string, sources: string[]) {
@@ -583,7 +574,10 @@ export async function sendQuote(formData: FormData) {
   if (!quote) redirect("/");
   const meta = readMarketMeta(row.sources);
   const askingCents = meta.overrideCents ?? row.priceCents;
-  if (askingCents != null) {
+  const storedSheet = quoteBuilderEnabled() ? sheetFromSources(row.sources) : null;
+  if (storedSheet) {
+    await replaceQuoteLines(user.id, quoteId, sheetToMoneyLines(storedSheet));
+  } else if (askingCents != null) {
     const committed = commitAskingPrice({
       lines: await quoteLines(user.id, quoteId),
       sources: row.sources,
@@ -591,8 +585,6 @@ export async function sendQuote(formData: FormData) {
     });
     await writeCommittedLines(user.id, quoteId, committed.lines);
   }
-  const storedSheet = quoteBuilderEnabled() ? sheetFromSources(row.sources) : null;
-  if (storedSheet) await replaceQuoteLines(user.id, quoteId, sheetToMoneyLines(storedSheet));
   const fresh = storedSheet ? await data.getQuote(user.id, quoteId) : quote;
   const groups = await data.listGroups(user.id);
   const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
