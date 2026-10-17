@@ -1,3 +1,4 @@
+import { LandingStage } from "@/components/landing-stage";
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { Logo } from "./logo";
@@ -9,7 +10,7 @@ export function Landing() {
         <header className="flex h-16 w-full items-center gap-2">
           <div className="inline-flex min-w-0 items-center gap-2 rounded-2xl bg-paper/95 px-1.5 py-1 shadow-card ring-1 ring-line">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pine">
-              <Logo tone="light" width={28} height={28} className="h-7 w-7" alt="" />
+              <Logo tone="inverse" width={28} height={28} className="h-7 w-7" alt="" />
             </span>
             <p className="truncate pr-1.5 font-serif text-base leading-6 text-ink lg:text-title lg:leading-8">Price Ranger</p>
           </div>
@@ -24,8 +25,8 @@ export function Landing() {
             Sign in
           </Link>
         </header>
-        <div className="grid w-full items-center gap-10 pb-16 pt-8 lg:grid-cols-2 lg:gap-16 lg:pt-16">
-          <div>
+        <div className="grid w-full items-center gap-10 pb-16 pt-8 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-16">
+          <div className="min-w-0">
             <h1 className="font-serif text-display text-balance lg:text-[3rem] lg:leading-[3.4rem]">See a fair price before you list it.</h1>
             <p className="mt-4 max-w-xl text-body leading-6 text-muted">
               Snap a photo or tap an item. Price Ranger shows a sold-listing range, a condition, and a price you can share.
@@ -39,11 +40,8 @@ export function Landing() {
               </Link>
             </div>
           </div>
-          <div className="rounded-3xl border border-line bg-paper p-6 shadow-card">
-            <p className="text-caption font-semibold text-muted">Sold range · Good</p>
-            <p className="mt-2 font-serif text-price text-pine tabular-nums">$175</p>
-            <p className="mt-1 text-body text-muted">$150–$200 · Nintendo Switch with dock</p>
-            <p className="mt-4 text-caption font-semibold text-pine">High confidence</p>
+          <div className="min-w-0">
+            <LandingStage />
           </div>
         </div>
       </div>

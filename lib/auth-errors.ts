@@ -14,6 +14,7 @@ export interface ClassifiedAuthError {
     | "password"
     | "captcha"
     | "guest"
+    | "send"
     | "auth";
   retryAfterSeconds: number;
   message: string;
@@ -51,16 +52,18 @@ export function durationSeconds(message: string): number {
 /** The sentence shown while another email is blocked. An hour-long limit says so. */
 export function rateLimitCopy(seconds: number): string {
   const wait = boundedSeconds(seconds);
+  const lead = "Too many sign-up emails right now.";
   if (wait >= 3600) {
     const hours = Math.max(1, Math.round(wait / 3600));
     const span = hours === 1 ? "about an hour" : `about ${hours} hours`;
-    return `You can request another email in ${span}. Password sign-in still works if this inbox is already verified.`;
+    return `${lead} Try again in ${span}. Password sign-in still works if this inbox is already verified.`;
   }
-  if (wait >= 120) {
+  if (wait > 300) {
     const minutes = Math.ceil(wait / 60);
-    return `You can request another email in ${minutes} minutes.`;
+    return `${lead} Try again in ${minutes} minutes.`;
   }
-  if (wait > 1) return `You can request another email in ${wait} seconds.`;
+  if (wait >= 120) return `${lead} Try again in a few minutes.`;
+  if (wait > 1) return `${lead} Try again in ${wait} seconds.`;
   return "You can request another email now.";
 }
 
@@ -89,7 +92,7 @@ export function classifyAuthError(error: unknown): ClassifiedAuthError {
     return { code: "taken", retryAfterSeconds: 0, message: "That email already has an account. Sign in instead." };
   }
   if (code === "email_not_confirmed" || code === "provider_email_needs_verification") {
-    return { code: "unverified", retryAfterSeconds: 0, message: "That email isn't verified yet. Open the link in the email, then sign in with your password." };
+    return { code: "unverified", retryAfterSeconds: 0, message: "That email isn't verified yet. Enter the 8-digit code, or open the link in the email." };
   }
   if (code === "otp_expired" || code === "otp_disabled" || code === "flow_state_expired" || code === "flow_state_not_found") {
     return { code: "code", retryAfterSeconds: 0, message: "That code isn't valid anymore. Request a new one." };
@@ -111,6 +114,9 @@ export function classifyAuthError(error: unknown): ClassifiedAuthError {
   }
   if (code === "request_timeout" || code === "hook_timeout" || code === "hook_timeout_after_retry") {
     return { code: "auth", retryAfterSeconds: 0, message: "Sign-in took too long. Try again in a moment." };
+  }
+  if (/error sending (confirmation|magic link|recovery|invite) email/i.test(message) || (code === "unexpected_failure" && /email/i.test(message))) {
+    return { code: "send", retryAfterSeconds: 0, message: "We couldn't send the sign-up email. Try again in a few minutes." };
   }
   if (code || message) {
     return { code: "auth", retryAfterSeconds: 0, message: "We couldn't send that just now. Try again in a minute." };

@@ -84,7 +84,7 @@ Shipped on top of Trailhead. The version and codename live only in `lib/version.
 - Prices and Catalog are tables with sort, search, filters, inline edit, and CSV import. The shared catalog stays read-only. "Your price" writes the user's library row.
 - Presentation is full screen. Phones swipe. Wide screens show up to three options side by side. Arrow keys move between them.
 - `N` starts a quote. `/` focuses search. Both are ignored while presenting and while typing in a field.
-- Owner feedback mode, off until Settings turns it on. Drag a region, then say what is wrong or what you expected, and mark Bug or Feature. The note stores the route, version stamp, viewport, user agent, and recent console errors. Rows go to `feedback` and screenshots to the private `feedback` storage bucket. With no Supabase project, both fall back to `data/basecamp.json` and `data/feedback/`. If `GITHUB_FEEDBACK_TOKEN` is set, the same note opens a GitHub issue on `jarpless/price_ranger` labeled `feedback` and `bug` or `feature`.
+- Owner feedback mode, off until Settings turns it on. Drag a region, then say what is wrong or what you expected, and mark Bug or Feature. The note stores the route, version stamp, viewport, user agent, and recent console errors. Rows go to `feedback` and screenshots to the private `feedback` storage bucket. With no Supabase project, both fall back to `data/basecamp.json` and `data/feedback/`. If `GITHUB_FEEDBACK_TOKEN` is set, a public GitHub issue on `jarpless/price_ranger` names the feedback id only. The email, user id, browser details, error log, and screenshot stay on the private row.
 - The assistant launcher sits on every screen. Ask mode answers from the signed-in user's own rows and links to them. Agent mode calls a fixed list of in-app actions, navigates step by step, and spotlights the control it is using. Each run can be replayed as a guided tour that does not write again. Stop is always on screen during a run. Deletes and anything that would leave the app wait for one tap. With no model key, a short on-device planner can still add a price, a group, or a quote, and the panel says the model is not configured.
 
 ### Feedback agent loop
@@ -98,7 +98,7 @@ The inbox is the source of truth. An external agent consumes it like this:
 5. After the change ships, set `status` to `shipped` and `shipped_in` to the version label that contains the fix, for example `v2.2 Ridgeline`.
 6. Allowed statuses are `new`, `planned`, `in_progress`, and `shipped`.
 
-The app does not ship a service-role key. A loop outside the app can use the Supabase SQL editor, a restricted database role, or the owner's session. Row-level security limits the owner's JWT to their own rows. The GitHub issue is a mirror, not a second inbox.
+The app does not ship a service-role key. A loop outside the app can use the Supabase SQL editor, a restricted database role, or the owner's session. Row-level security limits the owner's JWT to their own rows. The public GitHub issue points at that private row by feedback id. It is not a copy of the note.
 
 ### Assistant boundary
 
@@ -229,6 +229,15 @@ A later connector implements the same `connectConnector(userId, slug)` path: res
 | `ASSISTANT_SEAL_SECRET` | No | Signs the short-lived redaction map. Falls back to `LOCAL_AUTH_SECRET`. |
 | `VERCEL_GIT_COMMIT_SHA` | Set by Vercel | Short sha on the stamp. Local stamp says `dev`. |
 | `VERCEL_ENV` | Set by Vercel | `production` → prod, `preview` → preview, otherwise local. |
+| `STRIPE_SECRET_KEY` | No | `sk_test_` or `sk_live_` secret. Test is the default. Live is used only when the value is an `sk_live_` key. |
+| `STRIPE_WEBHOOK_SECRET` | No | Signing secret for `/api/stripe/webhook`. Use the secret from the same Stripe mode as the key. |
+| `STRIPE_PRICE_PASS` | Live checkout | Price id for the $2.99 pass. Optional in test mode. |
+| `STRIPE_PRICE_PLUS_MONTH` | Live checkout | Price id for Plus monthly. Optional in test mode. |
+| `STRIPE_PRICE_PLUS_YEAR` | Live checkout | Price id for Plus yearly. Optional in test mode. |
+| `STRIPE_PRICE_PRO_MONTH` | Live checkout | Price id for Pro monthly. Optional in test mode. |
+| `STRIPE_AUTOMATIC_TAX` | No | `true` sends `automatic_tax[enabled]` on Checkout. Leave unset until Stripe Tax is configured. |
+
+Live mode is a set of environment variables, not a code switch. The steps are in [STRIPE_LIVE_CHECKLIST.md](STRIPE_LIVE_CHECKLIST.md). Do not put secret values in this file.
 
 Local:
 

@@ -17,6 +17,7 @@ function isPublic(pathname: string) {
     pathname === "/setup" ||
     pathname === "/terms" ||
     pathname === "/privacy" ||
+    pathname === "/manifest.webmanifest" ||
     pathname.startsWith("/p/")
   );
 }

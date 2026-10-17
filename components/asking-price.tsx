@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { pricedView, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
 import { priceFarFromRange } from "@/lib/market";
 import { formatUsd } from "@/lib/money";
 
@@ -28,27 +29,33 @@ function useAskingDraft(initial: number | null): number | null {
   return draft;
 }
 
+function usePricedView(lines: MoneyLine[], adjustment: Adjustment, askingCents: number | null) {
+  const draft = useAskingDraft(askingCents);
+  return pricedView(lines, draft, adjustment);
+}
+
 export function AskingTotal({
-  itemCents,
-  extraCents,
+  lines,
+  adjustment,
+  askingCents,
   lowCents,
   highCents,
   className,
 }: {
-  itemCents: number | null;
-  extraCents: number;
+  lines: MoneyLine[];
+  adjustment: Adjustment;
+  askingCents: number | null;
   lowCents: number | null;
   highCents: number | null;
   className: string;
 }) {
-  const item = useAskingDraft(itemCents);
-  const total = item == null ? null : item + extraCents;
-  const far = priceFarFromRange(item, lowCents, highCents);
+  const view = usePricedView(lines, adjustment, askingCents);
+  const far = priceFarFromRange(view.totalCents, lowCents, highCents);
   const range = lowCents != null && highCents != null ? `${formatUsd(lowCents)}–${formatUsd(highCents)}` : "";
   return (
     <>
       <p data-spotlight="asking-price" className={className}>
-        {total != null ? formatUsd(total) : "—"}
+        {view.totalCents != null ? formatUsd(view.totalCents) : "—"}
       </p>
       {far && range ? (
         <p role="status" className="mt-2 text-body leading-6 text-danger">
@@ -59,8 +66,32 @@ export function AskingTotal({
   );
 }
 
-export function AskingLineTotal({ itemCents, extraCents }: { itemCents: number | null; extraCents: number }) {
-  const item = useAskingDraft(itemCents);
-  const total = item == null ? null : item + extraCents;
-  return <>{total != null ? formatUsd(total) : "—"}</>;
+export function AskingLines({
+  lines,
+  adjustment,
+  askingCents,
+}: {
+  lines: MoneyLine[];
+  adjustment: Adjustment;
+  askingCents: number | null;
+}) {
+  const view = usePricedView(lines, adjustment, askingCents);
+  if (view.lines.length === 0) return null;
+  return (
+    <ul className="mt-4 border-t border-line pt-2">
+      {view.lines.map((line, index) => (
+        <li key={`${line.name}-${index}`} className="line-row">
+          <span className="list-copy">
+            <span className="list-title">{line.name}</span>
+            {line.detail ? <span className="text-caption text-muted">{line.detail}</span> : null}
+          </span>
+          <span className="list-price">{line.price}</span>
+        </li>
+      ))}
+      <li className="line-row">
+        <span className="list-title">Total</span>
+        <span className="list-price">{view.totalCents != null ? formatUsd(view.totalCents) : "—"}</span>
+      </li>
+    </ul>
+  );
 }

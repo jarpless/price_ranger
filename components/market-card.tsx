@@ -1,8 +1,9 @@
 import { applyAdjustment } from "@/app/guide-actions";
-import { AskingLineTotal, AskingTotal, publishAskingDraft } from "@/components/asking-price";
+import { AskingLines, AskingTotal, publishAskingDraft } from "@/components/asking-price";
 import { InfoTip } from "@/components/info-tip";
 import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
+import type { Adjustment, MoneyLine } from "@/lib/guide/pricing";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import {
   comparableAnchorCents,
@@ -28,16 +29,16 @@ export function MarketCard({
   priceCents,
   note,
   sources,
-  extras,
-  totalCents,
+  lines,
+  adjustment,
 }: {
   quoteId: string;
   description: string;
   priceCents: number | null;
   note: string;
   sources: string[];
-  extras: { name: string; detail: string; price: string }[];
-  totalCents?: number | null;
+  lines: MoneyLine[];
+  adjustment: Adjustment;
 }) {
   const meta = readMarketMeta(sources);
   const live = marketPrice(description, {
@@ -49,8 +50,6 @@ export function MarketCard({
   const confidence = meta.confidence ?? live?.confidence ?? (live ? "medium" : "low");
   const condition = (meta.condition || live?.condition || "good") as ConditionId;
   const point = priceCents ?? live?.cents ?? null;
-  const headline = totalCents ?? point;
-  const extraCents = point != null && headline != null ? headline - point : 0;
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
   const comparables = live?.comparables.length
     ? live.comparables
@@ -76,8 +75,9 @@ export function MarketCard({
         </div>
         <p className="mt-2 text-caption font-semibold uppercase tracking-wide text-muted">Total</p>
         <AskingTotal
-          itemCents={point}
-          extraCents={extraCents}
+          lines={lines}
+          adjustment={adjustment}
+          askingCents={point}
           lowCents={low}
           highCents={high}
           className="font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]"
@@ -100,25 +100,7 @@ export function MarketCard({
           <p className="mt-2 text-caption text-muted">Suggested {formatUsd(suggested)} before your edit.</p>
         ) : null}
         {live && low != null ? <p className="mt-3 text-body leading-6">{live.note}</p> : null}
-        {extras.length > 0 ? (
-          <ul className="mt-4 border-t border-line pt-2">
-            {extras.map((line) => (
-              <li key={`${line.name}-${line.detail}`} className="line-row">
-                <span className="list-copy">
-                  <span className="list-title">{line.name}</span>
-                  {line.detail ? <span className="text-caption text-muted">{line.detail}</span> : null}
-                </span>
-                <span className="list-price">{line.price}</span>
-              </li>
-            ))}
-            <li className="line-row">
-              <span className="list-title">Total</span>
-              <span className="list-price">
-                <AskingLineTotal itemCents={point} extraCents={extraCents} />
-              </span>
-            </li>
-          </ul>
-        ) : null}
+        <AskingLines lines={lines} adjustment={adjustment} askingCents={point} />
       </section>
 
       {live ? (

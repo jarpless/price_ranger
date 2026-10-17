@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { backTarget, isRootPath } from "@/lib/nav";
+import { isRootPath } from "@/lib/nav";
+import { backHref } from "@/lib/search-return";
 
 import { vibrate } from "./feel";
 
@@ -17,7 +18,7 @@ export function BackButton({ className = "" }: { className?: string }) {
       aria-label="Back"
       onClick={() => {
         vibrate();
-        router.push(backTarget(pathname, window.matchMedia("(min-width: 64rem)").matches));
+        router.push(backHref(pathname, window.location.search, window.matchMedia("(min-width: 64rem)").matches));
       }}
       className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-current ${className}`}
     >

@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import { requireUser, safeNext } from "@/lib/auth";
-import { createCheckout, parseCheckoutChoice, readCheckout, stripeTestKey } from "@/lib/billing";
+import { createCheckout, parseCheckoutChoice, readCheckout, stripeSecretKey } from "@/lib/billing";
 import { saveBillingProfile } from "@/lib/account/billing-profile";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip } from "@/lib/form";
@@ -25,7 +25,8 @@ import {
   saveGuideUser,
   type GuideQuote as StoredGuideQuote,
 } from "@/lib/guide/store";
-import { readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById, conditionLabel, marketPrice } from "@/lib/market";
+import { CATEGORIES, readMarketMeta, replaceMarketSources, repriceMarket, withOverride, conditionById, conditionLabel, marketPrice } from "@/lib/market";
+import { guideDraftHref } from "@/lib/search-return";
 import { formatUsd, parseDollarsToCents } from "@/lib/money";
 import { isPlanId, PLAN_PRICES_CENTS, type PlanId } from "@/lib/plans";
 import { buyerSheet, publishSheet } from "@/lib/share";
@@ -41,13 +42,17 @@ async function quoteLines(userId: string, quoteId: string) {
   const data = await getData();
   const quote = await data.getQuote(userId, quoteId);
   if (!quote) return [];
-  const groups = await data.listGroups(userId);
-  const byId = new Map(groups.map((group) => [group.id, group]));
-  return (quote.tiers[0]?.groupIds ?? []).flatMap((id) => byId.get(id)?.items ?? []).map((item) => ({
-    name: item.name,
-    quantity: item.quantity,
-    unitPriceCents: item.unitPriceCents,
-  }));
+  const ids = [...new Set(quote.tiers[0]?.groupIds ?? [])];
+  const groups = await Promise.all(ids.map((id) => data.getGroup(userId, id)));
+  return ids.flatMap((id) => {
+    const group = groups.find((item) => item?.id === id);
+    return (group?.items ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+    }));
+  });
 }
 
 async function settledPrice(userId: string, quoteId: string, adjustment: Adjustment): Promise<number> {
@@ -72,8 +77,15 @@ async function setFirstLinePrice(userId: string, quoteId: string, cents: number)
 
 /** Writes the saved asking price onto the line the share link and the PDF read. */
 async function writeCommittedLines(userId: string, quoteId: string, lines: MoneyLine[]) {
-  const { data, group } = await quoteGroup(userId, quoteId);
-  const first = lines[0];
+  const first = lines[0] as (MoneyLine & { id?: string }) | undefined;
+  const data = await getData();
+  if (first?.id) {
+    return data.updateGroupItem(userId, first.id, {
+      quantity: first.quantity > 0 ? first.quantity : 1,
+      unitPriceCents: first.unitPriceCents,
+    });
+  }
+  const { group } = await quoteGroup(userId, quoteId);
   if (!group || !first) return false;
   const existing = group.items[0];
   if (!existing) {
@@ -210,15 +222,28 @@ export async function choosePath(formData: FormData) {
   redirect(`/guide/${quoteId}`);
 }
 
-export async function startAndPrice(_previous: string, formData: FormData): Promise<string> {
+/** Photo upload from the assistant. A full form uses startAndPrice and shows the limit on the page. */
+export async function startAndPriceDirect(formData: FormData) {
+  const result = await startAndPrice("", formData);
+  if (result === "limit") redirect("/upgrade");
+}
+
+function categoryFromForm(formData: FormData): string | null {
+  const raw = clip(formData.get("category"), 40);
+  return CATEGORIES.some((item) => item === raw) ? raw : null;
+}
+
+/** Creates the quote and returns its URL. The browser pushes that URL so Back lands on the search. */
+export async function createPricedDraft(formData: FormData): Promise<{ ok: true; href: string } | { ok: false; error: string }> {
   const user = await requireUser();
   const access = await pricingAccess(user);
-  if (!access.ok) return "limit";
+  if (!access.ok) return { ok: false, error: "limit" };
   const path = clip(formData.get("path"), 20);
-  if (!isGuidePath(path)) redirect("/new");
+  if (!isGuidePath(path)) return { ok: false, error: "path" };
   const description = clip(formData.get("description"), 280);
+  const category = categoryFromForm(formData);
   const photo = await photoFromForm(user.id, formData);
-  if (!description && !photo) redirect("/new?error=missing");
+  if (!description && !photo) return { ok: false, error: "missing" };
   let text = description;
   let visionNote = "";
   if (!text && photo) {
@@ -226,7 +251,7 @@ export async function startAndPrice(_previous: string, formData: FormData): Prom
     text = identified.title;
     visionNote = identified.note;
   }
-  if (!text || looksLikeFilename(text)) redirect("/new?error=photo");
+  if (!text || looksLikeFilename(text)) return { ok: false, error: "photo" };
   const quoteId = await shareDraftWork(draftKey(user.id, text), async () => {
     const recentId = reusableDraftId(await listGuideQuotes(user.id), text);
     if (recentId) return recentId;
@@ -269,7 +294,17 @@ export async function startAndPrice(_previous: string, formData: FormData): Prom
     return createdId;
   });
   refresh();
-  redirect(`/guide/${quoteId}`);
+  return { ok: true, href: guideDraftHref(quoteId, text, category) };
+}
+
+export async function startAndPrice(_previous: string, formData: FormData): Promise<string> {
+  const created = await createPricedDraft(formData);
+  if (!created.ok) {
+    if (created.error === "limit") return "limit";
+    if (created.error === "path") redirect("/new");
+    redirect(`/new?error=${created.error}`);
+  }
+  redirect(created.href, RedirectType.push);
 }
 
 export async function startSample() {
@@ -428,6 +463,9 @@ export async function applyAdjustment(formData: FormData) {
     });
     sources = committed.sources;
     await writeCommittedLines(user.id, quoteId, committed.lines);
+    await saveGuideQuote({ ...row, sources, priceCents: committed.priceCents, step: "adjust" });
+    refresh();
+    return;
   } else if (kind === "preset") {
     const preset = clip(formData.get("value"), 20);
     if (preset === "off10" || preset === "off20") {
@@ -562,7 +600,7 @@ export async function startCheckout(formData?: FormData) {
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
   await recordFunnel(user.id, "upgrade_viewed", { variant: guide.variant, source: "checkout" });
-  if (!stripeTestKey()) redirect("/upgrade?error=payments");
+  if (!stripeSecretKey()) redirect("/upgrade?error=payments");
   const choice = parseCheckoutChoice(
     clip(formData?.get("plan") ?? "plus", 20),
     clip(formData?.get("interval") ?? "month", 10),
@@ -585,7 +623,7 @@ export async function startCheckout(formData?: FormData) {
 
 export async function startPortal() {
   const user = await requireUser();
-  if (!stripeTestKey()) redirect("/settings/billing?notice=unavailable");
+  if (!stripeSecretKey()) redirect("/settings/billing?notice=unavailable");
   const { readBillingProfile } = await import("@/lib/account/billing-profile");
   const { createPortal, findCustomerId } = await import("@/lib/billing");
   const profile = await readBillingProfile(user.id);
@@ -652,7 +690,7 @@ export async function finishCheckout(sessionId: string) {
 
 export async function cancelSubscription() {
   const user = await requireUser();
-  if (!stripeTestKey()) redirect("/settings/billing?notice=unavailable");
+  if (!stripeSecretKey()) redirect("/settings/billing?notice=unavailable");
   const { readBillingProfile } = await import("@/lib/account/billing-profile");
   const { cancelActiveSubscriptions, findCustomerId } = await import("@/lib/billing");
   const profile = await readBillingProfile(user.id);

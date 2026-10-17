@@ -32,7 +32,10 @@ export default async function SentPage({
   return (
     <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
       <div className="mx-auto w-full max-w-lg">
-      <Logo tone="ink" width={64} height={64} className="mb-6 h-16 w-16" />
+      <div className="mb-6 flex items-center gap-3">
+        <Logo tone="light" width={64} height={64} className="h-16 w-16 shrink-0" alt="" />
+        <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
+      </div>
       <h1 className="font-serif text-3xl">Check your email</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
         {unverified
@@ -41,7 +44,7 @@ export default async function SentPage({
             ? `If ${email} can receive mail, a message is on the way. `
             : "A message is on the way. "}
         {hasCode
-          ? `If the email includes an ${codeLabel}, enter it below. If it only has a link, open the link.`
+          ? `Enter the ${codeLabel} below, or open the link in the email. Either one signs you in.`
           : "Open the link in that email."}
         {notice === "resent" ? " We sent another one." : ""}
       </p>

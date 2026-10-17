@@ -64,6 +64,26 @@ export function linesAtAsking(lines: MoneyLine[], askingCents: number | null, ad
   return [{ ...first, quantity, unitPriceCents: unit }, ...rest];
 }
 
+export interface PricedLine {
+  name: string;
+  detail: string;
+  price: string;
+}
+
+/** Line rows and the total, both from the asking price the field is showing. */
+export function pricedView(
+  lines: MoneyLine[],
+  askingCents: number | null,
+  adjustment: Adjustment,
+): { lines: PricedLine[]; totalCents: number | null } {
+  const shown = linesAtAsking(lines, askingCents, adjustment);
+  const view = shown.map((line) => {
+    const settled = lineSettlement(line, adjustment);
+    return { name: line.name, detail: settled.detail, price: formatUsd(settled.cents) };
+  });
+  return { lines: view, totalCents: shown.length ? settledTotal(shown, adjustment) : null };
+}
+
 /** The typed price replaces the suggestion on the line, the stored total, and every later reader. */
 export function commitAskingPrice(input: {
   lines: MoneyLine[];

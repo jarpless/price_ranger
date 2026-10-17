@@ -27,7 +27,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   });
   if (report.githubIssueUrl && process.env.GITHUB_FEEDBACK_TOKEN) {
     try {
-      await commentOnFeedbackIssue(report.githubIssueUrl, `${message.author === "support" ? "Support" : "Reply"}: ${body}`);
+      await commentOnFeedbackIssue(
+        report.githubIssueUrl,
+        `${message.author === "support" ? "Support" : "Reply"}: ${body}`,
+        [user.id, user.email, report.userId],
+      );
     } catch {
       // The reply is saved in the app even when GitHub is unavailable.
     }

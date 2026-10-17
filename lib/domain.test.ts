@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { BRANDS, PRODUCTS, SKUS } from "./catalog";
 import { CONNECTORS } from "./connectors";
-import { formatUsd, parseDollarsToCents, parseQuantity } from "./money";
+import { editingMoney, formatUsd, parseDollarsToCents, parseQuantity } from "./money";
 import { buildPresentation } from "./project";
 import { createSessionValue, readSessionValue } from "./session";
 import { autoSummary, customerSummary } from "./summary";
@@ -52,6 +52,8 @@ test("money parses and formats whole dollars and cents", () => {
   assert.equal(formatUsd(32000), "$320");
   assert.equal(formatUsd(250), "$2.50");
   assert.equal(formatUsd(120050), "$1,200.50");
+  assert.equal(editingMoney("$1,250"), "1250");
+  assert.equal(editingMoney("$2,001,250"), "2001250");
 });
 
 test("catalog ids are unique and every sku belongs to a real connector", () => {

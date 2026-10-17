@@ -5,7 +5,6 @@ import { getLocalUser } from "../store/local";
 import {
   attachGithubIssue,
   createFeedback,
-  feedbackScreenshotUrl,
   listAllFeedback,
   type FeedbackReport,
 } from "../store/basecamp";
@@ -192,18 +191,17 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
           await commentOnFeedbackIssue(
             canonical.githubIssueUrl,
             `Another person reported the same thing.\n\n${classified.summary}\n\nFeedback id \`${report.id}\`.`,
+            [input.email, input.userId],
           );
           githubIssueUrl = canonical.githubIssueUrl;
           await attachGithubIssue(input.userId, report.id, githubIssueUrl);
         }
       }
       if (!githubIssueUrl) {
-        const shot = await feedbackScreenshotUrl(input.userId, report.id);
-        githubIssueUrl = await openFeedbackIssue({ ...report, kind, body: note }, shot, {
-          summary,
-          agentFix,
-          email: input.email,
-        });
+        githubIssueUrl = await openFeedbackIssue(
+          { ...report, kind, body: note },
+          { summary, agentFix, redact: [input.email, input.userId] },
+        );
         if (githubIssueUrl) await attachGithubIssue(input.userId, report.id, githubIssueUrl);
       }
     } catch (error) {

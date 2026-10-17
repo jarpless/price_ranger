@@ -59,6 +59,8 @@
 html {
   background: var(--color-cream);
   max-width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Source Serif 4 at Medium. Fraunces’s f terminal crashed into the next
@@ -75,6 +77,19 @@ html {
 .font-serif.tabular-nums {
   letter-spacing: 0;
   font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0, "tnum" 1;
+}
+
+/* WebKit clips a serif descender when text-wrap: balance overflows a hidden
+   scrollport, and it can shove "Ranger" past the edge of a phone. Wrap, and
+   keep a little room under the line box so the g stays inside the clip. */
+h1.font-serif,
+h2.font-serif {
+  max-width: 100%;
+  min-width: 0;
+  text-wrap: wrap;
+  overflow-wrap: break-word;
+  line-height: 1.32;
+  padding-bottom: 0.08em;
 }
 
 body {
@@ -454,6 +469,7 @@ input[type="range"] {
   .assistant-dock:not(:empty) {
     position: sticky;
     top: 0;
+    z-index: 70;
     align-self: flex-start;
     flex: none;
     width: max-content;
@@ -499,10 +515,10 @@ input[type="range"] {
   position: fixed;
   z-index: 72;
   left: 50%;
-  bottom: calc(var(--ask-clearance) + 3.75rem);
+  bottom: var(--ask-clearance);
   display: flex;
-  width: min(28rem, calc(100vw - 2rem));
-  height: min(34rem, calc(100dvh - var(--ask-clearance) - 5.25rem));
+  width: min(32rem, calc(100vw - 2rem));
+  height: min(40rem, calc(100dvh - var(--ask-clearance) - 1.25rem));
   min-height: 0;
   transform: translateX(-50%);
   flex-direction: column;
@@ -511,6 +527,7 @@ input[type="range"] {
   border-radius: 1.5rem;
   background: var(--color-paper);
   box-shadow: 0 18px 50px rgba(28, 25, 21, 0.18), 0 2px 6px rgba(28, 25, 21, 0.06);
+  animation: ask-in 180ms ease;
 }
 
 .ask-popout {
@@ -521,6 +538,7 @@ input[type="range"] {
   min-height: 0;
   flex-direction: column;
   background: var(--color-paper);
+  animation: ask-in 180ms ease;
 }
 
 .ask-dock {
@@ -568,11 +586,142 @@ input[type="range"] {
 
 @media (max-width: 63.99rem) {
   .ask-float {
-    inset: 3rem 0 calc(var(--ask-clearance) + 3.75rem) 0;
+    inset: 0;
+    z-index: 80;
     width: auto;
-    height: auto;
+    height: 100dvh;
     transform: none;
-    border-radius: 1.25rem 1.25rem 0 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    animation: ask-sheet 220ms ease;
+  }
+}
+
+.ask-column {
+  display: flex;
+  width: min(720px, 100%);
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  margin-inline: auto;
+}
+
+.ask-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.ask-composer {
+  padding: 0.35rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.ask-composer-input:focus,
+.ask-composer-input:focus-visible {
+  outline: none;
+}
+
+.ask-composer-shell:focus-within {
+  outline: 2px solid #1e4636;
+  outline-offset: 2px;
+}
+
+.ask-float[data-keyboard="open"] .ask-composer,
+.ask-popout[data-keyboard="open"] .ask-composer {
+  padding-bottom: 0.5rem;
+}
+
+.ask-thread {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.ask-step {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border: 1px solid var(--color-line);
+  border-radius: 1.25rem;
+  background: var(--color-paper);
+  padding: 0.45rem 0.9rem 0.45rem 0.4rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.ask-step-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ask-step-mark {
+  display: grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: #e4efe8;
+  color: var(--color-pine);
+}
+
+.ask-shimmer {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.35rem 0;
+}
+
+.ask-shimmer span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--color-pine);
+  opacity: 0.35;
+  animation: ask-pulse 1s ease-in-out infinite;
+}
+
+.ask-shimmer span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ask-shimmer span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.ask-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--color-ink);
+  animation: ask-pulse 1s steps(1) infinite;
+}
+
+@keyframes ask-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ask-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ask-pulse {
+  50% {
+    opacity: 1;
   }
 }
 
@@ -582,8 +731,23 @@ input[type="range"] {
   background-size: 72px 72px;
 }
 
+.landing-art {
+  transition: opacity 480ms ease;
+}
+
+.landing-dot {
+  transition: width 300ms ease, background-color 300ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .page-in {
+  .page-in,
+  .ask-float,
+  .ask-popout,
+  .ask-shimmer span,
+  .ask-caret,
+  .landing-art,
+  .landing-dot {
     animation: none;
+    transition: none;
   }
 }

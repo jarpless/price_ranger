@@ -10,8 +10,21 @@ test("an email code is eight digits and a shorter paste is not submitted as comp
   assert.equal(isCompleteEmailCode("12345678"), true);
   assert.equal(isCompleteEmailCode("123456"), false);
   assert.equal(emailScreenHasCode({ backend: "supabase", kind: "signin" }), true);
-  assert.equal(emailScreenHasCode({ backend: "supabase", kind: "signup" }), false);
+  assert.equal(emailScreenHasCode({ backend: "supabase", kind: "signup" }), true);
   assert.equal(emailScreenHasCode({ backend: "local", kind: "signup" }), true);
+  assert.equal(emailScreenHasCode({ backend: "unconfigured", kind: "signup" }), false);
+  const sent = readFileSync(new URL("../app/login/sent/page.tsx", import.meta.url), "utf8");
+  const actions = readFileSync(new URL("../app/auth-actions.ts", import.meta.url), "utf8");
+  const signupMail = readFileSync(new URL("../supabase/templates/confirm-signup.html", import.meta.url), "utf8");
+  assert.match(sent, /OtpInput/);
+  assert.match(sent, /verifyEmailCode/);
+  assert.match(sent, /Enter the \$\{codeLabel\} below, or open the link/);
+  assert.match(actions, /type: "signup"/);
+  assert.match(actions, /\["signup", "email", "magiclink"\]/);
+  assert.match(actions, /verifyOtp\(\{ email, token: code, type \}/);
+  assert.match(signupMail, /Enter this 8-digit code in Price Ranger/);
+  assert.match(signupMail, /\{\{ \.Token \}\}/);
+  assert.match(signupMail, /\{\{ \.ConfirmationURL \}\}/);
 });
 
 test("a signup fragment is stored by the browser client before the next page loads", () => {

@@ -59,6 +59,20 @@ async function rememberLocalChallenge(email: string) {
   cookieStore.set(DEV_CODE_COOKIE, code, devCookie);
 }
 
+export async function rememberReturnTo(formData: FormData) {
+  const next = clip(formData.get("next"), 200);
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/auth")) return;
+  const cookieStore = await cookies();
+  cookieStore.set("pr_oauth_next", safeNext(next), { ...linkCookie, maxAge: 60 * 10 });
+}
+
+async function takeNext() {
+  const cookieStore = await cookies();
+  const next = safeNext(cookieStore.get("pr_oauth_next")?.value || null);
+  cookieStore.set("pr_oauth_next", "", { ...linkCookie, maxAge: 0 });
+  return next;
+}
+
 async function finishLocalSignIn(userId: string) {
   const cookieStore = await cookies();
   const linked = cookieStore.get(LINK_COOKIE)?.value || "";
@@ -71,7 +85,7 @@ async function finishLocalSignIn(userId: string) {
   if (linked) cookieStore.set(LINK_COOKIE, "", { ...linkCookie, maxAge: 0 });
   await setLocalSession(userId, "user");
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(await takeNext());
 }
 
 function providerId(value: string): OAuthProvider | null {
@@ -81,11 +95,7 @@ function providerId(value: string): OAuthProvider | null {
 export async function startOAuth(formData: FormData) {
   const provider = providerId(clip(formData.get("provider"), 20));
   if (!provider || dataBackend() !== "supabase") redirect("/signin?error=provider");
-  const next = clip(formData.get("next"), 200);
-  if (next) {
-    const cookieStore = await cookies();
-    cookieStore.set("pr_oauth_next", safeNext(next), { ...linkCookie, maxAge: 60 * 10 });
-  }
+  await rememberReturnTo(formData);
   const origin = siteOriginFromHeaders(await headers());
   const supabase = await createClient();
   const current = await getSessionUser();
@@ -120,6 +130,7 @@ async function consumeGuestLink(userId: string) {
 }
 
 export async function signInWithPassword(formData: FormData) {
+  await rememberReturnTo(formData);
   const email = clip(formData.get("email"), 160).toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (!isEmail(email)) redirect("/signin?error=email");
@@ -138,7 +149,10 @@ export async function signInWithPassword(formData: FormData) {
       if (error) {
         const classified = classifyAuthError(error);
         await keepEmail(email);
-        if (classified.code === "unverified") redirect("/signin/sent?notice=unverified");
+        if (classified.code === "unverified") {
+          await rememberEmailKind("signup");
+          redirect("/signin/sent?notice=unverified");
+        }
         redirect(authErrorPath(classified));
       }
       const { data } = await supabase.auth.getUser();
@@ -146,9 +160,10 @@ export async function signInWithPassword(formData: FormData) {
       await consumeGuestLink(data.user.id);
     } catch (error) {
       if (isNextRedirect(error)) throw error;
-      redirect("/signin?error=auth");
+      await keepEmail(email).catch(() => undefined);
+      redirect(authErrorPath(classifyAuthError(error)));
     }
-    redirect("/");
+    redirect(await takeNext());
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await verifyLocalPassword(email, password);
@@ -164,45 +179,53 @@ export async function signInWithPassword(formData: FormData) {
 }
 
 export async function createPasswordAccount(formData: FormData) {
+  await rememberReturnTo(formData);
   const email = clip(formData.get("email"), 160).toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (!isEmail(email)) redirect("/signin?error=email");
   if (password.length < 8) redirect("/signin?error=password");
 
-  if (dataBackend() === "supabase") {
-    const supabase = await createClient({ allowAuthClear: true });
-    const current = await getSessionUser();
-    const origin = siteOriginFromHeaders(await headers());
-    if (current?.guest) {
-      await rememberGuest(current.id);
-      await supabase.auth.signOut();
-    }
-    await rememberEmailKind("signup");
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-        data: current?.guest ? { link_guest: current.id } : undefined,
-      },
-    });
-    if (error) {
+  try {
+    if (dataBackend() === "supabase") {
+      const supabase = await createClient({ allowAuthClear: true });
+      const current = await getSessionUser();
+      const origin = siteOriginFromHeaders(await headers());
+      if (current?.guest) {
+        await rememberGuest(current.id);
+        await supabase.auth.signOut();
+      }
+      await rememberEmailKind("signup");
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${origin}/auth/callback`,
+          data: current?.guest ? { link_guest: current.id } : undefined,
+        },
+      });
+      if (error) {
+        await keepEmail(email).catch(() => undefined);
+        redirect(authErrorPath(classifyAuthError(error)));
+      }
       await keepEmail(email);
-      redirect(authErrorPath(classifyAuthError(error)));
+      redirect("/signin/sent");
     }
-    await keepEmail(email);
+    if (dataBackend() !== "local") redirect("/signin?error=provider");
+    await rememberEmailKind("signup");
+    const created = await createLocalPasswordAccount(email, password);
+    if (created === "taken") redirect("/signin?error=taken");
+    if (created === "password") redirect("/signin?error=password");
+    await rememberLocalChallenge(email);
     redirect("/signin/sent");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    await keepEmail(email).catch(() => undefined);
+    redirect(authErrorPath(classifyAuthError(error)));
   }
-  if (dataBackend() !== "local") redirect("/signin?error=provider");
-  await rememberEmailKind("signup");
-  const created = await createLocalPasswordAccount(email, password);
-  if (created === "taken") redirect("/signin?error=taken");
-  if (created === "password") redirect("/signin?error=password");
-  await rememberLocalChallenge(email);
-  redirect("/signin/sent");
 }
 
 export async function verifyEmailCode(formData: FormData) {
+  await rememberReturnTo(formData);
   const cookieStore = await cookies();
   const email = (cookieStore.get(PENDING_EMAIL_COOKIE)?.value || clip(formData.get("email"), 160)).toLowerCase();
   const code = normalizeEmailCode(clip(formData.get("code"), 16));
@@ -223,7 +246,7 @@ export async function verifyEmailCode(formData: FormData) {
     if (!verified) redirect("/signin/sent?error=code");
     const { data } = await supabase.auth.getUser();
     if (data.user) await consumeGuestLink(data.user.id);
-    redirect("/");
+    redirect(await takeNext());
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await consumeEmailCode(email, code);
@@ -239,14 +262,20 @@ export async function resendVerification(formData: FormData) {
   if (Date.now() - last < 60_000) {
     redirect(authErrorPath({ code: "rate_limit", retryAfterSeconds: Math.ceil((60_000 - (Date.now() - last)) / 1000), message: "" }));
   }
-  if (dataBackend() === "supabase") {
-    const supabase = await createClient();
-    await rememberEmailKind("signup");
-    const { error } = await supabase.auth.resend({ type: "signup", email });
-    if (error) {
-      await keepEmail(email);
-      redirect(authErrorPath(classifyAuthError(error)));
+  try {
+    if (dataBackend() === "supabase") {
+      const supabase = await createClient();
+      await rememberEmailKind("signup");
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) {
+        await keepEmail(email).catch(() => undefined);
+        redirect(authErrorPath(classifyAuthError(error)));
+      }
     }
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    await keepEmail(email).catch(() => undefined);
+    redirect(authErrorPath(classifyAuthError(error)));
   }
   await keepEmail(email);
   cookieStore.set("pr_resend_at", String(Date.now()), { ...linkCookie, maxAge: 120 });

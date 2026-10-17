@@ -1,7 +1,8 @@
 import { PlansPicker } from "@/components/plans-picker";
 import { InfoTip } from "@/components/info-tip";
 import { requireUser } from "@/lib/auth";
-import { stripeTestKey } from "@/lib/billing";
+import { StripeModeNote } from "@/components/stripe-mode-note";
+import { stripeSecretKey } from "@/lib/billing";
 import { FORM_ERRORS } from "@/lib/form";
 import { planStatusLine, pricingAccess } from "@/lib/guide/access";
 import { recordFunnel } from "@/lib/guide/store";
@@ -17,7 +18,7 @@ export default async function UpgradePage({
   const user = await requireUser();
   const access = await pricingAccess(user);
   await recordFunnel(user.id, "upgrade_viewed", { variant: access.guide.variant, source: "page" });
-  const ready = Boolean(stripeTestKey());
+  const ready = Boolean(stripeSecretKey());
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -29,6 +30,7 @@ export default async function UpgradePage({
       <p className="mt-3 max-w-xl text-body leading-6 text-muted">
         Free covers a few prices. A pass, Plus, or Pro keeps every price you save and raises the assistant limit.
       </p>
+      <StripeModeNote />
       {canceled ? <p className="mt-4 text-body">Checkout was canceled. Your prices are still here.</p> : null}
       {error && FORM_ERRORS[error] ? <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{FORM_ERRORS[error]}</p> : null}
       <PlansPicker current={user.plan} ready={ready} quoteLimit={access.limits.quoteLimit} />

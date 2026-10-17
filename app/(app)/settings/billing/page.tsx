@@ -3,7 +3,8 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { cancelSubscription, startPortal } from "@/app/guide-actions";
 import { readBillingProfile } from "@/lib/account/billing-profile";
 import { requireUser } from "@/lib/auth";
-import { readBillingDetails, stripeTestKey } from "@/lib/billing";
+import { StripeModeNote } from "@/components/stripe-mode-note";
+import { readBillingDetails, stripeSecretKey } from "@/lib/billing";
 import { formatUsd } from "@/lib/money";
 import { PLANS, type PlanId } from "@/lib/plans";
 
@@ -38,6 +39,7 @@ export default async function BillingPage({
         Settings
       </Link>
       <h1 className="font-serif text-display">Billing</h1>
+      <StripeModeNote />
       <section className="surface">
         <p className="text-caption font-semibold text-muted">Current plan</p>
         <p className="mt-1 font-serif text-title">{plan.name}</p>
@@ -86,11 +88,11 @@ export default async function BillingPage({
       ) : null}
       {notice === "unavailable" ? (
         <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body leading-6 text-danger">
-          Billing isn't available from this server yet. Test payments use a Stripe test key.
+          Billing isn't available from this server yet. Add a Stripe test key to take test payments. Live mode starts only when a live key is set.
         </p>
       ) : null}
       <div className="flex flex-col gap-2 sm:flex-row">
-        {stripeTestKey() ? (
+        {stripeSecretKey() ? (
           <form action={startPortal}>
             <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream sm:w-auto">
               Manage billing
@@ -109,7 +111,7 @@ export default async function BillingPage({
           </Link>
         )}
       </div>
-      {stripeTestKey() ? null : <p className="text-caption text-muted">Payments stay in Stripe test mode when a test key is set.</p>}
+      {stripeSecretKey() ? null : <p className="text-caption text-muted">Payments stay off until a Stripe test key is set. A live key is used only when you set one.</p>}
     </div>
   );
 }

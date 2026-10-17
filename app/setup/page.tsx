@@ -6,7 +6,10 @@ export default function SetupPage() {
   return (
     <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
       <div className="mx-auto w-full max-w-md">
-      <Logo tone="ink" width={64} height={64} className="mb-6 h-16 w-16" />
+      <div className="mb-6 flex items-center gap-3">
+        <Logo tone="light" width={64} height={64} className="h-16 w-16 shrink-0" alt="" />
+        <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
+      </div>
       <h1 className="font-serif text-4xl">Connect Supabase</h1>
       <p className="mt-3 text-sm leading-relaxed text-muted">
         Production needs a new Supabase project. Local development runs without one.

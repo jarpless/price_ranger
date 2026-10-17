@@ -2,7 +2,7 @@ import { parsePriceCsv } from "../csv";
 import { clip } from "../form";
 import { adjustmentFromSources, settledTotal } from "../guide/pricing";
 import { ensureGuideUser, getGuideQuote, recordFunnel, saveGuideQuote } from "../guide/store";
-import { formatUsd, parseDollarsToCents } from "../money";
+import { formatUsd, lineTotalCents, parseDollarsToCents } from "../money";
 import { withOverride } from "../market";
 import { buildPresentation } from "../project";
 import { getData } from "../store";
@@ -166,8 +166,7 @@ export async function executeTool(
     }
     case "set_asking_price": {
       const quoteId = textArg(args, "quoteId", 80);
-      const raw = parseDollarsToCents(textArg(args, "amount", 20));
-      const amount = raw == null ? null : Math.round(raw / 100) * 100;
+      const amount = parseDollarsToCents(textArg(args, "amount", 20));
       const row = quoteId ? await getGuideQuote(userId, quoteId) : null;
       if (!quoteId || amount == null || !row) {
         return { ok: false, summary: "Open the price and give an amount, like 160.", href: quoteId ? `/guide/${quoteId}` : "/", spotlight: "asking-price" };
@@ -176,9 +175,25 @@ export async function executeTool(
       const quote = await data.getQuote(userId, quoteId);
       const groups = await data.listGroups(userId);
       const group = quote?.tiers[0]?.groupIds.map((id) => groups.find((item) => item.id === id)).find(Boolean);
-      const line = group?.items[0];
-      if (line) await data.updateGroupItem(userId, line.id, { quantity: line.quantity || 1, unitPriceCents: amount });
-      const sources = withOverride(row.sources, amount);
+      const items = group?.items ?? [];
+      const target = textArg(args, "target", 20) || "total";
+      const lineId = textArg(args, "lineId", 80);
+      const chosen = target === "line" ? items.find((item) => item.id === lineId) : null;
+      if (chosen) {
+        const quantity = chosen.quantity || 1;
+        await data.updateGroupItem(userId, chosen.id, {
+          quantity,
+          unitPriceCents: Math.max(0, Math.round(amount / quantity)),
+        });
+      } else if (items[0]) {
+        const others = items.slice(1).reduce((sum, item) => sum + lineTotalCents(item.quantity || 1, item.unitPriceCents), 0);
+        const quantity = items[0].quantity || 1;
+        const next = Math.max(0, amount - others);
+        await data.updateGroupItem(userId, items[0].id, {
+          quantity,
+          unitPriceCents: Math.max(0, Math.round(next / quantity)),
+        });
+      }
       const freshGroups = await data.listGroups(userId);
       const fresh = quote?.tiers[0]?.groupIds.map((id) => freshGroups.find((item) => item.id === id)).find(Boolean);
       const lines = (fresh?.items ?? []).map((item) => ({
@@ -186,11 +201,15 @@ export async function executeTool(
         quantity: item.quantity,
         unitPriceCents: item.unitPriceCents,
       }));
-      const priceCents = lines.length ? settledTotal(lines, adjustmentFromSources(sources)) : amount;
+      const priceCents = lines.length ? settledTotal(lines, adjustmentFromSources(row.sources)) : amount;
+      const sources = withOverride(row.sources, priceCents);
       await saveGuideQuote({ ...row, sources, priceCents, step: row.step === "describe" ? "review" : row.step });
+      const named = chosen?.name;
       return {
         ok: true,
-        summary: `Updated this quote to ${formatUsd(priceCents)}.`,
+        summary: named
+          ? `Done. ${named} is now ${formatUsd(amount)}; quote total ${formatUsd(priceCents)}.`
+          : `Done. The total is now ${formatUsd(priceCents)}.`,
         href: `/guide/${quoteId}`,
         spotlight: "asking-price",
       };

@@ -15,15 +15,22 @@ function NewFeedback() {
   const router = useRouter();
   const params = useSearchParams();
   const shake = params.get("shake") === "1";
+  const storedShot = shake || params.get("shot") === "1";
   const [shot, setShot] = useState<{ preview: string; blob: Blob } | null>(null);
   const [error, setError] = useState("");
+  const [route, setRoute] = useState(pathname);
 
   useEffect(() => {
     let cancel = false;
     async function run() {
       try {
+        const storedRoute = window.sessionStorage.getItem("pr-feedback-route");
+        if (storedRoute) {
+          setRoute(storedRoute);
+          window.sessionStorage.removeItem("pr-feedback-route");
+        }
         const stored = window.sessionStorage.getItem("pr-feedback-shot");
-        if (shake && stored) {
+        if (storedShot && stored) {
           const blob = await dataUrlToBlob(stored);
           if (!cancel) setShot({ preview: stored, blob });
           window.sessionStorage.removeItem("pr-feedback-shot");
@@ -39,7 +46,7 @@ function NewFeedback() {
     return () => {
       cancel = true;
     };
-  }, [shake]);
+  }, [shake, storedShot]);
 
   if (shot) {
     return (
@@ -47,14 +54,14 @@ function NewFeedback() {
         preview={shot.preview}
         blob={shot.blob}
         source={shake ? "shake" : "mobile"}
-        route={pathname}
+        route={route}
         onClose={() => router.back()}
       />
     );
   }
 
   return (
-    <div data-feedback-chrome="true" className="mx-auto max-w-[40rem]">
+    <div className="mx-auto max-w-[40rem]">
       <h1 className="font-serif text-display">Send feedback</h1>
       <p className="mt-2 text-body text-muted">{error || "Taking a screenshot of this screen."}</p>
     </div>
