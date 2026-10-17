@@ -312,7 +312,7 @@ export function draftFromRules(inputs: ReadContext[], sourceNames: string[]): Co
         continue;
       }
     }
-    let current = "Items";
+    let current = inputs.length > 1 ? fileTitle(input.name) || (input.kind === "transcript" ? "From the call" : "Notes") : "Items";
     for (const line of textLines(input.text, input.kind === "transcript")) {
       const title = heading(line.text);
       if (title) {
