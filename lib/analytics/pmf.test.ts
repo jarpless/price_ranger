@@ -49,7 +49,7 @@ test("owner and test addresses are internal", () => {
 });
 
 test("every event name is allowed by the migration", () => {
-  const sql = readFileSync(new URL("../../supabase/migrations/20261017200000_pmf_events.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("../../supabase/migrations/20261017203000_pmf_events.sql", import.meta.url), "utf8");
   for (const name of PMF_EVENTS) assert.match(sql, new RegExp(`'${name}'`), name);
 });
 

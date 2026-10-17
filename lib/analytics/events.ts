@@ -1,6 +1,6 @@
 import { FUNNEL_EVENTS } from "../guide/flow";
 
-/** Every name the funnel_events table accepts. Keep in step with 20261017200000_pmf_events.sql. */
+/** Every name the funnel_events table accepts. Keep in step with 20261017203000_pmf_events.sql. */
 export const PMF_EVENTS = [
   ...FUNNEL_EVENTS,
   "session_started",

@@ -1,4 +1,4 @@
-/** Pure metric math for /admin/pmf. Mirrors the pmf_ SQL views in 20261017200000_pmf_events.sql. */
+/** Pure metric math for /admin/pmf. Mirrors the pmf_ SQL views in 20261017203000_pmf_events.sql. */
 
 export interface MetricEvent {
   userId: string | null;

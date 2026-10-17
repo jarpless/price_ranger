@@ -82,7 +82,7 @@ Events that existed before #55 keep their names. The spec name is shown where it
 
 ## SQL views
 
-`supabase/migrations/20261017200000_pmf_events.sql` adds the columns, the extended name list, the anonymous insert policy for share-page events, and the views. The views use `security_invoker`, so row-level security still applies: a support account (`public.is_support()`) sees every row and anyone else sees only their own. Query them from the Supabase SQL editor or point Metabase at them.
+`supabase/migrations/20261017203000_pmf_events.sql` adds the columns, the extended name list, the anonymous insert policy for share-page events, and the views. The views use `security_invoker`, so row-level security still applies: a support account (`public.is_support()`) sees every row and anyone else sees only their own. Query them from the Supabase SQL editor or point Metabase at them.
 
 The migration is in the repository and is not applied to production. Until it runs, `track()` calls for new event names fail quietly and the existing funnel events keep working.
 
