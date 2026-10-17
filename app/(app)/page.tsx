@@ -120,13 +120,11 @@ export default async function HomePage() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="font-serif text-display">Home</h1>
-          {industry ? (
-            <p className="truncate text-caption text-muted">{industry}</p>
-          ) : (
+          {!industry ? (
             <Link href="/start" className="text-caption font-semibold text-pine">
               What are you pricing?
             </Link>
-          )}
+          ) : null}
         </div>
         <div className="hidden lg:block">{newPrice}</div>
       </div>
@@ -137,7 +135,7 @@ export default async function HomePage() {
           <li key={action.key}>
             <Link
               href={action.href}
-              className={`flex h-16 flex-col justify-center rounded-xl border px-2 lg:h-14 lg:px-3 ${action.hot ? "border-pine bg-paper" : "border-line bg-paper/60"}`}
+              className="flex h-16 flex-col justify-center rounded-xl border border-line bg-paper px-2 hover:border-pine lg:h-14 lg:px-3"
             >
               <span className={`truncate font-serif text-xl font-medium leading-6 tabular-nums ${action.hot ? "text-pine" : "text-ink"}`}>{action.value}</span>
               <span className="truncate text-caption font-semibold text-muted">{action.label}</span>
