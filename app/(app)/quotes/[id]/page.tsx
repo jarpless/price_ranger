@@ -8,8 +8,11 @@ import {
   useGoodBetterBest,
 } from "@/app/actions";
 import { QuoteBuilder } from "@/components/quote-builder";
+import { QuoteMedia } from "@/components/quote-media";
 import { BackLink, Button, Card, Notice, TextField } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { listQuoteMedia } from "@/lib/guide/media";
+import { ownerSlides } from "@/lib/guide/media-slides";
 import { formatUsd, priceSpan } from "@/lib/money";
 import { customerSummary } from "@/lib/summary";
 import { groupCents, presentationDrifted } from "@/lib/project";
@@ -37,11 +40,15 @@ export default async function QuotePage({
   const library = await data.listLibrary(user.id);
   const byId = new Map(groups.map((group) => [group.id, group]));
   const drifted = presentationDrifted(quote, groups);
+  const slides = ownerSlides(quote.id, quote.title, await listQuoteMedia(user.id, quote.id));
 
   return (
     <div className="space-y-4">
       <div className="hidden h-[calc(100dvh-5.75rem)] min-h-0 flex-col lg:flex">
         <h1 className="mb-2 truncate font-serif text-title">{quote.customerName}</h1>
+        <div className="mb-2 shrink-0">
+          <QuoteMedia quoteId={quote.id} initialSlides={slides} editable density="strip" />
+        </div>
         {drifted ? (
           <p className="mb-2 rounded-xl bg-[#f8f1df] px-3 py-2 text-sm leading-5 text-ink">
             Prices changed after you last presented. Present again to update the customer copy.
@@ -57,6 +64,7 @@ export default async function QuotePage({
       <div className="space-y-4 lg:hidden">
       <BackLink href="/quotes">{words.quotes}</BackLink>
       <h1 className="font-serif text-4xl">{quote.customerName}</h1>
+      <QuoteMedia quoteId={quote.id} initialSlides={slides} editable density="hero" />
       <form action={updateQuote} className="space-y-3">
         <input type="hidden" name="quoteId" value={quote.id} />
         <Notice code={error} />

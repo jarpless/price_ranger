@@ -135,7 +135,8 @@ export async function readQuoteMediaFile(
     if (!/^[a-zA-Z0-9_-]{1,40}$/.test(mediaId)) return null;
     const poster = await readStoredFile(userId, posterObjectName(quoteId, mediaId));
     if (!poster) return null;
-    return { bytes: poster.bytes, mime: "image/jpeg" };
+    const mime = poster.mime.startsWith("image/") ? poster.mime : "image/jpeg";
+    return { bytes: poster.bytes, mime };
   }
   if (mediaId === "cover") return readQuotePhoto(userId, quoteId);
   if (!/^[a-zA-Z0-9_-]{1,40}$/.test(mediaId)) return null;
