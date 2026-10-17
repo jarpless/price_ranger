@@ -256,8 +256,9 @@ test("the line and the total move together from the typed price", () => {
   assert.equal(formatUsd(view.totalCents ?? 0), view.lines[0].price);
   const card = readFileSync(new URL("../components/market-card.tsx", import.meta.url), "utf8");
   const asking = readFileSync(new URL("../components/asking-price.tsx", import.meta.url), "utf8");
-  assert.match(card, /<AskingTotal[\s\S]*lines=\{lines\}[\s\S]*adjustment=\{adjustment\}[\s\S]*askingCents=\{point\}/);
-  assert.match(card, /<AskingLines lines=\{lines\} adjustment=\{adjustment\} askingCents=\{point\}/);
+  assert.match(card, /initialSheet = sheetFromSources\(sources\) \?\? sheetFromLines\(lines\)/);
+  assert.match(card, /<InlineQuote[\s\S]*initialSheet=\{initialSheet\}[\s\S]*adjustment=\{adjustment\}[\s\S]*askingCents=\{point\}/);
+  assert.doesNotMatch(card, /quoteBuilderEnabled/);
   assert.match(asking, /pricedView\(lines, draft, adjustment\)/);
   const actions = readFileSync(new URL("../app/guide-actions.ts", import.meta.url), "utf8");
   const linesFn = actions.slice(actions.indexOf("async function quoteLines"), actions.indexOf("async function settledPrice"));
