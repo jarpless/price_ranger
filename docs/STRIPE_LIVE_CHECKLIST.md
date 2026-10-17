@@ -1,5 +1,7 @@
 # Stripe live-mode checklist
 
+For the rc-2 launch, start with `docs/go-live.md`: it has the full env var list, migration order, Stripe objects, and smoke checklist. This file keeps the background detail.
+
 Test mode is the default. Live mode starts only when `STRIPE_SECRET_KEY` is an `sk_live_` secret in the server environment. This checklist is the owner's runbook. It does not switch keys, call Stripe, or change Vercel or Supabase settings.
 
 Do not paste secret keys, webhook secrets, or price ids into git, issues, or logs.
