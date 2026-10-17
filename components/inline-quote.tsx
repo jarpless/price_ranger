@@ -50,6 +50,7 @@ export function InlineQuote({
     setSavedKey(incoming);
     setSheet(initialSheet);
   }
+  const formulaTouched = useRef(false);
   const [sparkleId, setSparkleId] = useState<string | null>(null);
   const [formulaDraft, setFormulaDraft] = useState("");
   const [explanation, setExplanation] = useState("");
@@ -103,6 +104,7 @@ export function InlineQuote({
     const local = column.formula
       ? { formula: column.formula, explanation: explainFormula(column.formula, labels) }
       : suggestFormula(hints, column.id);
+    formulaTouched.current = false;
     setSparkleId(column.id);
     setFormulaDraft(local.formula);
     setExplanation(local.explanation);
@@ -121,7 +123,7 @@ export function InlineQuote({
       });
       if (!response.ok) return;
       const payload = (await response.json()) as { formula?: string; explanation?: string; source?: string };
-      if (payload.formula && parseFormula(payload.formula).ok) {
+      if (!formulaTouched.current && payload.formula && parseFormula(payload.formula).ok) {
         setFormulaDraft(payload.formula);
         if (payload.explanation) setExplanation(payload.explanation);
         setFormulaSource(payload.source === "model" ? "Suggested from the assistant." : "");
@@ -290,6 +292,7 @@ export function InlineQuote({
               value={formulaDraft}
               aria-label="Edit formula"
               onChange={(event) => {
+                formulaTouched.current = true;
                 setFormulaDraft(event.target.value);
                 setFormulaError("");
               }}
