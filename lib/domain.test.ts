@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { BRANDS, PRODUCTS, SKUS } from "./catalog";
+import { brandWordIn } from "./brand-words";
+import { BRANDS, currentSkuCode, isDefaultTradeCategory, PRODUCTS, ROOFING_CATEGORY, SKUS, skusForConnector } from "./catalog";
 import { CONNECTORS } from "./connectors";
+import { PRICE_CSV_TEMPLATE } from "./csv";
+import { VOCABULARIES } from "./vocabulary";
 import { editingMoney, formatUsd, parseDollarsToCents, parseQuantity } from "./money";
 import { buildPresentation } from "./project";
 import { createSessionValue, readSessionValue } from "./session";
@@ -12,16 +16,16 @@ import type { ItemGroup, QuoteRecord } from "./types";
 test("auto summary joins a few line items in plain language", () => {
   assert.equal(
     autoSummary([
-      { name: "GAF Timberline HDZ shingles", quantity: 30, unit: "square" },
+      { name: "architectural shingles", quantity: 30, unit: "square" },
     ]),
-    "Includes 30 squares of GAF Timberline HDZ shingles.",
+    "Includes 30 squares of architectural shingles.",
   );
   assert.equal(
     autoSummary([
-      { name: "GAF Timberline HDZ shingles", quantity: 30, unit: "square" },
-      { name: "GAF FeltBuster underlayment", quantity: 10, unit: "roll" },
+      { name: "architectural shingles", quantity: 30, unit: "square" },
+      { name: "synthetic underlayment", quantity: 10, unit: "roll" },
     ]),
-    "Includes 30 squares of GAF Timberline HDZ shingles and 10 rolls of GAF FeltBuster underlayment.",
+    "Includes 30 squares of architectural shingles and 10 rolls of synthetic underlayment.",
   );
   assert.match(autoSummary([
     { name: "A", quantity: 1, unit: "each" },
@@ -54,6 +58,40 @@ test("money parses and formats whole dollars and cents", () => {
   assert.equal(formatUsd(120050), "$1,200.50");
   assert.equal(editingMoney("$1,250"), "1250");
   assert.equal(editingMoney("$2,001,250"), "2001250");
+});
+
+test("the trades catalog is generic, handyman first, and keeps every saved sku id", () => {
+  const shown = [
+    ...BRANDS.map((brand) => brand.name),
+    ...PRODUCTS.map((product) => `${product.name} ${product.category} ${product.description}`),
+    ...SKUS.map((sku) => `${sku.name} ${sku.variation ?? ""} ${sku.skuCode} ${Object.values(sku.attributes).join(" ")}`),
+    ...CONNECTORS.filter((connector) => connector.availability === "sample").map((connector) => `${connector.name} ${connector.summary} ${connector.access}`),
+  ];
+  for (const text of shown) assert.equal(brandWordIn(text), null, text);
+  assert.equal(isDefaultTradeCategory(ROOFING_CATEGORY), false);
+  assert.ok(isDefaultTradeCategory(PRODUCTS[0].category));
+  assert.equal(CONNECTORS[0].slug, "handyman");
+  assert.ok(skusForConnector("handyman").length >= 10);
+  for (const name of ["Drywall patch", "Faucet replace", "Ceiling fan install", "Door rehang", "Outlet or switch swap", "TV mount", "Furniture assembly", "Gutter clean", "Service call", "Hourly labor"]) {
+    assert.ok(SKUS.some((sku) => sku.name === name && sku.connectorSlug === "handyman"), name);
+  }
+  const firstCatalog = ["719c4821-6e7a-5be1-bdf0-dfc4965af742", "4b11f167-606f-5d24-9918-faf78ebe30ed", "573026b2-c096-537f-988f-3092b140540e", "fdb79d12-ac64-58cb-bc79-c16adc6913a5", "d0f27a9a-a5ff-5009-bcb5-f15661d3a57f", "cbb5035d-d157-568e-b64d-66b9dbfdf423", "23ccb4b1-fb93-51dd-b8af-83dd1d4cf599", "6f9ba51b-d289-5d40-9a79-b441ac8c42dc", "10508e7a-e6d2-52cb-913e-7c526fed0cac", "8151f24a-25a7-55d8-a293-c77bd1f34bcc", "91e51b90-767b-5b67-a530-66a0f8d66184", "73a32f9a-2d87-5d6a-adab-63db6045bd8f", "183b11e0-81e4-5d12-bc39-a7f1be75024e", "efe79e9f-3ab7-52bf-9a0e-b2934cf8a936", "d34f5ec1-f4a3-57fb-b107-f16f45dab6f9", "3d64de28-0e02-5669-99b8-79569799b2a8"];
+  const migration = readFileSync(new URL("../supabase/migrations/20261017200000_generic_trades_catalog.sql", import.meta.url), "utf8");
+  for (const id of firstCatalog) {
+    const sku = SKUS.find((item) => item.id === id);
+    assert.ok(sku, id);
+    assert.equal(sku.connectorSlug === "handyman", false);
+    assert.equal(PRODUCTS.find((item) => item.id === sku.productId)?.category, ROOFING_CATEGORY);
+  }
+  for (const row of [...PRODUCTS, ...SKUS]) assert.ok(migration.includes(row.id), row.id);
+  assert.doesNotMatch(migration, /(insert into|update|delete from|alter table|drop table)\s+public\.(library_items|group_items|quotes|profiles)/i);
+  assert.equal(currentSkuCode("GAF-THDZ"), "RS-ARCH");
+  assert.equal(currentSkuCode("hm-trip"), "hm-trip");
+  const trades = VOCABULARIES.trades;
+  const tradesCopy = [trades.label, trades.blurb, trades.jobExample, ...trades.starters.map((item) => item.name)].join(" ");
+  assert.doesNotMatch(tradesCopy, /roof|shingle|siding/i);
+  assert.equal(brandWordIn(tradesCopy), null);
+  assert.equal(brandWordIn(PRICE_CSV_TEMPLATE), null);
 });
 
 test("catalog ids are unique and every sku belongs to a real connector", () => {
@@ -91,7 +129,7 @@ test("presentation freezes group descriptions and totals", () => {
         id: "i1",
         groupId: "g1",
         libraryItemId: null,
-        name: "GAF Timberline HDZ shingles",
+        name: "architectural shingles",
         unit: "square",
         unitPriceCents: 32000,
         quantity: 30,
@@ -122,6 +160,6 @@ test("presentation freezes group descriptions and totals", () => {
   };
   const snapshot = buildPresentation(quote, [group]);
   assert.equal(snapshot.tiers[0].totalCents, 960000);
-  assert.match(snapshot.tiers[0].groups[0].summary, /30 squares of GAF Timberline HDZ shingles/);
+  assert.match(snapshot.tiers[0].groups[0].summary, /30 squares of architectural shingles/);
   assert.equal(snapshot.tiers[0].recommended, true);
 });
