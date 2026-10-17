@@ -14,7 +14,9 @@ import { TOS_VERSION } from "@/lib/guide/config";
 import { isGuidePath, suggestPrice } from "@/lib/guide/flow";
 import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
 import { draftKey, reusableDraftId, shareDraftWork } from "@/lib/guide/drafts";
+import { quoteBuilderEnabled } from "@/lib/guide/flags";
 import { adjustmentFromSources, commitAskingPrice, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
+import { alignSheet, normalizeSheet, sheetFromLines, sheetFromSources, sheetToMoneyLines, sourcesWithSheet } from "@/lib/guide/sheet";
 import { identifyPhoto, type PhotoIdentity } from "@/lib/guide/vision";
 import {
   ensureGuideUser,
@@ -93,6 +95,28 @@ async function writeCommittedLines(userId: string, quoteId: string, lines: Money
     return data.addGroupItem(userId, group.id, itemId);
   }
   return data.updateGroupItem(userId, existing.id, { quantity: first.quantity > 0 ? first.quantity : 1, unitPriceCents: first.unitPriceCents });
+}
+
+async function replaceQuoteLines(userId: string, quoteId: string, lines: MoneyLine[]) {
+  const { data, group } = await quoteGroup(userId, quoteId);
+  if (!group) return false;
+  return data.replaceGroupLines(
+    userId,
+    group.id,
+    lines.map((line) => ({
+      name: line.name,
+      quantity: line.quantity > 0 ? line.quantity : 1,
+      unitPriceCents: line.unitPriceCents,
+    })),
+  );
+}
+
+async function rememberSheet(userId: string, quoteId: string, sources: string[]) {
+  if (!quoteBuilderEnabled()) return sources;
+  const lines = await quoteLines(userId, quoteId);
+  const current = sheetFromSources(sources);
+  const next = current ? alignSheet(current, lines) : sheetFromLines(lines);
+  return sourcesWithSheet(sources, next);
 }
 
 async function addExtraLine(userId: string, quoteId: string, name: string, amount: number) {
@@ -463,6 +487,7 @@ export async function applyAdjustment(formData: FormData) {
     });
     sources = committed.sources;
     await writeCommittedLines(user.id, quoteId, committed.lines);
+    sources = await rememberSheet(user.id, quoteId, sources);
     await saveGuideQuote({ ...row, sources, priceCents: committed.priceCents, step: "adjust" });
     refresh();
     return;
@@ -505,7 +530,38 @@ export async function applyAdjustment(formData: FormData) {
   const settled = await settledPrice(user.id, quoteId, adjustment);
   const saved = readMarketMeta(sources).overrideCents;
   const priceCents = saved != null ? saved : settled;
+  sources = await rememberSheet(user.id, quoteId, sources);
   await saveGuideQuote({ ...row, sources, priceCents, step: "adjust" });
+  refresh();
+}
+
+export async function saveInlineSheet(formData: FormData) {
+  const user = await requireUser();
+  const quoteId = clip(formData.get("quoteId"), 80);
+  const row = await requireGuide(user.id, quoteId);
+  if (!quoteBuilderEnabled()) redirect(`/guide/${quoteId}`);
+  let parsed = null;
+  try {
+    parsed = normalizeSheet(JSON.parse(String(formData.get("sheet") || "")));
+  } catch {
+    parsed = null;
+  }
+  if (!parsed) redirect(`/guide/${quoteId}?error=line`);
+  const money = sheetToMoneyLines(parsed);
+  const wrote = await replaceQuoteLines(user.id, quoteId, money);
+  if (!wrote) redirect(`/guide/${quoteId}?error=line`);
+  const sources = sourcesWithSheet(
+    row.sources.filter((source) => !source.startsWith("meta:override=")),
+    parsed,
+  );
+  const adjustment = adjustmentFromSources(sources);
+  const priceCents = money.length ? settledTotal(money, adjustment) : 0;
+  await saveGuideQuote({
+    ...row,
+    sources,
+    priceCents,
+    step: row.step === "review" ? "adjust" : row.step,
+  });
   refresh();
 }
 
@@ -518,7 +574,10 @@ export async function sendQuote(formData: FormData) {
   if (!quote) redirect("/");
   const meta = readMarketMeta(row.sources);
   const askingCents = meta.overrideCents ?? row.priceCents;
-  if (askingCents != null) {
+  const storedSheet = quoteBuilderEnabled() ? sheetFromSources(row.sources) : null;
+  if (storedSheet) {
+    await replaceQuoteLines(user.id, quoteId, sheetToMoneyLines(storedSheet));
+  } else if (askingCents != null) {
     const committed = commitAskingPrice({
       lines: await quoteLines(user.id, quoteId),
       sources: row.sources,
@@ -526,14 +585,16 @@ export async function sendQuote(formData: FormData) {
     });
     await writeCommittedLines(user.id, quoteId, committed.lines);
   }
+  const fresh = storedSheet ? await data.getQuote(user.id, quoteId) : quote;
   const groups = await data.listGroups(user.id);
   const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
-  const sheet = buyerSheet(quote, groups, {
+  const sheet = buyerSheet(fresh || quote, groups, {
     sources: row.sources,
     note: row.note,
     photo: photo ? photoDataUrl(photo) : null,
     date: new Date().toISOString().slice(0, 10),
     askingCents,
+    quoteSheet: storedSheet,
   });
   const live = marketPrice(row.description) || marketPrice(quote.title);
   sheet.condition = conditionLabel(meta.condition || live?.condition || "good");

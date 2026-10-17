@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { subscribeSheetTotal } from "@/components/asking-price";
 import { editingMoney, formatUsd, parseDollarsToCents, replacedMoney } from "@/lib/money";
 
 function shownMoney(value: string): string {
@@ -19,6 +20,7 @@ export function MoneyField({
   label,
   submitOnBlur = false,
   onDraft,
+  trackSheet = false,
   className = "mt-1 h-12 w-full min-w-0 rounded-2xl border border-line px-3 text-base font-normal",
 }: {
   name: string;
@@ -27,6 +29,8 @@ export function MoneyField({
   submitOnBlur?: boolean;
   /** Fires with the typed cents while the field changes, before Save. */
   onDraft?: (cents: number | null) => void;
+  /** Follow the live sheet total until the seller types in this field. */
+  trackSheet?: boolean;
   className?: string;
 }) {
   const [text, setText] = useState(() => shownMoney(defaultValue));
@@ -37,6 +41,8 @@ export function MoneyField({
   const fresh = useRef(false);
   const replace = useRef(false);
   const selectNext = useRef(false);
+  const typed = useRef(false);
+  const sheetCents = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   textRef.current = text;
 
@@ -47,15 +53,32 @@ export function MoneyField({
   }, [text]);
 
   useEffect(() => {
-    if (focused.current) return;
+    if (focused.current || typed.current) return;
     const incoming = parseDollarsToCents(defaultValue);
     if (held.current != null && incoming !== held.current) return;
     held.current = null;
     sent.current = null;
+    if (trackSheet && sheetCents.current != null) {
+      const shown = formatUsd(sheetCents.current);
+      textRef.current = shown;
+      setText(shown);
+      return;
+    }
     const shown = shownMoney(defaultValue);
     setText(shown);
     textRef.current = shown;
-  }, [defaultValue]);
+  }, [defaultValue, trackSheet]);
+
+  useEffect(() => {
+    if (!trackSheet) return;
+    return subscribeSheetTotal((cents) => {
+      sheetCents.current = cents;
+      if (focused.current || typed.current || cents == null) return;
+      const shown = formatUsd(cents);
+      textRef.current = shown;
+      setText(shown);
+    });
+  }, [trackSheet]);
 
   function showRaw(input: HTMLInputElement) {
     const raw = editingMoney(textRef.current);
@@ -73,6 +96,7 @@ export function MoneyField({
     textRef.current = formatted;
     setText(formatted);
     onDraft?.(cents);
+    if (!typed.current) return;
     if (!submitOnBlur || !form || sent.current === cents) return;
     const previous = parseDollarsToCents(defaultValue);
     if (cents === previous) return;
@@ -94,6 +118,7 @@ export function MoneyField({
         const next = replacedMoney(textRef.current, event.target.value, replace.current);
         replace.current = next.armed;
         sent.current = null;
+        typed.current = true;
         textRef.current = next.text;
         setText(next.text);
         onDraft?.(parseDollarsToCents(next.text));
@@ -123,6 +148,7 @@ export function MoneyField({
         focused.current = false;
         replace.current = false;
         commit(event.currentTarget.form);
+        typed.current = false;
       }}
       className={className}
     />
