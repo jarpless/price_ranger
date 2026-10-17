@@ -37,15 +37,18 @@ function heading(line: string): string | null {
   return null;
 }
 
+const LEAD_FILLER = /^(?:and|plus|also|then|for|so|of|we need|need|i need|it's|its|that's|thats|about|around|roughly)\s+/i;
+const TRAIL_FILLER = /\s+(?:at|for|is|costs?|runs?|would be|will be|about|around|roughly|so|asking|selling for|price|priced at|obo)$/i;
+const EDGE_PUNCT = /^[\s,;:.!?–—-]+|[\s,;:.!?–—-]+$/g;
+
 function cleanName(text: string): string {
-  return text
-    .replace(/^\s*(?:[-*•▪◦]|\d{1,3}[.)])\s+/, "")
-    .replace(/\s+/g, " ")
-    .replace(/^[\s,;:.!?–—-]+|[\s,;:.!?–—-]+$/g, "")
-    .replace(/^(?:and|plus|also|then|for|so|we need|need|i need|it's|its|that's|thats)\s+/i, "")
-    .replace(/\s+(?:at|for|is|costs?|runs?|would be|will be|about|around|roughly|so)$/i, "")
-    .replace(/^[\s,;:.!?–—-]+|[\s,;:.!?–—-]+$/g, "")
-    .trim();
+  let name = text.replace(/^\s*(?:[-*•▪◦]|\d{1,3}[.)])\s+/, "").replace(/\s+/g, " ").replace(EDGE_PUNCT, "");
+  for (let pass = 0; pass < 3; pass += 1) name = name.replace(LEAD_FILLER, "").replace(TRAIL_FILLER, "").replace(EDGE_PUNCT, "");
+  return name.trim();
+}
+
+function shortTitle(name: string): string {
+  return name.split(/[.,;]\s|\s[-–—]\s|\s\(/)[0].trim().slice(0, 80);
 }
 
 export interface ParsedLine {
@@ -247,16 +250,33 @@ function textLines(text: string, transcript: boolean): { text: string; number: n
   return out;
 }
 
+function fileTitle(name: string): string {
+  if (/^pasted /i.test(name)) return "";
+  const stem = name.replace(/\s·\s.*$/, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!/[a-z]{3}/i.test(stem) || /^(?:img|dsc|scan|document|file)\s?\d*$/i.test(stem)) return "";
+  return stem.charAt(0).toUpperCase() + stem.slice(1);
+}
+
 function firstTitle(inputs: ReadContext[]): string {
   for (const input of inputs) {
     if (input.tabular || input.kind === "transcript") continue;
-    for (const raw of input.text.split("\n")) {
+    for (const raw of input.text.split("\n").slice(0, 12)) {
       const line = raw.replace(/^#+\s*/, "").trim();
       if (!line || line.length > 70 || !/[a-z]/i.test(line)) continue;
       if (/^(?:estimate|quote|invoice|bid|proposal)\s*#?\s*\d*$/i.test(line)) continue;
+      if (/^[A-Za-z][\w ]{0,24}:\s*\S/.test(line)) continue;
       const parsed = parseTextLine(line);
-      return (parsed && !parsed.total ? parsed.name : line).replace(/[:.]+$/, "").slice(0, 80);
+      if (parsed && (parsed.unitPriceCents == null || parsed.total)) continue;
+      if (parsed) {
+        if (inputs.length > 1) continue;
+        return shortTitle(parsed.name);
+      }
+      return line.replace(/[:.]+$/, "").slice(0, 80);
     }
+  }
+  for (const input of inputs) {
+    const title = fileTitle(input.name);
+    if (title) return title.slice(0, 80);
   }
   return "";
 }

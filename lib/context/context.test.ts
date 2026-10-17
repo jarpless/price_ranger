@@ -137,6 +137,21 @@ test("a single resale listing becomes one item with a range", () => {
   assert.equal(draft.highCents, 30000);
 });
 
+test("titles skip labels and priced lines, then fall back to a file name", () => {
+  const draft = draftFromRules(
+    [
+      { name: "Pasted text", kind: "text", tabular: false, text: "Customer: Dana Lee\nAlso 2 x smoke detectors @ $45 each" },
+      ...readContextFile("roof-estimate.csv", "text/csv", new TextEncoder().encode("Item,Qty,Price\nShingles,24,135\n")),
+    ],
+    ["Pasted text", "roof-estimate.csv"],
+  );
+  assert.equal(draft.title, "Roof estimate");
+  assert.equal(draft.customerName, "Dana Lee");
+  const listing = draftFromRules([{ name: "Pasted text", kind: "text", tabular: false, text: "Nintendo Switch OLED, white. Barely used, with case. Asking $250-$300" }], ["Pasted text"]);
+  assert.equal(listing.title, "Nintendo Switch OLED");
+  assert.equal(parseTextLine("Plus 3 hours of patching at $65")?.name, "Patching");
+});
+
 test("normalizeDraft never trusts a price without evidence as sourced", () => {
   const draft = normalizeDraft({
     format: "job",
