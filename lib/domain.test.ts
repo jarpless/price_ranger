@@ -94,6 +94,14 @@ test("the trades catalog is generic, handyman first, and keeps every saved sku i
   assert.equal(brandWordIn(PRICE_CSV_TEMPLATE), null);
 });
 
+test("supplier cards keep the real store names", () => {
+  // Owner decision: real stores users price materials against stay named. Only these cards are exempt.
+  const names = new Map(CONNECTORS.map((connector) => [connector.slug, connector.name]));
+  assert.equal(names.get("home-depot"), "Home Depot");
+  assert.equal(names.get("lowes"), "Lowe's");
+  assert.equal(names.get("abc-supply"), "ABC Supply");
+});
+
 test("catalog ids are unique and every sku belongs to a real connector", () => {
   const ids = [...BRANDS, ...PRODUCTS, ...SKUS].map((row) => row.id);
   assert.equal(new Set(ids).size, ids.length);
