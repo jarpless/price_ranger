@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CaptureForm } from "@/components/capture-form";
 import { requireUser } from "@/lib/auth";
 import { captureFromQuery } from "@/lib/capture-state";
+import { newPriceHref } from "@/lib/landing-categories";
 import { pricingAccess } from "@/lib/guide/access";
 import { priceError } from "@/lib/guide/pricing";
 import { ensureGuideUser } from "@/lib/guide/store";
@@ -19,7 +20,7 @@ export default async function NewPricePage({
   const capture = captureFromQuery(q, cat, CATEGORIES);
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
-  if (!guide.tosAcceptedAt) redirect("/welcome?next=/new");
+  if (!guide.tosAcceptedAt) redirect(`/welcome?next=${encodeURIComponent(newPriceHref(capture.description, capture.category))}`);
   const access = await pricingAccess(user);
   if (!access.ok) redirect("/upgrade");
 
