@@ -14,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       guest={user.guest}
       accountLabel={user.guest ? null : user.email || "Signed in"}
       owner={isOwnerEmail(user.email)}
+      industry={user.industry}
     >
       {children}
     </Shell>
