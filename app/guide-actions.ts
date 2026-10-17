@@ -12,6 +12,7 @@ import { clip } from "@/lib/form";
 import { pricingAccess } from "@/lib/guide/access";
 import { TOS_VERSION } from "@/lib/guide/config";
 import { isGuidePath, suggestPrice } from "@/lib/guide/flow";
+import { firstAlbumImage } from "@/lib/guide/media";
 import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
 import { draftKey, reusableDraftId, shareDraftWork } from "@/lib/guide/drafts";
 import { adjustmentFromSources, commitAskingPrice, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
@@ -364,11 +365,13 @@ export async function saveDescription(formData: FormData) {
   const pathValue = clip(formData.get("path"), 20);
   const path = isGuidePath(pathValue) ? pathValue : row.path;
   const uploaded = await photoFromForm(user.id, formData);
-  if (!description && !uploaded && !row.photoName) redirect(`/guide/${quoteId}?error=missing`);
+  const album = uploaded ? null : await firstAlbumImage(user.id, quoteId);
+  const photo = uploaded || album;
+  if (!description && !photo && !row.photoName) redirect(`/guide/${quoteId}?error=missing`);
   let text = description;
   let visionNote = "";
-  if (!text && uploaded) {
-    const identified = await namePhoto(user.id, uploaded, `/guide/${quoteId}`);
+  if (!text && photo) {
+    const identified = await namePhoto(user.id, photo, `/guide/${quoteId}`);
     text = identified.title;
     visionNote = identified.note;
   }
@@ -401,7 +404,7 @@ export async function saveDescription(formData: FormData) {
     ...row,
     path,
     description: text,
-    photoName: uploaded || row.photoName ? "photo" : null,
+    photoName: photo || row.photoName ? "photo" : null,
     priceCents: suggestion.cents,
     note: suggestion.note,
     sources: suggestion.sources,

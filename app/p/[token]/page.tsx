@@ -2,9 +2,13 @@ import { notFound } from "next/navigation";
 
 import { contactAboutPrice } from "@/app/share-contact";
 import { Logo } from "@/components/logo";
+import { MediaCarousel } from "@/components/media-carousel";
+import { listQuoteMedia } from "@/lib/guide/media";
+import type { CarouselSlide } from "@/lib/guide/media-slides";
+import { publicSlides } from "@/lib/guide/media-slides";
 import { formatUsd } from "@/lib/money";
 import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
-import { forPublic, readSharedSheet } from "@/lib/share";
+import { forPublic, readSharedSheet, readShareOwner } from "@/lib/share";
 import { shareGrowthOffer } from "@/lib/share-growth";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +31,13 @@ export default async function PublicSheetPage({
   const range = sheet.range || (live ? `${formatUsd(live.lowCents)}–${formatUsd(live.highCents)}` : "");
   const condition = sheet.condition || (live ? conditionLabel(live.condition) : "");
   const photo = sheet.photo || live?.comparables[0]?.thumbnail || pictureFor(sheet.title);
+  const owner = await readShareOwner(token);
+  const attached = owner ? publicSlides(token, sheet.title, await listQuoteMedia(owner.userId, owner.quoteId)) : [];
+  const slides: CarouselSlide[] = attached.length
+    ? attached
+    : photo
+      ? [{ id: "sheet", kind: "image", src: photo, poster: null, mime: "image/jpeg", alt: sheet.title }]
+      : [];
   const offer = shareGrowthOffer(token);
 
   return (
@@ -46,10 +57,10 @@ export default async function PublicSheetPage({
       ) : null}
       {sheet.date ? <p className="mt-2 text-center text-caption text-muted">{sheet.date}</p> : null}
       {sheet.subtitle ? <p className="mt-2 text-center text-body text-muted">{sheet.subtitle}</p> : null}
-      {photo ? (
-        // The buyer opens this without an account. The picture is part of the sheet they were sent.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo} alt={sheet.title} data-share-photo="" className="mt-6 max-h-72 w-full rounded-2xl border border-line object-contain bg-paper" />
+      {slides.length ? (
+        <div className="mt-6" data-share-photo="">
+          <MediaCarousel slides={slides} />
+        </div>
       ) : null}
       {sheet.note ? <p className="mt-4 text-center text-body leading-6">{sheet.note}</p> : null}
       {sheet.options.map((option) => (

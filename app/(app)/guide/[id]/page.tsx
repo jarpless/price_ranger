@@ -9,15 +9,17 @@ import {
   sendQuote,
 } from "@/app/guide-actions";
 import { GuideProgress } from "@/components/guide-ui";
+import { QuoteMedia } from "@/components/quote-media";
 import { MarketCard } from "@/components/market-card";
 import { PathSwitch } from "@/components/path-switch";
-import { PhotoField } from "@/components/photo-field";
 import { PrimaryDock } from "@/components/primary-dock";
 import { ShareActions } from "@/components/share-actions";
 import { InfoTip } from "@/components/info-tip";
 import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { listQuoteMedia } from "@/lib/guide/media";
+import { ownerSlides } from "@/lib/guide/media-slides";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
 import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, priceError } from "@/lib/guide/pricing";
@@ -67,6 +69,7 @@ export default async function GuidePage({
   const headlineCents = lineTotal ?? asking;
   const price = headlineCents != null ? formatUsd(headlineCents) : "";
   const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
+  const slides = ownerSlides(id, row.description || quote?.title || "Photo", await listQuoteMedia(user.id, id));
   const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
   const lines = money.map((item) => {
     const settled = lineSettlement(item, adjustment);
@@ -80,10 +83,10 @@ export default async function GuidePage({
       {priceError(error) ? (
         <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
       ) : null}
-      {row.photoName ? (
-        // The photo route is the seller's copy of the picture they added.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/guide/${id}/photo`} alt={row.description} className="mt-6 max-h-64 w-full rounded-2xl border border-line object-contain bg-paper" />
+      {row.step !== "describe" ? (
+        <div className="mt-6">
+          <QuoteMedia quoteId={id} initialSlides={slides} editable density="hero" />
+        </div>
       ) : null}
 
       {row.step === "describe" ? (
@@ -100,7 +103,7 @@ export default async function GuidePage({
               className="mt-2 w-full rounded-2xl border border-line bg-paper px-4 py-3 text-base font-normal leading-6 outline-none focus:border-pine"
             />
           </label>
-          <PhotoField />
+          <QuoteMedia quoteId={id} initialSlides={slides} editable density="hero" priceOnPhoto addLabel="Add photo" />
           <PrimaryDock>
             <Button type="submit">{copy.primary}</Button>
           </PrimaryDock>

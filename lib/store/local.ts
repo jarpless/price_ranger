@@ -396,6 +396,13 @@ export async function readLocalSheet(token: string): Promise<unknown | null> {
 }
 
 /** Seller address for a share token. Callers must not send this to the browser. */
+export async function readLocalShareOwner(token: string): Promise<{ userId: string; quoteId: string } | null> {
+  const db = await read();
+  const share = db.shares.find((item) => item.token === token);
+  if (!share) return null;
+  return { userId: share.userId, quoteId: share.quoteId };
+}
+
 export async function readLocalShareSeller(token: string): Promise<string | null> {
   const db = await read();
   const share = db.shares.find((item) => item.token === token);
