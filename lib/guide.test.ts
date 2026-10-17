@@ -461,3 +461,28 @@ test("Back to /new after the last free price keeps the search; See price opens P
   const form = readFileSync(new URL("../components/capture-form.tsx", import.meta.url), "utf8");
   assert.match(form, /result\.error === "limit"\) \{\s*router\.push\("\/upgrade"\)/);
 });
+
+test("See price creates the quote, tier, group, and line in one store call", async () => {
+  const { localStore } = await import("./store/local");
+  const userId = `test-${crypto.randomUUID()}`;
+  const quoteId = await localStore.createItemQuote(userId, {
+    title: "used Nintendo Switch",
+    customerName: "Buyer",
+    itemName: "used Nintendo Switch",
+    unitPriceCents: 17500,
+  });
+  const quote = await localStore.getQuote(userId, quoteId);
+  assert.equal(quote?.tiers.length, 1);
+  assert.equal(quote?.tiers[0].name, "Standard");
+  const group = await localStore.getGroup(userId, quote?.tiers[0].groupIds[0] ?? "");
+  assert.deepEqual(
+    group?.items.map((item) => [item.name, item.quantity, item.unitPriceCents]),
+    [["used Nintendo Switch", 1, 17500]],
+  );
+  assert.equal((await localStore.listQuotes(userId)).length, 1);
+  await localStore.deleteQuote(userId, quoteId);
+  const actions = readFileSync(new URL("../app/guide-actions.ts", import.meta.url), "utf8");
+  const draft = actions.slice(actions.indexOf("export async function createPricedDraft"), actions.indexOf("export async function startAndPrice("));
+  assert.match(draft, /createItemQuote/);
+  assert.doesNotMatch(draft, /toggleTierGroup|addGroupItem|await recordFunnel/);
+});
