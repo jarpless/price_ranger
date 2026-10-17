@@ -27,6 +27,11 @@ test("change price updates the open quote and waits for confirm", () => {
   assert.equal(step.step.needsConfirm, true);
   assert.equal(step.step.href, "/guide/abc");
   assert.equal(quoteCommand("change price", "/guide/abc")?.type, "reply");
+  const comma = quoteCommand("change the price to $1,250", "/guide/abc");
+  assert.equal(comma?.type, "step");
+  if (comma?.type === "step") assert.equal(comma.step.args.amount, "1250");
+  const cents = quoteCommand("change the price to 1,250.50", "/guide/abc");
+  if (cents?.type === "step") assert.equal(cents.step.args.amount, "1250.50");
   assert.equal(quoteCommand("How do I change the price?", "/guide/abc"), null);
   assert.equal(confirmedAction("change the price to 160", "/guide/abc"), null);
 });

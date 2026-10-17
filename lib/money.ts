@@ -8,16 +8,16 @@ export function formatUsd(cents: number): string {
   return `${sign}$${body}.${String(rem).padStart(2, "0")}`;
 }
 
-export function dollarsInputValue(cents: number): string {
-  if (cents % 100 === 0) return String(cents / 100);
-  return (cents / 100).toFixed(2);
-}
-
 /** Digits for the field while it is focused. "$1,250" becomes "1250", so a new number replaces it. */
 export function editingMoney(value: string): string {
   const cents = parseDollarsToCents(value);
   if (cents == null) return value.replace(/[$,\s]/g, "");
   return dollarsInputValue(cents);
+}
+
+export function dollarsInputValue(cents: number): string {
+  if (cents % 100 === 0) return String(cents / 100);
+  return (cents / 100).toFixed(2);
 }
 
 /** The dollars string a price field posts. "$1,250" and "1250" both become "1250". */

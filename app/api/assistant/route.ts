@@ -10,10 +10,45 @@ import { screenAnswer } from "@/lib/assistant/screen";
 import { explainPrice } from "@/lib/guide/help";
 import { getGuideQuote } from "@/lib/guide/store";
 import { confirmedAction, appPath, quoteCommand } from "@/lib/assistant/intent";
+import { priceChoices } from "@/lib/assistant/price-target";
 import { answerFromMarket, conditionLabel, readMarketMeta } from "@/lib/market";
 import { PLANS } from "@/lib/plans";
-import { formatUsd } from "@/lib/money";
+import { formatUsd, lineTotalCents, parseDollarsToCents } from "@/lib/money";
+import { getData } from "@/lib/store";
 import { assistantAllowance, blockedAssistantMessage, recordAssistantUse, recordLocalAssistantUse } from "@/lib/usage";
+
+async function enrichPriceStep<T extends { name: string; args: Record<string, string>; caption: string }>(
+  userId: string,
+  step: T,
+): Promise<T & { choices?: { label: string; args: Record<string, string> }[] }> {
+  if (step.name !== "set_asking_price") return step;
+  const amount = parseDollarsToCents(step.args.amount || "");
+  const quoteId = step.args.quoteId || "";
+  if (amount == null || !quoteId) return step;
+  const data = await getData();
+  const quote = await data.getQuote(userId, quoteId);
+  const groups = await data.listGroups(userId);
+  const group = quote?.tiers[0]?.groupIds.map((id) => groups.find((item) => item.id === id)).find(Boolean);
+  const lines = (group?.items ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    cents: lineTotalCents(item.quantity || 1, item.unitPriceCents),
+  }));
+  const row = await getGuideQuote(userId, quoteId);
+  const total = row?.priceCents ?? lines.reduce((sum, line) => sum + line.cents, 0);
+  const described = priceChoices(lines, amount, total);
+  return {
+    ...step,
+    caption: described.caption,
+    choices: described.choices.map((choice) => ({
+      label: choice.label,
+      args: {
+        target: choice.target,
+        ...(choice.lineId ? { lineId: choice.lineId } : {}),
+      },
+    })),
+  };
+}
 
 async function charge(user: SessionUser, mode: "ask" | "agent", result: LlmResult) {
   await recordAssistantUse({
@@ -69,17 +104,20 @@ export async function POST(request: Request) {
   const commanded = quoteCommand(latestIntent, pathname);
   if (commanded?.type === "reply") return localReply(user, commanded.text);
   if (commanded?.type === "step") {
+    const step = await enrichPriceStep(user.id, commanded.step);
+    await recordLocalAssistantUse(user.id);
     return Response.json({
       type: "plan",
       configured: llmProvider() != null,
-      text: commanded.step.caption,
-      steps: [commanded.step],
+      text: step.caption,
+      steps: [step],
       continue: false,
       allowance: await assistantAllowance(user),
     });
   }
   const confirmed = confirmedAction(latestIntent, pathname);
   if (confirmed) {
+    await recordLocalAssistantUse(user.id);
     return Response.json({
       type: "plan",
       configured: llmProvider() != null,
@@ -126,12 +164,8 @@ export async function POST(request: Request) {
       }
     }
     if (/my feedback|my ticket|my bug|feedback status/.test(latestText.toLowerCase())) {
-      return Response.json({
-        type: "message",
-        configured: llmProvider() != null,
-        text: await feedbackAssistantText(user.id),
-        allowance: await assistantAllowance(user),
-      });
+      const text = await feedbackAssistantText(user.id);
+      return localReply(user, text);
     }
     if (row) {
       const explained = explainPrice(latestText, row);
@@ -156,7 +190,7 @@ export async function POST(request: Request) {
 
   if (body.mode === "ask") {
     if (!configured) {
-      return Response.json({ type: "message", configured: false, text: localAskAnswer(slice) });
+      return localReply(user, localAskAnswer(slice));
     }
     const { json, redaction } = redactedContext(slice, pathname);
     const redactedTurns = turns.map((turn) => ({
@@ -186,23 +220,25 @@ export async function POST(request: Request) {
         type: "message",
         configured: false,
         text: "Done. What I created is still editable.",
+        allowance: await assistantAllowance(user),
       });
     }
     const latest = [...turns].reverse().find((turn) => turn.role === "user")?.content || "";
     const steps = planLocally(latest, pathname);
     if (!steps) {
-      return Response.json({
-        type: "message",
-        configured: false,
-        text: "No model key is set. On this machine you can say “Add a price called Ridge vent at 40 each”, “Create a group called Ridge cap”, “New quote for a customer about a job”, or “Open prices”. Set OPENAI_API_KEY or ANTHROPIC_API_KEY for anything broader.",
-      });
+      return localReply(
+        user,
+        "No model key is set. On this machine you can say “Add a price called Ridge vent at 40 each”, “Create a group called Ridge cap”, “New quote for a customer about a job”, or “Open prices”. Set OPENAI_API_KEY or ANTHROPIC_API_KEY for anything broader.",
+      );
     }
+    await recordLocalAssistantUse(user.id);
     return Response.json({
       type: "plan",
       configured: false,
       note: "No model key is set, so this run stays on this machine and only uses in-app actions.",
       steps,
       continue: false,
+      allowance: await assistantAllowance(user),
     });
   }
 
@@ -214,21 +250,21 @@ export async function POST(request: Request) {
   try {
     const result = await complete({ mode: "agent", contextJson: json, turns: redactedTurns });
     await charge(user, "agent", result);
-    const steps = result.tools.filter((tool) => isToolName(tool.name)).map((tool) => {
+    const steps = await Promise.all(result.tools.filter((tool) => isToolName(tool.name)).map(async (tool) => {
       const args: Record<string, string> = {};
       for (const [key, value] of Object.entries(tool.args)) {
         args[key] = restoreText(value, redaction.tokens);
       }
       const described = describeTool(tool.name, args, pathname);
-      return {
+      return enrichPriceStep(user.id, {
         name: tool.name,
         args,
         caption: described.caption,
         href: appPath(described.href),
         spotlight: described.spotlight,
         needsConfirm: toolNeedsConfirm(tool.name, args),
-      };
-    });
+      });
+    }));
     if (steps.length === 0) {
       return Response.json({
         type: "message",

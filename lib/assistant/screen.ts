@@ -50,7 +50,19 @@ function soldHelp(ctx: ScreenContext): string {
 }
 
 function planHelp(ctx: ScreenContext): string {
-  return `You're on ${ctx.planName}. Free, the 30-day pass, Plus, and Pro are on Plans. Settings, then Manage billing, is where you see renewal and cancel. [Plans](/upgrade) [Billing](/settings/billing)`;
+  return [
+    `You're on **${ctx.planName}**.`,
+    "",
+    "You can choose:",
+    "- Free",
+    "- The 30-day pass",
+    "- Plus",
+    "- Pro",
+    "",
+    "Settings, then Manage billing, is where you see renewal and cancel.",
+    "[Plans](/upgrade)",
+    "[Billing](/settings/billing)",
+  ].join("\n");
 }
 
 function photoHelp(): string {
