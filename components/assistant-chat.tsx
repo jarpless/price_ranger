@@ -81,6 +81,9 @@ export function AssistantChat({
   onPopOut,
   onDock,
   onFloat,
+  coach = null,
+  onDismissCoach,
+  onStartTour,
 }: {
   mobile: boolean;
   popout: boolean;
@@ -110,6 +113,9 @@ export function AssistantChat({
   onPopOut: () => void;
   onDock: () => void;
   onFloat: () => void;
+  coach?: { title: string; body: string; dismissed: boolean; replayLabel: string } | null;
+  onDismissCoach?: () => void;
+  onStartTour?: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -294,7 +300,7 @@ export function AssistantChat({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-paper text-ink">
-      <header className="ask-top flex items-center gap-2 border-b border-line px-3 pb-2">
+      <header className="ask-top @container flex items-center gap-2 border-b border-line px-3 pb-2">
         <button
           type="button"
           className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink"
@@ -307,7 +313,7 @@ export function AssistantChat({
           <Chevron />
         </button>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pine">
-          <Logo tone="inverse" width={22} height={22} className="h-5 w-5" alt="" />
+          <Logo tone="light" width={22} height={22} className="h-5 w-5" alt="" />
         </span>
         <h1 className="min-w-0 truncate font-serif text-lg leading-none">Price Ranger</h1>
         <div className="ml-auto flex items-center">
@@ -317,8 +323,20 @@ export function AssistantChat({
                 <PopOutIcon />
               </button>
               {docked ? (
-                <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full" aria-label="Float" onClick={onFloat}>
-                  <FloatIcon />
+                <button
+                  type="button"
+                  className="group/float relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full @[32rem]:w-auto @[32rem]:gap-1.5 @[32rem]:px-3"
+                  aria-label="Minimize to floating chat"
+                  onClick={onFloat}
+                >
+                  <PictureInPictureIcon />
+                  <span className="hidden text-sm font-semibold @[32rem]:inline">Pop out</span>
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute right-0 top-full z-30 mt-1 hidden whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-cream group-hover/float:block group-focus-visible/float:block"
+                  >
+                    Minimize to floating chat
+                  </span>
                 </button>
               ) : (
                 <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full" aria-label="Open in side panel" onClick={onDock}>
@@ -375,6 +393,7 @@ export function AssistantChat({
           </div>
         ) : (
           <>
+            {coach ? <CoachNote coach={coach} onDismiss={onDismissCoach} onStart={onStartTour} /> : null}
             <div className="relative min-h-0 flex-1">
             <div
               ref={scroller}
@@ -388,7 +407,7 @@ export function AssistantChat({
                 <div className="flex min-h-full flex-col items-center justify-center px-6 py-10 text-center">
                   <span className="flex items-center gap-3">
                     <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pine">
-                      <Logo tone="inverse" width={40} height={40} className="h-10 w-10" alt="" />
+                      <Logo tone="light" width={40} height={40} className="h-10 w-10" alt="" />
                     </span>
                     <span className="font-serif text-title leading-8">Price Ranger</span>
                   </span>
@@ -598,6 +617,55 @@ export function AssistantChat({
   );
 }
 
+function CoachNote({
+  coach,
+  onDismiss,
+  onStart,
+}: {
+  coach: { title: string; body: string; dismissed: boolean; replayLabel: string };
+  onDismiss?: () => void;
+  onStart?: () => void;
+}) {
+  if (coach.dismissed) {
+    return (
+      <div className="px-4 pt-3">
+        <button type="button" className="h-11 text-sm font-semibold text-pine" onClick={onStart}>
+          {coach.replayLabel}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="mx-3 mt-3 rounded-2xl border border-line bg-cream px-3 py-3">
+      <div className="flex items-start gap-2">
+        <p className="min-w-0 flex-1 text-sm leading-6">
+          <span className="font-semibold">{coach.title}. </span>
+          {coach.body}
+        </p>
+        <button
+          type="button"
+          aria-label="Dismiss tip"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted"
+          onClick={onDismiss}
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <button type="button" className="mt-1 h-11 px-1 text-sm font-semibold text-pine" onClick={onStart}>
+        {coach.replayLabel}
+      </button>
+    </div>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Chevron() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -682,11 +750,18 @@ function DockIcon() {
   );
 }
 
-function FloatIcon() {
+/** Lucide picture-in-picture-2: the docked chat shrinks into a floating window. */
+function PictureInPictureIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="7" y="4" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 10v8a2 2 0 0 0 2 2h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="12" y="13" width="10" height="7" rx="2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }

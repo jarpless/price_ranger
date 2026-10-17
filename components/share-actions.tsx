@@ -37,7 +37,7 @@ export function ShareActions({ href, title }: { href: string; title: string }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-spotlight="share-actions">
       <div className="flex flex-col gap-2">
         <button
           type="button"

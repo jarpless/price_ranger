@@ -7,14 +7,19 @@ export const dynamic = "force-dynamic";
  * Verifies Stripe-Signature with STRIPE_WEBHOOK_SECRET, then applies checkout and
  * subscription events when the event livemode matches the configured key.
  * Test mode is the default. A duplicate event id is acknowledged and not applied again.
- * Returns quietly when the secret or secret key is unset so a deploy does not depend
- * on the Stripe dashboard.
+ * Returns quietly when the secret or secret key is unset in test or off mode, so a deploy
+ * does not depend on the Stripe dashboard. In live mode a missing secret is a 503, so Stripe
+ * keeps retrying and the dashboard shows the endpoint failing instead of a silent success.
  */
 export async function POST(request: Request) {
   logStripeMode("webhook");
   const secret = stripeWebhookSecret();
   const raw = await request.text();
   if (!secret || !stripeSecretKey()) {
+    if (stripeMode() === "live") {
+      console.error("Stripe webhook: STRIPE_WEBHOOK_SECRET is not set in live mode.");
+      return new Response("webhook not configured", { status: 503 });
+    }
     return Response.json({ received: false, mode: stripeMode() });
   }
   const header = request.headers.get("stripe-signature") || "";

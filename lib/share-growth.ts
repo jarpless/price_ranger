@@ -36,3 +36,6 @@ export function shareGrowthOffer(token: string): ShareGrowthOffer {
   const action = SHARE_GROWTH_ACTION;
   return { action, ...offers[action](token) };
 }
+
+/** The shared quote's header goes to the marketing home page, tagged so share-driven visits can be counted. */
+export const SHARE_HEADER_HREF = "https://www.priceranger.app/?ref=share&utm_source=share&utm_medium=quote_header";

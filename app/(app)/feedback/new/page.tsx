@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
+import { CONTEXT_KEY } from "@/components/beta";
 import { captureShot } from "@/components/capture-shot";
 import { FeedbackComposer } from "@/components/feedback-composer";
 
@@ -19,6 +20,7 @@ function NewFeedback() {
   const [shot, setShot] = useState<{ preview: string; blob: Blob } | null>(null);
   const [error, setError] = useState("");
   const [route, setRoute] = useState(pathname);
+  const [context, setContext] = useState("");
 
   useEffect(() => {
     let cancel = false;
@@ -28,6 +30,11 @@ function NewFeedback() {
         if (storedRoute) {
           setRoute(storedRoute);
           window.sessionStorage.removeItem("pr-feedback-route");
+        }
+        const storedContext = window.sessionStorage.getItem(CONTEXT_KEY);
+        if (storedContext) {
+          setContext(storedContext);
+          window.sessionStorage.removeItem(CONTEXT_KEY);
         }
         const stored = window.sessionStorage.getItem("pr-feedback-shot");
         if (storedShot && stored) {
@@ -55,6 +62,7 @@ function NewFeedback() {
         blob={shot.blob}
         source={shake ? "shake" : "mobile"}
         route={route}
+        context={context}
         onClose={() => router.back()}
       />
     );

@@ -19,6 +19,11 @@ export interface DataStore {
   listQuotes(userId: string): Promise<QuoteListItem[]>;
   getQuote(userId: string, quoteId: string): Promise<QuoteRecord | null>;
   createQuote(userId: string, input: { title: string; customerName: string }): Promise<string>;
+  /** A quote whose Standard tier holds one group with one custom line. */
+  createItemQuote(
+    userId: string,
+    input: { title: string; customerName: string; itemName: string; unitPriceCents: number },
+  ): Promise<string>;
   updateQuote(
     userId: string,
     quoteId: string,
@@ -52,6 +57,11 @@ export interface DataStore {
   saveGroupSummary(userId: string, groupId: string, summary: string): Promise<boolean>;
   resetGroupSummary(userId: string, groupId: string): Promise<boolean>;
   addGroupItem(userId: string, groupId: string, libraryItemId: string): Promise<boolean>;
+  replaceGroupLines(
+    userId: string,
+    groupId: string,
+    lines: { name: string; quantity: number; unitPriceCents: number }[],
+  ): Promise<boolean>;
   updateGroupItem(
     userId: string,
     itemId: string,

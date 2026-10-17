@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
+import { after } from "next/server";
 import { redirect, RedirectType } from "next/navigation";
 
+import { track } from "@/lib/analytics/track";
 import { requireUser, safeNext } from "@/lib/auth";
 import { createCheckout, parseCheckoutChoice, readCheckout, stripeSecretKey } from "@/lib/billing";
 import { saveBillingProfile } from "@/lib/account/billing-profile";
@@ -11,10 +13,13 @@ import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { clip } from "@/lib/form";
 import { pricingAccess } from "@/lib/guide/access";
 import { TOS_VERSION } from "@/lib/guide/config";
-import { isGuidePath, suggestPrice } from "@/lib/guide/flow";
+import { isGuidePath } from "@/lib/guide/flow";
+import { suggestPrice } from "@/lib/guide/suggest";
+import { firstAlbumImage } from "@/lib/guide/media";
 import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
 import { draftKey, reusableDraftId, shareDraftWork } from "@/lib/guide/drafts";
 import { adjustmentFromSources, commitAskingPrice, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
+import { alignSheet, normalizeSheet, sheetFromLines, sheetFromSources, sheetToMoneyLines, sourcesWithSheet } from "@/lib/guide/sheet";
 import { identifyPhoto, type PhotoIdentity } from "@/lib/guide/vision";
 import {
   ensureGuideUser,
@@ -93,6 +98,27 @@ async function writeCommittedLines(userId: string, quoteId: string, lines: Money
     return data.addGroupItem(userId, group.id, itemId);
   }
   return data.updateGroupItem(userId, existing.id, { quantity: first.quantity > 0 ? first.quantity : 1, unitPriceCents: first.unitPriceCents });
+}
+
+async function replaceQuoteLines(userId: string, quoteId: string, lines: MoneyLine[]) {
+  const { data, group } = await quoteGroup(userId, quoteId);
+  if (!group) return false;
+  return data.replaceGroupLines(
+    userId,
+    group.id,
+    lines.map((line) => ({
+      name: line.name,
+      quantity: line.quantity > 0 ? line.quantity : 1,
+      unitPriceCents: line.unitPriceCents,
+    })),
+  );
+}
+
+async function rememberSheet(userId: string, quoteId: string, sources: string[]) {
+  const lines = await quoteLines(userId, quoteId);
+  const current = sheetFromSources(sources);
+  const next = current ? alignSheet(current, lines) : sheetFromLines(lines);
+  return sourcesWithSheet(sources, next);
 }
 
 async function addExtraLine(userId: string, quoteId: string, name: string, amount: number) {
@@ -236,13 +262,15 @@ function categoryFromForm(formData: FormData): string | null {
 /** Creates the quote and returns its URL. The browser pushes that URL so Back lands on the search. */
 export async function createPricedDraft(formData: FormData): Promise<{ ok: true; href: string } | { ok: false; error: string }> {
   const user = await requireUser();
+  const photoRead = photoFromForm(user.id, formData);
+  photoRead.catch(() => undefined);
   const access = await pricingAccess(user);
   if (!access.ok) return { ok: false, error: "limit" };
   const path = clip(formData.get("path"), 20);
   if (!isGuidePath(path)) return { ok: false, error: "path" };
   const description = clip(formData.get("description"), 280);
   const category = categoryFromForm(formData);
-  const photo = await photoFromForm(user.id, formData);
+  const photo = await photoRead;
   if (!description && !photo) return { ok: false, error: "missing" };
   let text = description;
   let visionNote = "";
@@ -252,27 +280,23 @@ export async function createPricedDraft(formData: FormData): Promise<{ ok: true;
     visionNote = identified.note;
   }
   if (!text || looksLikeFilename(text)) return { ok: false, error: "photo" };
+  await track("price_started", { input: photo ? "camera" : "text", path }, { user });
   const quoteId = await shareDraftWork(draftKey(user.id, text), async () => {
-    const recentId = reusableDraftId(await listGuideQuotes(user.id), text);
+    const recentId = reusableDraftId(access.quotes, text);
     if (recentId) return recentId;
     const suggestion = suggestPrice(text, path);
     if (visionNote) suggestion.note = visionNote;
-    const guide = await ensureGuideUser(user.id);
-    await recordFunnel(user.id, "path_chosen", { path, variant: guide.variant });
+    const variant = access.guide.variant;
+    after(() => recordFunnel(user.id, "path_chosen", { path, variant }));
     const customer = path === "job" ? "Customer" : path === "check" ? "Price check" : "Buyer";
     const data = await getData();
-    const createdId = await data.createQuote(user.id, { title: text.slice(0, 80), customerName: customer });
-    const groupId = await data.createGroup(user.id, text.slice(0, 80));
-    const itemId = await data.createCustomItem(user.id, {
-      name: text.slice(0, 80),
-      unit: "each",
+    const createdId = await data.createItemQuote(user.id, {
+      title: text.slice(0, 80),
+      customerName: customer,
+      itemName: text.slice(0, 80),
       unitPriceCents: suggestion.cents,
     });
-    await data.addGroupItem(user.id, groupId, itemId);
-    const quote = await data.getQuote(user.id, createdId);
-    const tierId = quote?.tiers[0]?.id;
-    if (tierId) await data.toggleTierGroup(user.id, tierId, groupId);
-    await saveGuideQuote({
+    const saved = saveGuideQuote({
       quoteId: createdId,
       userId: user.id,
       path,
@@ -289,8 +313,9 @@ export async function createPricedDraft(formData: FormData): Promise<{ ok: true;
       finishedAt: null,
       updatedAt: new Date().toISOString(),
     });
-    if (photo) await saveQuotePhoto(user.id, createdId, photo.bytes, photo.mime).catch(() => undefined);
-    await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
+    await Promise.all([saved, photo ? saveQuotePhoto(user.id, createdId, photo.bytes, photo.mime).catch(() => undefined) : null]);
+    after(() => recordFunnel(user.id, "first_price_generated", { path, variant }));
+    await track("price_result_shown", { path, confidence: suggestion.confidence, input: photo ? "camera" : "text" }, { user });
     return createdId;
   });
   refresh();
@@ -346,6 +371,7 @@ export async function startSample() {
     updatedAt: new Date().toISOString(),
   });
   await recordFunnel(user.id, "first_price_generated", { sample: "yes", variant: guide.variant });
+  await track("price_result_shown", { path: "item", confidence: suggestion.confidence, sample: true }, { user });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -364,11 +390,13 @@ export async function saveDescription(formData: FormData) {
   const pathValue = clip(formData.get("path"), 20);
   const path = isGuidePath(pathValue) ? pathValue : row.path;
   const uploaded = await photoFromForm(user.id, formData);
-  if (!description && !uploaded && !row.photoName) redirect(`/guide/${quoteId}?error=missing`);
+  const album = uploaded ? null : await firstAlbumImage(user.id, quoteId);
+  const photo = uploaded || album;
+  if (!description && !photo && !row.photoName) redirect(`/guide/${quoteId}?error=missing`);
   let text = description;
   let visionNote = "";
-  if (!text && uploaded) {
-    const identified = await namePhoto(user.id, uploaded, `/guide/${quoteId}`);
+  if (!text && photo) {
+    const identified = await namePhoto(user.id, photo, `/guide/${quoteId}`);
     text = identified.title;
     visionNote = identified.note;
   }
@@ -401,7 +429,7 @@ export async function saveDescription(formData: FormData) {
     ...row,
     path,
     description: text,
-    photoName: uploaded || row.photoName ? "photo" : null,
+    photoName: photo || row.photoName ? "photo" : null,
     priceCents: suggestion.cents,
     note: suggestion.note,
     sources: suggestion.sources,
@@ -409,6 +437,7 @@ export async function saveDescription(formData: FormData) {
   });
   if (uploaded) await saveQuotePhoto(user.id, quoteId, uploaded.bytes, uploaded.mime).catch(() => undefined);
   await recordFunnel(user.id, "first_price_generated", { path: row.path, variant: guide.variant });
+  await track("price_result_shown", { path, confidence: suggestion.confidence, input: uploaded ? "camera" : "text" }, { user });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -438,6 +467,7 @@ export async function applyAdjustment(formData: FormData) {
   const quoteId = clip(formData.get("quoteId"), 80);
   const row = await requireGuide(user.id, quoteId);
   const kind = clip(formData.get("kind"), 20);
+  await track("price_adjusted", { kind: kind || "other" }, { user });
   const data = await getData();
   let sources = row.sources;
   if (kind === "condition" || kind === "variant") {
@@ -463,6 +493,7 @@ export async function applyAdjustment(formData: FormData) {
     });
     sources = committed.sources;
     await writeCommittedLines(user.id, quoteId, committed.lines);
+    sources = await rememberSheet(user.id, quoteId, sources);
     await saveGuideQuote({ ...row, sources, priceCents: committed.priceCents, step: "adjust" });
     refresh();
     return;
@@ -505,7 +536,37 @@ export async function applyAdjustment(formData: FormData) {
   const settled = await settledPrice(user.id, quoteId, adjustment);
   const saved = readMarketMeta(sources).overrideCents;
   const priceCents = saved != null ? saved : settled;
+  sources = await rememberSheet(user.id, quoteId, sources);
   await saveGuideQuote({ ...row, sources, priceCents, step: "adjust" });
+  refresh();
+}
+
+export async function saveInlineSheet(formData: FormData) {
+  const user = await requireUser();
+  const quoteId = clip(formData.get("quoteId"), 80);
+  const row = await requireGuide(user.id, quoteId);
+  let parsed = null;
+  try {
+    parsed = normalizeSheet(JSON.parse(String(formData.get("sheet") || "")));
+  } catch {
+    parsed = null;
+  }
+  if (!parsed) redirect(`/guide/${quoteId}?error=line`);
+  const money = sheetToMoneyLines(parsed);
+  const wrote = await replaceQuoteLines(user.id, quoteId, money);
+  if (!wrote) redirect(`/guide/${quoteId}?error=line`);
+  const sources = sourcesWithSheet(
+    row.sources.filter((source) => !source.startsWith("meta:override=")),
+    parsed,
+  );
+  const adjustment = adjustmentFromSources(sources);
+  const priceCents = money.length ? settledTotal(money, adjustment) : 0;
+  await saveGuideQuote({
+    ...row,
+    sources,
+    priceCents,
+    step: row.step === "review" ? "adjust" : row.step,
+  });
   refresh();
 }
 
@@ -518,7 +579,10 @@ export async function sendQuote(formData: FormData) {
   if (!quote) redirect("/");
   const meta = readMarketMeta(row.sources);
   const askingCents = meta.overrideCents ?? row.priceCents;
-  if (askingCents != null) {
+  const storedSheet = sheetFromSources(row.sources);
+  if (storedSheet) {
+    await replaceQuoteLines(user.id, quoteId, sheetToMoneyLines(storedSheet));
+  } else if (askingCents != null) {
     const committed = commitAskingPrice({
       lines: await quoteLines(user.id, quoteId),
       sources: row.sources,
@@ -526,14 +590,16 @@ export async function sendQuote(formData: FormData) {
     });
     await writeCommittedLines(user.id, quoteId, committed.lines);
   }
+  const fresh = storedSheet ? await data.getQuote(user.id, quoteId) : quote;
   const groups = await data.listGroups(user.id);
   const photo = row.photoName ? await readQuotePhoto(user.id, quoteId) : null;
-  const sheet = buyerSheet(quote, groups, {
+  const sheet = buyerSheet(fresh || quote, groups, {
     sources: row.sources,
     note: row.note,
     photo: photo ? photoDataUrl(photo) : null,
     date: new Date().toISOString().slice(0, 10),
     askingCents,
+    quoteSheet: storedSheet,
   });
   const live = marketPrice(row.description) || marketPrice(quote.title);
   sheet.condition = conditionLabel(meta.condition || live?.condition || "good");
@@ -554,6 +620,7 @@ export async function sendQuote(formData: FormData) {
     step: "share",
   });
   await recordFunnel(user.id, "first_share", { path: row.path, variant: guide.variant });
+  await track("quote_shared", { channel: "link", path: row.path }, { user });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -575,6 +642,7 @@ export async function markOutcome(formData: FormData) {
   if (outcome === "sold") {
     await recordFunnel(user.id, "first_mark_sold", { path: row.path, variant: guide.variant });
   }
+  await track("item_marked_sold", { outcome, sold_cents: soldFor, suggested_cents: row.priceCents }, { user });
   refresh();
   redirect(`/guide/${quoteId}?done=1`);
 }
@@ -600,6 +668,7 @@ export async function startCheckout(formData?: FormData) {
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
   await recordFunnel(user.id, "upgrade_viewed", { variant: guide.variant, source: "checkout" });
+  await track("checkout_started", { plan: clip(formData?.get("plan") ?? "plus", 20) }, { user });
   if (!stripeSecretKey()) redirect("/upgrade?error=payments");
   const choice = parseCheckoutChoice(
     clip(formData?.get("plan") ?? "plus", 20),

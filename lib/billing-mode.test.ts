@@ -5,10 +5,12 @@ import test from "node:test";
 import {
   applyStripeWebhook,
   logStripeMode,
+  planForPriceId,
   resolveCheckoutPrice,
   stripeEventMatchesConfiguredMode,
   stripeMode,
   stripeModeLabel,
+  subscriptionPeriodEnd,
   stripePriceId,
   stripeSecretKey,
   stripeTestKey,
@@ -45,7 +47,7 @@ test("Stripe stays off until a test or live secret is set", () => {
     assert.equal(stripeMode(), "off");
     assert.equal(stripeSecretKey(), null);
     assert.equal(stripeTestKey(), null);
-    assert.match(stripeModeLabel(), /Test mode is the default/);
+    assert.equal(stripeModeLabel(), "Payments aren't available yet.");
   });
   withStripeEnv("pk_test_publishable", () => {
     assert.equal(stripeMode(), "off");
@@ -157,4 +159,55 @@ test("billing code has no hard-coded Stripe ids or secrets", () => {
   assert.doesNotMatch(source, /sk_test_[A-Za-z0-9]{8,}/);
   assert.doesNotMatch(source, /price_[A-Za-z0-9]{14,}/);
   assert.doesNotMatch(source, /whsec_[A-Za-z0-9]{8,}/);
+});
+
+test("a configured price id maps back to its plan, for plans switched in the portal", () => {
+  withStripeEnv("sk_live_example", () => {
+    process.env.STRIPE_PRICE_PRO_MONTH = "price_pro_live";
+    process.env.STRIPE_PRICE_PLUS_YEAR = "price_plus_year_live";
+    assert.deepEqual(planForPriceId("price_pro_live"), { plan: "pro", interval: "month" });
+    assert.deepEqual(planForPriceId("price_plus_year_live"), { plan: "plus", interval: "year" });
+    assert.equal(planForPriceId("price_unknown"), null);
+    assert.equal(planForPriceId(""), null);
+  });
+});
+
+test("the renewal date reads both the classic and the item-level period end", () => {
+  assert.equal(subscriptionPeriodEnd({ current_period_end: 1_900_000_000 }), 1_900_000_000);
+  assert.equal(subscriptionPeriodEnd({ items: { data: [{ current_period_end: 1_900_000_100 }] } }), 1_900_000_100);
+  assert.equal(subscriptionPeriodEnd({}), null);
+});
+
+test("live mode without a webhook secret fails loudly so Stripe retries", async () => {
+  const { POST } = await import("../app/api/stripe/webhook/route");
+  const savedKey = process.env.STRIPE_SECRET_KEY;
+  const savedSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const original = console.error;
+  console.error = () => undefined;
+  try {
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    process.env.STRIPE_SECRET_KEY = "sk_live_example";
+    const live = await POST(new Request("http://local/api/stripe/webhook", { method: "POST", body: "{}" }));
+    assert.equal(live.status, 503);
+    process.env.STRIPE_SECRET_KEY = "sk_test_example";
+    const test = await POST(new Request("http://local/api/stripe/webhook", { method: "POST", body: "{}" }));
+    assert.equal(test.status, 200);
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_example";
+    process.env.STRIPE_SECRET_KEY = "sk_live_example";
+    const unsigned = await POST(new Request("http://local/api/stripe/webhook", { method: "POST", body: "{}" }));
+    assert.equal(unsigned.status, 400);
+  } finally {
+    console.error = original;
+    if (savedKey === undefined) delete process.env.STRIPE_SECRET_KEY;
+    else process.env.STRIPE_SECRET_KEY = savedKey;
+    if (savedSecret === undefined) delete process.env.STRIPE_WEBHOOK_SECRET;
+    else process.env.STRIPE_WEBHOOK_SECRET = savedSecret;
+  }
+});
+
+test("customers in live mode see no Stripe mode badge", () => {
+  const note = readFileSync(new URL("../components/stripe-mode-note.tsx", import.meta.url), "utf8");
+  assert.match(note, /if \(mode === "live"\) return null;/);
+  const form = readFileSync(new URL("./form.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(form, /test mode/i);
 });

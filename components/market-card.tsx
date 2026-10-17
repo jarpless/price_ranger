@@ -1,9 +1,11 @@
 import { applyAdjustment } from "@/app/guide-actions";
-import { AskingLines, AskingTotal, publishAskingDraft } from "@/components/asking-price";
+import { publishAskingDraft } from "@/components/asking-price";
+import { InlineQuote } from "@/components/inline-quote";
 import { InfoTip } from "@/components/info-tip";
 import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
 import type { Adjustment, MoneyLine } from "@/lib/guide/pricing";
+import { sheetFromLines, sheetFromSources } from "@/lib/guide/sheet";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import {
   comparableAnchorCents,
@@ -51,6 +53,7 @@ export function MarketCard({
   const condition = (meta.condition || live?.condition || "good") as ConditionId;
   const point = priceCents ?? live?.cents ?? null;
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
+  const initialSheet = sheetFromSources(sources) ?? sheetFromLines(lines);
   const comparables = live?.comparables.length
     ? live.comparables
     : comparablesForTitle(
@@ -63,46 +66,31 @@ export function MarketCard({
         }),
       );
 
-  return (
-    <div className="mt-6 min-w-0 max-w-full space-y-4">
-      <section className="min-w-0 max-w-full rounded-2xl border border-line bg-paper p-5 shadow-card">
-        <div className="flex items-center gap-1">
-          <p className="text-caption font-semibold text-muted">
-            {live ? conditionLabel(condition) : "Suggested"}
-            {live?.variantLabel && !live.ambiguousModel ? ` · ${live.variantLabel}` : ""}
-          </p>
-          <InfoTip id="condition" />
-        </div>
-        <p className="mt-2 text-caption font-semibold uppercase tracking-wide text-muted">Total</p>
-        <AskingTotal
-          lines={lines}
-          adjustment={adjustment}
-          askingCents={point}
-          lowCents={low}
-          highCents={high}
-          className="font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]"
-        />
-        {low != null && high != null ? (
-          <p className="mt-1 flex items-center text-body text-muted">
-            <span className="tabular-nums">
-              {formatUsd(low)}–{formatUsd(high)}
-            </span>
-            <InfoTip id="range" />
-          </p>
-        ) : (
-          <p className="mt-2 text-body leading-6">{note}</p>
-        )}
-        <p className="mt-2 flex items-center text-caption font-semibold capitalize text-pine">
-          {confidence} confidence
-          <InfoTip id="confidence" />
+  const quoteMeta = (
+    <>
+      {low != null && high != null ? (
+        <p className="mt-1 flex items-center text-body text-muted">
+          <span className="tabular-nums">
+            {formatUsd(low)}–{formatUsd(high)}
+          </span>
+          <InfoTip id="range" />
         </p>
-        {meta.overrideCents != null && suggested != null ? (
-          <p className="mt-2 text-caption text-muted">Suggested {formatUsd(suggested)} before your edit.</p>
-        ) : null}
-        {live && low != null ? <p className="mt-3 text-body leading-6">{live.note}</p> : null}
-        <AskingLines lines={lines} adjustment={adjustment} askingCents={point} />
-      </section>
+      ) : (
+        <p className="mt-2 text-body leading-6">{note}</p>
+      )}
+      <p className="mt-2 flex items-center text-caption font-semibold capitalize text-pine">
+        {confidence} confidence
+        <InfoTip id="confidence" />
+      </p>
+      {meta.overrideCents != null && suggested != null ? (
+        <p className="mt-2 text-caption text-muted">Suggested {formatUsd(suggested)} before your edit.</p>
+      ) : null}
+      {live && low != null ? <p className="mt-3 text-body leading-6">{live.note}</p> : null}
+    </>
+  );
 
+  const controls = (
+    <>
       {live ? (
         <section>
           <p className="text-base font-semibold">Condition</p>
@@ -175,25 +163,38 @@ export function MarketCard({
         <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="quoteId" value={quoteId} />
           <input type="hidden" name="kind" value="price" />
-          <MoneyField key={point ?? "empty"} name="amount" label="Your price" submitOnBlur onDraft={publishAskingDraft} defaultValue={point != null ? dollarsInputValue(point) : ""} />
+          <MoneyField name="amount" label="Your price" submitOnBlur trackSheet onDraft={publishAskingDraft} defaultValue={point != null ? dollarsInputValue(point) : ""} />
           <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
             Save price
           </button>
         </form>
-        <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-          <input type="hidden" name="quoteId" value={quoteId} />
-          <input type="hidden" name="kind" value="line" />
-          <label className="block min-w-0 flex-1 text-base font-semibold">
-            Add a line
-            <input name="name" placeholder="Delivery" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
-          </label>
-          <MoneyField name="amount" label="Amount" defaultValue="" />
-          <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
-            Add line
-          </button>
-        </form>
       </section>
+    </>
+  );
 
+  return (
+    <div className="mt-6 min-w-0 max-w-full space-y-4">
+      <section className="min-w-0 max-w-full rounded-2xl border border-line bg-paper p-4 shadow-card sm:p-5">
+        <div className="flex items-center gap-1">
+          <p className="text-caption font-semibold text-muted">
+            {live ? conditionLabel(condition) : "Suggested"}
+            {live?.variantLabel && !live.ambiguousModel ? ` · ${live.variantLabel}` : ""}
+          </p>
+          <InfoTip id="condition" />
+        </div>
+        <p className="mt-2 text-caption font-semibold uppercase tracking-wide text-muted">Total</p>
+        <InlineQuote
+          quoteId={quoteId}
+          initialSheet={initialSheet}
+          adjustment={adjustment}
+          askingCents={point}
+          lowCents={low}
+          highCents={high}
+        >
+          {quoteMeta}
+        </InlineQuote>
+        <div className="mt-4 border-t border-line pt-3">{controls}</div>
+      </section>
       {comparables.length > 0 ? (
         <section>
           <div className="flex items-center gap-1">

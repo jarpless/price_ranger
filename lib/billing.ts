@@ -66,7 +66,7 @@ export function stripeModeLabel(): string {
   const mode = stripeMode();
   if (mode === "live") return "Stripe live mode.";
   if (mode === "test") return "Stripe test mode.";
-  return "Stripe is off. Test mode is the default until a test or live secret key is set.";
+  return "Payments aren't available yet.";
 }
 
 let loggedStripeMode = "";
@@ -100,6 +100,40 @@ export function stripePriceEnvName(choice: CheckoutChoice): string {
   if (choice.plan === "plus" && choice.interval === "year") return "STRIPE_PRICE_PLUS_YEAR";
   if (choice.plan === "plus") return "STRIPE_PRICE_PLUS_MONTH";
   return "STRIPE_PRICE_PRO_MONTH";
+}
+
+const PRICE_ENV_CHOICES: { env: string; plan: CheckoutPlan; interval: CheckoutInterval }[] = [
+  { env: "STRIPE_PRICE_PASS", plan: "pass", interval: "once" },
+  { env: "STRIPE_PRICE_PLUS_MONTH", plan: "plus", interval: "month" },
+  { env: "STRIPE_PRICE_PLUS_YEAR", plan: "plus", interval: "year" },
+  { env: "STRIPE_PRICE_PRO_MONTH", plan: "pro", interval: "month" },
+];
+
+/** The plan a configured price id sells, so a plan switched in the customer portal syncs. */
+export function planForPriceId(priceId: string | null | undefined): CheckoutChoice | null {
+  if (!priceId) return null;
+  const match = PRICE_ENV_CHOICES.find((item) => process.env[item.env]?.trim() === priceId);
+  return match ? { plan: match.plan, interval: match.interval } : null;
+}
+
+/** Stripe API versions from 2025-03-31 moved current_period_end onto subscription items. */
+export function subscriptionPeriodEnd(subscription: Record<string, unknown>): number | null {
+  if (typeof subscription.current_period_end === "number") return subscription.current_period_end;
+  const first = subscriptionItem(subscription);
+  return typeof first?.current_period_end === "number" ? first.current_period_end : null;
+}
+
+function subscriptionItem(subscription: Record<string, unknown>): Record<string, unknown> | null {
+  const items = subscription.items as { data?: unknown[] } | undefined;
+  const first = items?.data?.[0];
+  return first && typeof first === "object" ? (first as Record<string, unknown>) : null;
+}
+
+function subscriptionPriceId(subscription: Record<string, unknown>): string | null {
+  const price = subscriptionItem(subscription)?.price;
+  if (typeof price === "string") return price;
+  if (price && typeof price === "object" && typeof (price as { id?: unknown }).id === "string") return (price as { id: string }).id;
+  return null;
 }
 
 /** Price id from the environment. Empty when that variable is unset. Never a hard-coded id. */
@@ -213,9 +247,8 @@ async function subscriptionRenews(subscriptionId: string | null): Promise<string
   if (!subscriptionId) return null;
   const response = await stripeFetch(`subscriptions/${encodeURIComponent(subscriptionId)}`);
   if (!response.ok) return null;
-  const payload = (await response.json()) as { current_period_end?: number };
-  if (!payload.current_period_end) return null;
-  return new Date(payload.current_period_end * 1000).toISOString();
+  const end = subscriptionPeriodEnd((await response.json()) as Record<string, unknown>);
+  return end ? new Date(end * 1000).toISOString() : null;
 }
 
 export async function readCheckout(sessionId: string, userId: string): Promise<ConfirmedCheckout | null> {
@@ -260,7 +293,7 @@ export async function confirmPlusCheckout(sessionId: string, userId: string): Pr
 export async function createPortal(input: { customerId: string; origin: string }): Promise<string> {
   const body = new URLSearchParams();
   body.set("customer", input.customerId);
-  body.set("return_url", `${input.origin}/settings`);
+  body.set("return_url", `${input.origin}/settings/billing`);
   const response = await stripeFetch("billing_portal/sessions", { body });
   const payload = (await response.json()) as { url?: string; error?: { message?: string } };
   if (!response.ok || !payload.url) {
@@ -431,9 +464,19 @@ export async function applyStripeWebhook(event: {
       await saveBillingProfile(userId, { ...profile, subscriptionId: null, renewsAt: null }).catch(() => undefined);
       return;
     }
-    const periodEnd = typeof object.current_period_end === "number" ? new Date(object.current_period_end * 1000).toISOString() : null;
+    const end = subscriptionPeriodEnd(object);
+    const periodEnd = end ? new Date(end * 1000).toISOString() : null;
     const profile = await readBillingProfile(userId);
     const subscriptionId = typeof object.id === "string" ? object.id : profile.subscriptionId;
-    await saveBillingProfile(userId, { ...profile, subscriptionId, renewsAt: periodEnd || profile.renewsAt }).catch(() => undefined);
+    const switched = planForPriceId(subscriptionPriceId(object));
+    const metaPlan = eventMeta(object, "plan");
+    const plan = switched?.plan ?? (isPlanId(metaPlan) && metaPlan !== "free" && metaPlan !== "pass" ? metaPlan : null);
+    if (plan && (status === "active" || status === "trialing")) await setWebhookPlan(userId, plan, null);
+    await saveBillingProfile(userId, {
+      ...profile,
+      subscriptionId,
+      renewsAt: periodEnd || profile.renewsAt,
+      interval: switched?.interval ?? profile.interval,
+    }).catch(() => undefined);
   }
 }

@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 
+import { PendingLink as Link } from "@/components/pending-link";
 import { CaptureForm } from "@/components/capture-form";
 import { requireUser } from "@/lib/auth";
 import { captureFromQuery } from "@/lib/capture-state";
-import { pricingAccess } from "@/lib/guide/access";
+import { newPriceHref } from "@/lib/landing-categories";
+import { planStatusLine, pricingAccess } from "@/lib/guide/access";
 import { priceError } from "@/lib/guide/pricing";
 import { ensureGuideUser } from "@/lib/guide/store";
 import { CATEGORIES } from "@/lib/market";
@@ -19,15 +21,23 @@ export default async function NewPricePage({
   const capture = captureFromQuery(q, cat, CATEGORIES);
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
-  if (!guide.tosAcceptedAt) redirect("/welcome?next=/new");
+  if (!guide.tosAcceptedAt) redirect(`/welcome?next=${encodeURIComponent(newPriceHref(capture.description, capture.category))}`);
+  // Back from a price lands here, so the limit is a notice. See price opens Plans.
   const access = await pricingAccess(user);
-  if (!access.ok) redirect("/upgrade");
 
   return (
     <div className="content-split">
       <div>
         <h1 className="font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">New price</h1>
         <p className="mt-2 text-body text-muted">Take a photo or tap an item. Nothing is selected until you do.</p>
+        {!access.ok ? (
+          <p data-limit-notice="" className="mt-4 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6">
+            {planStatusLine(access)}{" "}
+            <Link href="/upgrade" className="font-semibold text-pine underline">
+              See plans
+            </Link>
+          </p>
+        ) : null}
         {error === "photo" || error === "heic" || error === "large" || error === "unread" ? (
           <div className="mt-4 space-y-3">
             <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>

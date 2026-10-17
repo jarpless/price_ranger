@@ -33,7 +33,7 @@ export default async function SentPage({
     <main className="page-frame page-frame-pad flex min-h-dvh flex-col justify-center">
       <div className="mx-auto w-full max-w-lg">
       <div className="mb-6 flex items-center gap-3">
-        <Logo tone="light" width={64} height={64} className="h-16 w-16 shrink-0" alt="" />
+        <Logo tone="dark" width={64} height={64} className="h-16 w-16 shrink-0" alt="" />
         <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
       </div>
       <h1 className="font-serif text-3xl">Check your email</h1>

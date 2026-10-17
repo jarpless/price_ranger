@@ -3,8 +3,8 @@ export const APP_VERSION = "2.3.0";
 
 export const APP_CODENAME = "Lookout";
 
-/** Shown in Settings. Consumer screens use this plain label. */
-export const VERSION_LABEL = "v2.3 Lookout";
+/** Sidebar, phone menu, and Settings. The real version is APP_VERSION. */
+export const VERSION_LABEL = `Version: ${APP_CODENAME} (v${APP_VERSION})`;
 
 export interface Release {
   version: string;

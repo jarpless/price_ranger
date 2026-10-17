@@ -5,6 +5,19 @@ import { bugIsValid, classifyByRules, findDuplicate } from "./classify";
 import { receiptEmail, sendSupportEmail } from "./mail";
 import { replaceDuplicateLine, scoreTicket } from "./model";
 import { composeFeedbackBody, readFeedbackAnswers, suggestFeedbackTitle } from "./note";
+import {
+  BETA_DISCLOSURE,
+  BETA_ENDS_AT,
+  betaEndsLabel,
+  defaultTrade,
+  featureRequestBody,
+  featureRequestTitle,
+  isTradeId,
+  needIsValid,
+  readFeatureRequestTrade,
+  TRADES,
+  tradeLabelName,
+} from "../beta";
 
 test("a pro trades account with a severe duplicated bug outranks a quiet free note", () => {
   const quiet = scoreTicket({
@@ -111,4 +124,68 @@ test("a feedback note keeps both answers, the box, and a title from the first an
   const read = readFeedbackAnswers(idea);
   assert.equal(read.answerA, "A darker toast");
   assert.equal(read.answerB, "It is easier to see");
+});
+
+test("a trade feature request is tagged with its type and trade, and dedupes on the typed need only", () => {
+  const body = featureRequestBody({ trade: "flipping", need: "  Margin after fees  ", followUp: true, route: "/feedback/trade?from=beta" });
+  assert.match(body, /^Type: feature_request$/m);
+  assert.match(body, /^Trade: flipping \(Flipping & resale\)$/m);
+  assert.match(body, /^Follow-up email: yes$/m);
+  assert.equal(readFeatureRequestTrade(body), "flipping");
+  assert.equal(featureRequestTitle("trades", ""), "Feature request (Trades)");
+  assert.equal(readFeatureRequestTrade(featureRequestBody({ trade: "home-services", need: "Gutters", followUp: false, route: "" })), "home-services");
+  assert.ok(featureRequestTitle("makers", "x".repeat(200)).length <= 80);
+  assert.equal(tradeLabelName("food-shop"), "trade:food-shop");
+  const other = featureRequestBody({ trade: "other", need: "Dog walking", followUp: false, route: "" });
+  assert.equal(findDuplicate("Mileage log", [{ id: "a", summary: "Feature request (Something else)", body: other }]), null);
+});
+
+test("trade ids follow the shared taxonomy and default from the account industry", () => {
+  assert.deepEqual(
+    TRADES.map((trade) => trade.label),
+    [
+      "Home services & handyman",
+      "Trades",
+      "Selling personal items",
+      "Flipping & resale",
+      "Makers & crafts",
+      "Events & creative",
+      "Food & small shop",
+      "Something else",
+    ],
+  );
+  assert.equal(isTradeId("flipping"), true);
+  assert.equal(isTradeId("roofing"), false);
+  assert.equal(isTradeId(null), false);
+  assert.equal(defaultTrade("services"), "home-services");
+  assert.equal(defaultTrade("trades"), "trades");
+  assert.equal(defaultTrade("yard"), "selling");
+  assert.equal(defaultTrade("retail"), "flipping");
+  assert.equal(defaultTrade(null), null);
+});
+
+test("a feature request needs a few words", () => {
+  assert.equal(needIsValid(""), false);
+  assert.equal(needIsValid("   \n "), false);
+  assert.equal(needIsValid("ok"), false);
+  assert.equal(needIsValid("CSV export"), true);
+});
+
+test("beta copy matches the approved wording, with the end date from BETA_ENDS_AT", () => {
+  assert.equal(BETA_ENDS_AT, "2027-01-31");
+  assert.equal(betaEndsLabel(), "Jan 31, 2027");
+  assert.equal(
+    `${BETA_DISCLOSURE.pricingLead} ${BETA_DISCLOSURE.pricing}`,
+    "Beta pricing: plan prices may go up after beta. Subscribe during beta and you'll keep your current price for an extra year after beta ends.",
+  );
+  assert.equal(
+    BETA_DISCLOSURE.firstHundred,
+    "The first 100 beta testers get a free pass to everything until beta ends (Jan 31, 2027), then normal pricing applies.",
+  );
+  assert.equal(
+    BETA_DISCLOSURE.pricingShort,
+    "Beta price – locked for 1 year after beta for members who subscribe during beta",
+  );
+  const general = [BETA_DISCLOSURE.body, BETA_DISCLOSURE.meaning, BETA_DISCLOSURE.pricing].join(" ");
+  assert.doesNotMatch(general, /\bfree\b|30.day|trial|no charge/i);
 });

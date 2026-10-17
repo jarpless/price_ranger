@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 
 import { createPricedDraft, startAndPriceDirect } from "@/app/guide-actions";
 import { CAPTURE_STATE_KEY, readCaptureState, withCaptureState } from "@/lib/capture-state";
-import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market";
+import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market-shared";
 
 import { IconCamera } from "./icons";
+import { AddContextLink } from "./add-context-link";
 import { PhotoField } from "./photo-field";
 import { PrimaryDock } from "./primary-dock";
 
@@ -101,6 +102,10 @@ export function CaptureForm({
     persistCapture(description, category);
     try {
       const result = await createPricedDraft(new FormData(form));
+      if (!result.ok && result.error === "limit") {
+        router.push("/upgrade");
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         setPending(false);
@@ -154,10 +159,15 @@ export function CaptureForm({
       <input type="hidden" name="path" value="item" />
       <input type="hidden" name="category" value={category || ""} />
       <div className="rounded-3xl border border-line bg-paper p-4 shadow-card">
-        <p className="font-serif text-title">Take a photo</p>
-        <p className="mt-1 text-body text-muted">A clear shot of the item is enough. You don't have to type.</p>
-        <div className="mt-4">
-          <PhotoField hero />
+        <p className="font-serif text-title">Add a photo</p>
+        <p className="mt-1 text-body text-muted">A clear shot of the item is enough. Or add a file, notes, or a call.</p>
+        <div className="mt-4 flex gap-2">
+          <div className="min-w-0 flex-1">
+            <PhotoField hero />
+          </div>
+          <div className="min-w-0 flex-1">
+            <AddContextLink />
+          </div>
         </div>
         <label className="mt-3 flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-line text-base font-semibold">
           <IconCamera className="h-5 w-5" />
@@ -229,7 +239,7 @@ export function CaptureForm({
             setDescription(next);
             persistCapture(next, category);
           }}
-          placeholder="Nintendo Switch, iPhone, bike"
+          placeholder="Game console, dresser, road bike"
           autoComplete="off"
           role="combobox"
           aria-expanded={matches.length > 0}
@@ -257,11 +267,7 @@ export function CaptureForm({
         </ul>
       ) : null}
 
-      {error === "limit" ? (
-        <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
-          You&apos;ve used all your free prices. <a className="font-semibold underline" href="/upgrade">See plans</a> to add more.
-        </p>
-      ) : error ? (
+      {error ? (
         <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">Add a few words, or a photo.</p>
       ) : null}
       <PrimaryDock>

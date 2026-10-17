@@ -155,3 +155,54 @@ export function NavIcon({ name, ...props }: { name: keyof typeof NAV } & IconPro
   const Icon = NAV[name];
   return <Icon {...props} />;
 }
+
+export function IconWrench(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M14.5 5.5a4 4 0 0 0 4.9 4.9L20 11l-9 9-3-3 9-9-.6-.6a4 4 0 0 1-1.9-1.9z" />
+    </svg>
+  );
+}
+
+export function IconHammer(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M13 7 4 16l3 3 9-9" />
+      <path d="M11 5h5l4 4-2 2-3-1-2-2z" />
+    </svg>
+  );
+}
+
+export function IconBox(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 8 12 4l8 4v8l-8 4-8-4z" />
+      <path d="M4 8l8 4 8-4M12 12v8" />
+    </svg>
+  );
+}
+
+export function IconRepeat(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 11V9a3 3 0 0 1 3-3h10l-3-3M19 13v2a3 3 0 0 1-3 3H6l3 3" />
+    </svg>
+  );
+}
+
+export function IconBrush(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M19 4 10 13l1.5 1.5L20.5 5.5z" />
+      <path d="M9 14.5c-2 0-3.5 1.5-3.5 3.5 0 1-1 2-1.5 2H9a3 3 0 0 0 3-3c0-1-.5-2-1.5-2.5" />
+    </svg>
+  );
+}
+
+export function IconList(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01" />
+    </svg>
+  );
+}

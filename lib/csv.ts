@@ -131,4 +131,4 @@ export function parsePriceCsv(text: string): { rows: PriceCsvRow[]; errors: stri
   return { rows, errors };
 }
 
-export const PRICE_CSV_TEMPLATE = "name,unit,price,sku\nTear-off and haul,square,85,\nGAF Timberline HDZ,square,135,GAF-THDZ\n";
+export const PRICE_CSV_TEMPLATE = "name,unit,price,sku\nService call,each,95,HM-TRIP\nHourly labor,hour,85,\nDrywall patch,each,175,HM-DRYWALL\n";

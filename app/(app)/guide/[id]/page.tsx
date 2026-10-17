@@ -1,4 +1,5 @@
 import { PendingLink as Link } from "@/components/pending-link";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import {
@@ -9,18 +10,22 @@ import {
   sendQuote,
 } from "@/app/guide-actions";
 import { GuideProgress } from "@/components/guide-ui";
+import { AddContextLink } from "@/components/add-context-link";
+import { QuoteMedia } from "@/components/quote-media";
 import { MarketCard } from "@/components/market-card";
 import { PathSwitch } from "@/components/path-switch";
-import { PhotoField } from "@/components/photo-field";
 import { PrimaryDock } from "@/components/primary-dock";
 import { ShareActions } from "@/components/share-actions";
 import { InfoTip } from "@/components/info-tip";
 import { MoneyField } from "@/components/money-field";
-import { Button } from "@/components/ui";
+import { Button, SubmitButton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { listQuoteMedia } from "@/lib/guide/media";
+import { ownerSlides } from "@/lib/guide/media-slides";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
 import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, priceError } from "@/lib/guide/pricing";
+import { sheetDisplay, sheetFromSources } from "@/lib/guide/sheet";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import { readMarketMeta } from "@/lib/market";
 import { getData } from "@/lib/store";
@@ -67,23 +72,32 @@ export default async function GuidePage({
   const headlineCents = lineTotal ?? asking;
   const price = headlineCents != null ? formatUsd(headlineCents) : "";
   const shareHref = row.shareToken ? `/p/${row.shareToken}` : "";
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "";
+  const proto = headerList.get("x-forwarded-proto") || "https";
+  const shareUrl = host && shareHref ? `${proto}://${host}${shareHref}` : shareHref;
+  const storedSheet = sheetFromSources(row.sources);
+  const linkGrid = storedSheet
+    ? sheetDisplay(storedSheet, adjustment, readMarketMeta(row.sources).overrideCents ?? row.priceCents)
+    : null;
+  const slides = ownerSlides(id, row.description || quote?.title || "Photo", await listQuoteMedia(user.id, id));
   const showPrice = row.step === "review" || row.step === "adjust" || (row.step === "share" && !row.sharedAt);
   const lines = money.map((item) => {
     const settled = lineSettlement(item, adjustment);
     return { name: item.name, detail: settled.detail, price: formatUsd(settled.cents) };
   });
   return (
-    <div data-guide-step={row.step} className="mx-auto w-full min-w-0 max-w-[40rem] lg:mx-0 lg:max-w-none">
+    <div data-guide-step={row.step} className="mx-auto w-full min-w-0 max-w-[40rem] overflow-x-clip lg:mx-0 lg:max-w-none">
       <GuideProgress step={row.step} />
       <h1 className="mt-6 font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{title}</h1>
       <p className="mt-2 text-body text-muted">{now}</p>
       {priceError(error) ? (
         <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
       ) : null}
-      {row.photoName ? (
-        // The photo route is the seller's copy of the picture they added.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/guide/${id}/photo`} alt={row.description} className="mt-6 max-h-64 w-full rounded-2xl border border-line object-contain bg-paper" />
+      {row.step !== "describe" ? (
+        <div className="mt-6">
+          <QuoteMedia quoteId={id} initialSlides={slides} editable density="hero" />
+        </div>
       ) : null}
 
       {row.step === "describe" ? (
@@ -96,11 +110,19 @@ export default async function GuidePage({
               name="description"
               rows={4}
               defaultValue={row.description}
-              placeholder="Oak table, or a small roof"
+              placeholder="Oak table, or a drywall patch"
               className="mt-2 w-full rounded-2xl border border-line bg-paper px-4 py-3 text-base font-normal leading-6 outline-none focus:border-pine"
             />
           </label>
-          <PhotoField />
+          <QuoteMedia
+            quoteId={id}
+            initialSlides={slides}
+            editable
+            density="hero"
+            priceOnPhoto
+            addLabel="Add photo"
+            beside={<AddContextLink compact />}
+          />
           <PrimaryDock>
             <Button type="submit">{copy.primary}</Button>
           </PrimaryDock>
@@ -126,7 +148,7 @@ export default async function GuidePage({
             <form action={sendQuote}>
               <input type="hidden" name="quoteId" value={row.quoteId} />
               <PrimaryDock>
-                <Button type="submit">Send</Button>
+                <Button type="submit" pendingLabel="Sending…">Send</Button>
               </PrimaryDock>
             </form>
           </div>
@@ -134,9 +156,43 @@ export default async function GuidePage({
       ) : null}
 
       {row.step === "share" && row.sharedAt && shareHref ? (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 min-w-0 space-y-4">
           <p className="font-serif text-price text-pine tabular-nums">{price}</p>
-          {lines.length > 0 ? (
+          <form action={editPrice} className="relative z-10">
+            <input type="hidden" name="quoteId" value={row.quoteId} />
+            <SubmitButton
+              pendingLabel="Opening…"
+              className="inline-flex h-12 min-h-11 w-full touch-manipulation items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink"
+            >
+              Edit price
+            </SubmitButton>
+          </form>
+          {linkGrid && linkGrid.rows.length > 0 ? (
+            <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-2xl border border-line bg-paper">
+              <table className="w-max min-w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-line text-caption text-muted">
+                    {linkGrid.columns.map((column) => (
+                      <th key={column} className="px-2 py-1.5 font-semibold whitespace-nowrap">
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkGrid.rows.map((gridRow, index) => (
+                    <tr key={`${gridRow.join("-")}-${index}`} className="border-b border-line last:border-b-0">
+                      {gridRow.map((cell, cellIndex) => (
+                        <td key={`${index}-${cellIndex}`} className={`px-2 py-1.5 text-base tabular-nums ${cellIndex === 0 ? "text-left" : "text-right"}`}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : lines.length > 0 ? (
             <ul className="surface">
               {lines.map((line) => (
                 <li key={`${line.name}-${line.detail}`} className="line-row">
@@ -153,14 +209,11 @@ export default async function GuidePage({
               </li>
             </ul>
           ) : null}
+          <p data-share-url="" className="break-all rounded-2xl border border-line bg-paper px-3 py-3 text-base">
+            {shareUrl}
+          </p>
           <ShareActions href={shareHref} title={row.description || "Price Ranger"} />
           <div className="flex min-w-0 flex-col gap-2">
-            <form action={editPrice}>
-              <input type="hidden" name="quoteId" value={row.quoteId} />
-              <button type="submit" className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink">
-                Edit price
-              </button>
-            </form>
             <a
               href={`${shareHref}/pdf`}
               className="inline-flex h-12 min-h-12 w-full shrink-0 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold text-ink"

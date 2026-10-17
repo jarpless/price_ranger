@@ -2,6 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
 import { setDoNotSell } from "@/app/guide-actions";
+import { BetaNote } from "@/components/beta";
 import { PasskeyOffer } from "@/components/passkey-button";
 import { InfoTip } from "@/components/info-tip";
 import { SubmitButton } from "@/components/ui";
@@ -44,7 +45,7 @@ export default async function SettingsPage({
   return (
     <div className="page-stack mx-auto w-full max-w-3xl">
       <h1 className="font-serif text-display">Settings</h1>
-      <section className="surface">
+      <section className="surface" data-spotlight="settings-plan">
         <div className="flex items-center gap-1">
           <h2 className="font-serif text-title">Plan</h2>
           <InfoTip id="plans" />
@@ -58,7 +59,11 @@ export default async function SettingsPage({
           {nearLimit ? " Upgrade to keep asking." : ""}
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <Link href="/upgrade" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream">
+          <Link
+            href="/upgrade"
+            data-spotlight="settings-plans"
+            className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
+          >
             See plans
           </Link>
           <Link href="/settings/billing" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
@@ -89,6 +94,10 @@ export default async function SettingsPage({
         <Link href="/settings/delete" className="mt-4 inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-danger">
           Delete account
         </Link>
+      </section>
+      <section className="space-y-3" aria-labelledby="about-heading">
+        <h2 id="about-heading" className="font-serif text-title">Help &amp; about</h2>
+        <BetaNote variant="about" />
       </section>
       <form action={signOut}>
         <SubmitButton pendingLabel="Signing out…" className="inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">

@@ -112,7 +112,7 @@ export async function identifyPhoto(bytes: Uint8Array, mime: string): Promise<Ph
   if (/heic|heif/i.test(mime)) return null;
   if (stubAllowed()) {
     return {
-      title: "KitchenAid stand mixer",
+      title: "Stand mixer",
       note: "A used stand mixer, priced from the photo.",
     };
   }

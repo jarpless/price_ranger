@@ -3,14 +3,30 @@
 import { useEffect, useState } from "react";
 
 import { pricedView, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
-import { priceFarFromRange } from "@/lib/market";
+import { priceFarFromRange } from "@/lib/market-shared";
 import { formatUsd } from "@/lib/money";
 
 const listeners = new Set<(cents: number | null) => void>();
+const sheetListeners = new Set<(cents: number | null) => void>();
+let latestSheetTotal: number | null = null;
 
 /** The price field reports each keystroke here so the total can move before Save. */
 export function publishAskingDraft(cents: number | null) {
   for (const listen of listeners) listen(cents);
+}
+
+/** The sheet reports its live total so Your price can move before Save. */
+export function publishSheetTotal(cents: number | null) {
+  latestSheetTotal = cents;
+  for (const listen of sheetListeners) listen(cents);
+}
+
+export function subscribeSheetTotal(listen: (cents: number | null) => void) {
+  sheetListeners.add(listen);
+  if (latestSheetTotal != null) listen(latestSheetTotal);
+  return () => {
+    sheetListeners.delete(listen);
+  };
 }
 
 function useAskingDraft(initial: number | null): number | null {
@@ -29,7 +45,7 @@ function useAskingDraft(initial: number | null): number | null {
   return draft;
 }
 
-function usePricedView(lines: MoneyLine[], adjustment: Adjustment, askingCents: number | null) {
+export function useQuoteView(lines: MoneyLine[], adjustment: Adjustment, askingCents: number | null) {
   const draft = useAskingDraft(askingCents);
   return pricedView(lines, draft, adjustment);
 }
@@ -49,7 +65,7 @@ export function AskingTotal({
   highCents: number | null;
   className: string;
 }) {
-  const view = usePricedView(lines, adjustment, askingCents);
+  const view = useQuoteView(lines, adjustment, askingCents);
   const far = priceFarFromRange(view.totalCents, lowCents, highCents);
   const range = lowCents != null && highCents != null ? `${formatUsd(lowCents)}–${formatUsd(highCents)}` : "";
   return (
@@ -75,7 +91,7 @@ export function AskingLines({
   adjustment: Adjustment;
   askingCents: number | null;
 }) {
-  const view = usePricedView(lines, adjustment, askingCents);
+  const view = useQuoteView(lines, adjustment, askingCents);
   if (view.lines.length === 0) return null;
   return (
     <ul className="mt-4 border-t border-line pt-2">

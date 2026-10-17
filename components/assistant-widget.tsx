@@ -5,6 +5,9 @@ import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as
 import { createPortal } from "react-dom";
 
 import { chatTitle, readChats, upsertChat, writeChats, type SavedChat } from "@/lib/assistant/history";
+import { coachPage, COACH_DISMISS_KEY, dismissPage, PAGE_TIPS, parseDismissed, type CoachPage } from "@/lib/assistant/coach";
+import { readDesktopPanel, writeDesktopPanel } from "@/lib/assistant/panel";
+import { parseTourMemory, rememberTour, shouldAutoStart, tourSteps, TOUR_MEMORY_KEY, type TourMemory } from "@/lib/assistant/tours";
 import { inferAssistantMode } from "@/lib/assistant/intent";
 import {
   ASSISTANT_CHANNEL,
@@ -22,6 +25,7 @@ import {
 
 import { AssistantChat } from "./assistant-chat";
 import { Logo } from "./logo";
+import { PageTour } from "./page-tour";
 import { Spotlight } from "./spotlight";
 
 interface Allowance {
@@ -116,6 +120,12 @@ export function AssistantWidget({
   const [chatId, setChatId] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chats, setChats] = useState<SavedChat[]>([]);
+  const [guideStep, setGuideStep] = useState<string | null>(null);
+  const [dismissedTips, setDismissedTips] = useState<CoachPage[]>([]);
+  const [tourMemory, setTourMemory] = useState<TourMemory>({});
+  const [coachReady, setCoachReady] = useState(false);
+  const [tourOn, setTourOn] = useState(false);
+  const tourBoot = useRef("");
 
   const stopRef = useRef(false);
   const turnsRef = useRef<ChatTurn[]>([]);
@@ -140,8 +150,14 @@ export function AssistantWidget({
   const ackWaiters = useRef(new Map<string, () => void>());
   const reclaimedRef = useRef(false);
   const dockWidthRef = useRef(380);
+  const chromeRef = useRef<AssistantChrome>("floating");
+  const wasMobile = useRef<boolean | null>(null);
+  const panelHydrated = useRef(false);
+  const suspendWrite = useRef(true);
+  const skipOpenOnce = useRef(false);
 
   modeRef.current = mode;
+  chromeRef.current = chrome;
   chatIdRef.current = chatId;
   runningRef.current = running;
   popoutRef.current = popout;
@@ -213,12 +229,87 @@ export function AssistantWidget({
     } else {
       setChats(readChats());
     }
+    const desktop = window.matchMedia("(min-width: 64rem)").matches;
+    wasMobile.current = !desktop;
+    if (desktop) {
+      const pref = readDesktopPanel();
+      suspendWrite.current = true;
+      panelHydrated.current = true;
+      setChrome(pref.chrome);
+      setOpen(pref.open || pathnameRef.current === "/ask");
+    }
     setReady(true);
   }, [signedIn]);
 
   useEffect(() => {
     if (pathname === "/ask") setOpen(true);
   }, [pathname]);
+
+  useEffect(() => {
+    const read = () => document.querySelector("[data-guide-step]")?.getAttribute("data-guide-step") ?? null;
+    setGuideStep(read());
+    if (!pathname.startsWith("/guide/")) return;
+    const id = window.setInterval(() => {
+      const next = read();
+      setGuideStep((current) => (current === next ? current : next));
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [pathname]);
+
+  useEffect(() => {
+    try {
+      setDismissedTips(parseDismissed(window.localStorage.getItem(COACH_DISMISS_KEY)));
+      setTourMemory(parseTourMemory(window.localStorage.getItem(TOUR_MEMORY_KEY)));
+    } catch {
+      setDismissedTips([]);
+      setTourMemory({});
+    }
+    setCoachReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!coachReady || !ready) return;
+    const page = coachPage(pathname, guideStep);
+    if (!page) {
+      tourBoot.current = "";
+      setTourOn(false);
+      return;
+    }
+    if (tourBoot.current === page) return;
+    tourBoot.current = page;
+    setTourOn(shouldAutoStart(tourMemory, page));
+  }, [coachReady, ready, pathname, guideStep, tourMemory]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const prev = wasMobile.current;
+    wasMobile.current = mobile;
+    if (prev === null || prev === mobile) return;
+    if (mobile) {
+      if (chromeRef.current === "docked") setOpen(false);
+      return;
+    }
+    const pref = readDesktopPanel();
+    suspendWrite.current = true;
+    panelHydrated.current = true;
+    setChrome(pref.chrome);
+    setOpen(pref.open);
+  }, [ready, mobile]);
+
+  useEffect(() => {
+    if (!ready || mobile || !panelHydrated.current) return;
+    if (suspendWrite.current) {
+      suspendWrite.current = false;
+      return;
+    }
+    const saved = readDesktopPanel();
+    const rememberOpen = skipOpenOnce.current ? saved.open : open;
+    skipOpenOnce.current = false;
+    writeDesktopPanel({
+      open: rememberOpen,
+      chrome: chrome === "floating" ? "floating" : "docked",
+    });
+  }, [ready, mobile, open, chrome]);
 
   useEffect(() => {
     function openAsk() {
@@ -393,7 +484,7 @@ export function AssistantWidget({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const panelVisible = popout || open;
+  const panelVisible = popout || (ready && open);
   const modal = panelVisible && (popout || mobile || chrome !== "docked");
 
   useEffect(() => {
@@ -699,6 +790,7 @@ export function AssistantWidget({
     lastPingRef.current = Date.now();
     setPopoutAlive(true);
     claimHost();
+    skipOpenOnce.current = true;
     setOpen(false);
   }
 
@@ -779,6 +871,47 @@ export function AssistantWidget({
     setTurnVersion((value) => value + 1);
   }
 
+  function dismissCoach() {
+    const page = coachPage(pathnameRef.current, guideStep);
+    if (!page) return;
+    const next = dismissPage(dismissedTips, page);
+    setDismissedTips(next);
+    try {
+      window.localStorage.setItem(COACH_DISMISS_KEY, JSON.stringify(next));
+    } catch {
+      /* storage can be blocked */
+    }
+  }
+
+  function startTour() {
+    const page = coachPage(pathnameRef.current, guideStep);
+    if (!page) return;
+    tourBoot.current = page;
+    setTourOn(true);
+  }
+
+  function finishTour(reason: "done" | "skipped") {
+    const page = coachPage(pathnameRef.current, guideStep);
+    if (page) {
+      const next = rememberTour(tourMemory, page, reason);
+      setTourMemory(next);
+      try {
+        window.localStorage.setItem(TOUR_MEMORY_KEY, JSON.stringify(next));
+      } catch {
+        /* storage can be blocked */
+      }
+    }
+    setTourOn(false);
+  }
+
+  function tourNote(text: string) {
+    if (!open && !popoutRef.current) return;
+    currentChatId();
+    turnsRef.current = [...turnsRef.current, { role: "assistant", content: text }];
+    rememberLines([...linesRef.current, { role: "assistant", text }]);
+    setTurnVersion((value) => value + 1);
+  }
+
   function confirmPending(extra?: Record<string, string>) {
     if (!pending) return;
     const picked = pending.choices?.find((choice) =>
@@ -814,9 +947,21 @@ export function AssistantWidget({
 
   if (!signedIn || pathname.startsWith("/p/") || suppressPill) return null;
 
+  const coachId = coachPage(pathname, guideStep);
+  const showTour = coachReady && tourOn && Boolean(coachId) && !spotlight && !popout;
+  const coach =
+    coachReady && coachId && !showTour
+      ? {
+          title: PAGE_TIPS[coachId].title,
+          body: PAGE_TIPS[coachId].body,
+          dismissed: dismissedTips.includes(coachId),
+          replayLabel: tourMemory[coachId] ? "Replay tour" : "Show me",
+        }
+      : null;
+
   const dockTarget = !popout && !mobile && chrome === "docked" && panelVisible ? document.getElementById("assistant-dock") : null;
   const docked = Boolean(dockTarget);
-  const showLauncher = !popout && !panelVisible;
+  const showLauncher = ready && !popout && !panelVisible;
   const launcherLabel = popoutAlive ? "Assistant open in another window, click to bring it back" : "Price Ranger";
 
   const panel = (
@@ -859,6 +1004,9 @@ export function AssistantWidget({
       onPopOut={popOut}
       onDock={() => setChrome("docked")}
       onFloat={() => setChrome("floating")}
+      coach={coach}
+      onDismissCoach={dismissCoach}
+      onStartTour={startTour}
     />
   );
 
@@ -915,13 +1063,16 @@ export function AssistantWidget({
           }}
         >
           <span className="ask-launcher-mark">
-            <Logo tone="inverse" width={28} height={28} className="h-6 w-6" alt="" />
+            <Logo tone="light" width={28} height={28} className="h-6 w-6" alt="" />
           </span>
           <span>{launcherLabel}</span>
         </button>
       ) : null}
       {docked && dockTarget ? createPortal(frame, dockTarget) : frame}
       {!popout && spotlight && (running || pending) ? <Spotlight selector={spotlight.selector} caption={spotlight.caption} onStop={stop} /> : null}
+      {showTour && coachId ? (
+        <PageTour key={`${coachId}-${mobile ? "phone" : "desk"}`} steps={tourSteps(coachId, !mobile)} onFinish={finishTour} onNote={tourNote} />
+      ) : null}
     </>
   );
 }

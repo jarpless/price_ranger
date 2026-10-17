@@ -46,6 +46,9 @@ export interface IntakeInput {
   source: TicketSource;
   kind?: "bug" | "feature";
   title?: string;
+  /** Classify and dedupe on this instead of the body, when the body is mostly a template. */
+  classifyText?: string;
+  labels?: string[];
 }
 
 async function paidCents(userId: string): Promise<number> {
@@ -113,7 +116,7 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
   email: "skipped";
 }> {
   const existing = await briefs();
-  const classified = await classifyTicket(input.body, input.route, existing);
+  const classified = await classifyTicket(input.classifyText ?? input.body, input.route, existing);
   const { events30d, quotes30d } = await activity(input.userId);
   const paid = await paidCents(input.userId);
   const scored = scoreTicket({
@@ -200,7 +203,7 @@ export async function intakeFeedback(input: IntakeInput): Promise<{
       if (!githubIssueUrl) {
         githubIssueUrl = await openFeedbackIssue(
           { ...report, kind, body: note },
-          { summary, agentFix, redact: [input.email, input.userId] },
+          { summary, agentFix, redact: [input.email, input.userId], labels: input.labels },
         );
         if (githubIssueUrl) await attachGithubIssue(input.userId, report.id, githubIssueUrl);
       }

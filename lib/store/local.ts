@@ -112,6 +112,9 @@ async function read(): Promise<Db> {
     db.magicLinks ??= [];
     db.emailCodes ??= [];
     db.shares ??= [];
+    db.brands = BRANDS;
+    db.products = PRODUCTS;
+    db.skus = SKUS;
     return db;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyDb();
@@ -396,6 +399,13 @@ export async function readLocalSheet(token: string): Promise<unknown | null> {
 }
 
 /** Seller address for a share token. Callers must not send this to the browser. */
+export async function readLocalShareOwner(token: string): Promise<{ userId: string; quoteId: string } | null> {
+  const db = await read();
+  const share = db.shares.find((item) => item.token === token);
+  if (!share) return null;
+  return { userId: share.userId, quoteId: share.quoteId };
+}
+
 export async function readLocalShareSeller(token: string): Promise<string | null> {
   const db = await read();
   const share = db.shares.find((item) => item.token === token);
@@ -465,6 +475,55 @@ export const localStore = {
         sortOrder: 0,
         recommended: false,
       });
+    });
+    return id;
+  },
+
+  async createItemQuote(
+    userId: string,
+    input: { title: string; customerName: string; itemName: string; unitPriceCents: number },
+  ): Promise<string> {
+    const id = crypto.randomUUID();
+    const tierId = crypto.randomUUID();
+    const groupId = crypto.randomUUID();
+    const libraryItemId = crypto.randomUUID();
+    const timestamp = nowIso();
+    await update((db) => {
+      db.quotes.push({
+        id,
+        userId,
+        title: input.title,
+        customerName: input.customerName,
+        status: "draft",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        presentedSnapshot: null,
+      });
+      db.tiers.push({ id: tierId, quoteId: id, name: "Standard", note: "", sortOrder: 0, recommended: false });
+      db.groups.push({ id: groupId, userId, name: input.title, summary: "", summaryEdited: false, createdAt: timestamp });
+      db.library.push({
+        id: libraryItemId,
+        userId,
+        skuId: null,
+        connectorSlug: null,
+        name: input.itemName,
+        unit: "each",
+        unitPriceCents: input.unitPriceCents,
+        samplePrice: false,
+        source: "custom",
+        createdAt: timestamp,
+      });
+      db.groupItems.push({
+        id: crypto.randomUUID(),
+        groupId,
+        libraryItemId,
+        name: input.itemName,
+        unit: "each",
+        unitPriceCents: input.unitPriceCents,
+        quantity: 1,
+        sortOrder: 0,
+      });
+      db.tierGroups.push({ tierId, groupId });
     });
     return id;
   },
@@ -758,6 +817,43 @@ export const localStore = {
       if (!group) return false;
       group.summary = "";
       group.summaryEdited = false;
+      return true;
+    });
+  },
+
+  async replaceGroupLines(
+    userId: string,
+    groupId: string,
+    lines: { name: string; quantity: number; unitPriceCents: number }[],
+  ): Promise<boolean> {
+    return update((db) => {
+      if (!requireGroup(db, userId, groupId)) return false;
+      db.groupItems = db.groupItems.filter((item) => item.groupId !== groupId);
+      lines.forEach((line, index) => {
+        const libraryId = crypto.randomUUID();
+        db.library.push({
+          id: libraryId,
+          userId,
+          skuId: null,
+          connectorSlug: null,
+          name: line.name,
+          unit: "each",
+          unitPriceCents: line.unitPriceCents,
+          samplePrice: false,
+          source: "custom",
+          createdAt: nowIso(),
+        });
+        db.groupItems.push({
+          id: crypto.randomUUID(),
+          groupId,
+          libraryItemId: libraryId,
+          name: line.name,
+          unit: "each",
+          unitPriceCents: line.unitPriceCents,
+          quantity: line.quantity > 0 ? line.quantity : 1,
+          sortOrder: index,
+        });
+      });
       return true;
     });
   },

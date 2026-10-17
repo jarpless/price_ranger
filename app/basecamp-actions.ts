@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
+import { currentSkuCode } from "@/lib/catalog";
 import { parsePriceCsv } from "@/lib/csv";
 import { isOwnerEmail } from "@/lib/owner";
 import { parseDollarsToCents, parseQuantity } from "@/lib/money";
@@ -99,7 +100,8 @@ export async function importPriceCsv(csv: string) {
   const catalog = await data.listCatalog();
   for (const row of parsed.rows) {
     if (!row.sku) continue;
-    const hit = catalog.find((item) => item.skuCode?.toLowerCase() === row.sku?.toLowerCase());
+    const codes = new Set([row.sku.toLowerCase(), currentSkuCode(row.sku).toLowerCase()]);
+    const hit = catalog.find((item) => item.skuCode != null && codes.has(item.skuCode.toLowerCase()));
     if (!hit) {
       parsed.errors.push(`No catalog SKU matches ${row.sku}.`);
       continue;

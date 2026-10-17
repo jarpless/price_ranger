@@ -18,7 +18,7 @@ export default async function NewGroupPage({
       </p>
       <form action={createGroup} className="mt-6 space-y-4">
         <Notice code={error} />
-        <TextField label="Group name" name="name" required placeholder="Architectural roof" />
+        <TextField label="Group name" name="name" required placeholder="Bathroom refresh" />
         <Button type="submit">Create group</Button>
       </form>
     </div>

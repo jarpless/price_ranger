@@ -1,16 +1,25 @@
 import Image from "next/image";
 
+import { BetaTag } from "./beta";
+
 /**
- * inverse: one-color cream ranger badge, for pine and other green.
- * dark: two-color ranger badge, for near-black.
- * light: two-color ranger badge, for cream, paper, and tan.
+ * inverse: one-color cream knockout. Holes show whatever is behind it.
+ * dark: pine field, paper ranger on a pine seal. For tan, cream, and paper.
+ * light: paper field, same pine seal and paper ranger. For the dark green sidebar.
+ * At 48px and below the mark drops the banner words and uses thicker strokes.
  */
 export type LogoTone = "inverse" | "dark" | "light";
 
-const sources: Record<LogoTone, string> = {
+const full: Record<LogoTone, string> = {
   inverse: "/brand/emblems/badge-inverse.svg",
   dark: "/brand/emblems/badge-dark.svg",
   light: "/brand/emblems/badge-light.svg",
+};
+
+const small: Record<LogoTone, string> = {
+  inverse: "/brand/icons/badge-simplified-inverse.svg",
+  dark: "/brand/icons/badge-simplified-dark.svg",
+  light: "/brand/icons/badge-simplified-light.svg",
 };
 
 /** Sign-in lockup. The badge sits on a pine plate, and the name is ink beside it. */
@@ -18,9 +27,10 @@ export function LogoLockup() {
   return (
     <div className="mx-auto mb-8 flex w-fit max-w-full items-center gap-4 rounded-3xl border border-line bg-paper px-4 py-4 shadow-card">
       <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-pine p-1.5">
-        <Logo tone="inverse" width={48} height={48} className="h-12 w-12" alt="" />
+        <Logo tone="light" width={48} height={48} className="h-12 w-12" alt="" />
       </span>
-      <span className="pr-2 font-serif text-title leading-8 text-ink">Price Ranger</span>
+      <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
+      <BetaTag signedIn={false} className="-ml-1 mr-2" />
     </div>
   );
 }
@@ -40,9 +50,10 @@ export function Logo({
   className?: string;
   priority?: boolean;
 }) {
+  const src = width <= 48 && height <= 48 ? small[tone] : full[tone];
   return (
     <Image
-      src={sources[tone]}
+      src={src}
       alt={alt}
       width={width}
       height={height}
