@@ -7,10 +7,26 @@ import { priceFarFromRange } from "@/lib/market";
 import { formatUsd } from "@/lib/money";
 
 const listeners = new Set<(cents: number | null) => void>();
+const sheetListeners = new Set<(cents: number | null) => void>();
+let latestSheetTotal: number | null = null;
 
 /** The price field reports each keystroke here so the total can move before Save. */
 export function publishAskingDraft(cents: number | null) {
   for (const listen of listeners) listen(cents);
+}
+
+/** The sheet reports its live total so Your price can move before Save. */
+export function publishSheetTotal(cents: number | null) {
+  latestSheetTotal = cents;
+  for (const listen of sheetListeners) listen(cents);
+}
+
+export function subscribeSheetTotal(listen: (cents: number | null) => void) {
+  sheetListeners.add(listen);
+  if (latestSheetTotal != null) listen(latestSheetTotal);
+  return () => {
+    sheetListeners.delete(listen);
+  };
 }
 
 function useAskingDraft(initial: number | null): number | null {

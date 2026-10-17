@@ -165,7 +165,7 @@ export function MarketCard({
         <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
           <input type="hidden" name="quoteId" value={quoteId} />
           <input type="hidden" name="kind" value="price" />
-          <MoneyField key={point ?? "empty"} name="amount" label="Your price" submitOnBlur onDraft={publishAskingDraft} defaultValue={point != null ? dollarsInputValue(point) : ""} />
+          <MoneyField name="amount" label="Your price" submitOnBlur trackSheet onDraft={publishAskingDraft} defaultValue={point != null ? dollarsInputValue(point) : ""} />
           <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
             Save price
           </button>
