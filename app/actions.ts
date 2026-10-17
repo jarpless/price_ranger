@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { rememberReturnTo } from "@/app/auth-actions";
 import { requestMagicLink, requireUser, signOutUser } from "@/lib/auth";
+import { track } from "@/lib/analytics/track";
 import { authErrorPath, classifyAuthError, isNextRedirect } from "@/lib/auth-errors";
 import { siteOriginFromHeaders } from "@/lib/env";
 import { clip, isEmail } from "@/lib/form";
@@ -171,6 +172,7 @@ export async function presentQuote(formData: FormData) {
   if (quote.tiers.length === 0) redirect(`/quotes/${quoteId}?error=options`);
   const groups = await data.listGroups(user.id);
   await data.saveSnapshot(user.id, quoteId, buildPresentation(quote, groups));
+  await track("quote_shared", { channel: "present" }, { user });
   refresh();
   redirect(`/quotes/${quoteId}/present`);
 }

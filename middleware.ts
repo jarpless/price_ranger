@@ -166,6 +166,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/setup", request.url));
   }
 
+  if (pathname === "/api/track") return NextResponse.next();
+
   if (pathname.startsWith("/api/")) {
     if (backend === "supabase") {
       const { response, user } = await supabaseGate(request);

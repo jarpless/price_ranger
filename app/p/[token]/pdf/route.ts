@@ -1,3 +1,4 @@
+import { track } from "@/lib/analytics/track";
 import { jpegFromDataUrl, buildPricePdf, pdfFilename } from "@/lib/guide/pdf";
 import { formatUsd } from "@/lib/money";
 import { comparableAnchorFromRange, comparablesForTitle, marketPrice } from "@/lib/market";
@@ -9,6 +10,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   const { token } = await context.params;
   const loaded = await readSharedSheet(token);
   if (!loaded) return new Response(null, { status: 404 });
+  await track("pdf_downloaded");
   const sheet = forPublic(loaded);
   const option = sheet.options[0];
   const date = sheet.date || new Date().toISOString().slice(0, 10);
