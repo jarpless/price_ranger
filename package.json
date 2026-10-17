@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test:nav": "node --import tsx --test lib/trades.test.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

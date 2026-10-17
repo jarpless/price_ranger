@@ -1,6 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { headers } from "next/headers";
+
 import { dataBackend } from "../env";
 import { createClient } from "../supabase/server";
 import {
@@ -16,6 +18,7 @@ import {
   type Variant,
 } from "./flow";
 import { isMissingSchema } from "./schema";
+import { classifyQuote, tradeFromUrl } from "../trades";
 
 export interface GuideUser {
   userId: string;
@@ -45,6 +48,9 @@ export interface GuideQuote {
   sample: boolean;
   finishedAt: string | null;
   updatedAt: string;
+  /** Ids from lib/trades.ts. Undefined until the first save files it. */
+  trade?: string | null;
+  tradeCategory?: string | null;
 }
 
 export interface FunnelEvent {
@@ -209,11 +215,14 @@ function mapQuote(row: Record<string, unknown>): GuideQuote | null {
     sample: Boolean(row.sample),
     finishedAt: row.finished_at ? String(row.finished_at) : null,
     updatedAt: String(row.updated_at ?? ""),
+    trade: row.trade ? String(row.trade) : null,
+    tradeCategory: row.trade_category ? String(row.trade_category) : null,
   };
 }
 
-function quoteToRow(quote: GuideQuote): Record<string, unknown> {
+function quoteToRow(quote: GuideQuote, withTrade: boolean): Record<string, unknown> {
   return {
+    ...(withTrade ? { trade: quote.trade ?? null, trade_category: quote.tradeCategory ?? null } : {}),
     quote_id: quote.quoteId,
     user_id: quote.userId,
     path: quote.path,
@@ -340,8 +349,29 @@ export async function getGuideQuote(userId: string, quoteId: string): Promise<Gu
   return mapQuote(data as Record<string, unknown>);
 }
 
+/** Prod may not have run 20261017210000_quote_trade.sql yet. False once PostgREST says so. */
+let tradeColumns = true;
+
+function missingTradeColumn(error: { message?: string; code?: string }): boolean {
+  return isMissingSchema(error) && /trade/i.test(error.message || "");
+}
+
+async function filed(quote: GuideQuote): Promise<GuideQuote> {
+  if (quote.trade) return quote;
+  let referer: string | null = null;
+  try {
+    referer = (await headers()).get("referer");
+  } catch {
+    referer = null;
+  }
+  const tapped = tradeFromUrl(referer);
+  if (tapped) return { ...quote, trade: tapped.trade, tradeCategory: tapped.category };
+  const guess = quote.description ? classifyQuote(quote) : null;
+  return guess ? { ...quote, trade: guess.trade.id, tradeCategory: guess.subcategory?.id ?? null } : quote;
+}
+
 export async function saveGuideQuote(quote: GuideQuote): Promise<void> {
-  const next = { ...quote, updatedAt: nowIso() };
+  const next = { ...(await filed(quote)), updatedAt: nowIso() };
   if (dataBackend() !== "supabase" || degraded()) {
     await withLock(async () => {
       const file = await loadMutable();
@@ -353,8 +383,13 @@ export async function saveGuideQuote(quote: GuideQuote): Promise<void> {
     return;
   }
   const supabase = await createClient();
-  const { error } = await supabase.from("guide_quotes").upsert(quoteToRow(next));
+  const { error } = await supabase.from("guide_quotes").upsert(quoteToRow(next, tradeColumns));
   if (error) {
+    if (tradeColumns && missingTradeColumn(error)) {
+      tradeColumns = false;
+      await saveGuideQuote(quote);
+      return;
+    }
     if (rememberMissing(error)) {
       await saveGuideQuote(quote);
       return;
