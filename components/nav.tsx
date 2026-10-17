@@ -125,16 +125,14 @@ export function Sidebar({
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-stretch overflow-y-auto border-r border-pine-deep bg-pine text-cream lg:flex">
-      <div className="flex items-start gap-2 pr-3">
-        <Link href="/" className="flex items-center gap-3 pb-2 pl-5 pt-8">
-          <Logo tone="inverse" width={32} height={32} className="h-8 w-8" />
-          <span>
-            <span className="block font-serif text-title leading-8">Price Ranger</span>
-            <span className="block text-caption uppercase tracking-[0.14em] text-cream/70">{APP_CODENAME}</span>
-          </span>
-        </Link>
-        <BetaTag tone="pine" className="mt-[2.375rem]" />
-      </div>
+      <Link href="/" className="flex items-center gap-3 px-5 pb-2 pt-8">
+        <Logo tone="inverse" width={32} height={32} className="h-8 w-8" />
+        <span>
+          <span className="block font-serif text-title leading-8">Price Ranger</span>
+          <span className="block text-caption uppercase tracking-[0.14em] text-cream/70">{APP_CODENAME}</span>
+        </span>
+      </Link>
+      <BetaTag tone="pine" className="ml-16 self-start" />
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
         {sections.map((section) => (
           <FolderSection key={section.label} label={section.label} pathname={pathname} chosen={folders} onToggle={toggleFolder}>
