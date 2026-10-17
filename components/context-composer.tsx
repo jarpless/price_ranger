@@ -515,7 +515,7 @@ function ReviewDraft({
     <div className="space-y-4">
       <div className="rounded-3xl border border-line bg-paper p-4 shadow-card">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-pine/10 px-2.5 py-1 text-caption font-semibold text-pine">{draft.method === "ai" ? "Built by AI" : "Read from what you added"}</span>
+          <span className="shrink-0 whitespace-nowrap rounded-full bg-pine/10 px-2.5 py-1 text-caption font-semibold text-pine">{draft.method === "ai" ? "Built by AI" : "Read line by line"}</span>
           <span className="text-caption text-muted">Check it before you save</span>
         </div>
         {draft.summary ? <p className="mt-3 text-body">{draft.summary}</p> : null}
