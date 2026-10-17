@@ -237,6 +237,15 @@ function stampSuggestion(
 }
 
 const PRICE_RULES: { test: RegExp; cents: number; note: string }[] = [
+  { test: /service call|trip charge/, cents: 9500, note: "A typical service call to show up and diagnose." },
+  { test: /drywall/, cents: 17500, note: "A typical price to patch, mud, and sand a small drywall hole." },
+  { test: /faucet/, cents: 18500, note: "A typical labor price to replace a faucet the customer supplies." },
+  { test: /ceiling fan/, cents: 22000, note: "A typical price to hang a fan on an existing box." },
+  { test: /\b(outlet|light switch|switch swap)\b/, cents: 9500, note: "A typical price to swap one outlet or switch." },
+  { test: /\btv mount|mount (a |the )?tv\b/, cents: 15000, note: "A typical price to mount a TV and hide the cables." },
+  { test: /furniture assembly|assemble/, cents: 9000, note: "A typical price to assemble one flat-pack piece." },
+  { test: /door rehang|rehang|hang a door/, cents: 16500, note: "A typical price to rehang an interior door." },
+  { test: /gutter/, cents: 17500, note: "A typical price to clean gutters on a one-story home." },
   { test: /mixer|kitchenaid/, cents: 18000, note: "A common resale price for a used stand mixer." },
   { test: /lawn|mow/, cents: 4500, note: "A typical visit for a small lawn." },
   { test: /table/, cents: 18000, note: "A fair price for a solid wood table in good shape." },
