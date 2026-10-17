@@ -1,3 +1,4 @@
+import { BetaNote } from "@/components/beta";
 import { PlansPicker } from "@/components/plans-picker";
 import { InfoTip } from "@/components/info-tip";
 import { requireUser } from "@/lib/auth";
@@ -34,6 +35,9 @@ export default async function UpgradePage({
       {canceled ? <p className="mt-4 text-body">Checkout was canceled. Your prices are still here.</p> : null}
       {error && FORM_ERRORS[error] ? <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{FORM_ERRORS[error]}</p> : null}
       <PlansPicker current={user.plan} ready={ready} quoteLimit={access.limits.quoteLimit} />
+      <div className="mt-8">
+        <BetaNote variant="plans" />
+      </div>
     </div>
   );
 }

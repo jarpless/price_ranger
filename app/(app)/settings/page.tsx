@@ -2,6 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 
 import { signOut } from "@/app/actions";
 import { setDoNotSell } from "@/app/guide-actions";
+import { BetaNote } from "@/components/beta";
 import { PasskeyOffer } from "@/components/passkey-button";
 import { InfoTip } from "@/components/info-tip";
 import { SubmitButton } from "@/components/ui";
@@ -89,6 +90,10 @@ export default async function SettingsPage({
         <Link href="/settings/delete" className="mt-4 inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-danger">
           Delete account
         </Link>
+      </section>
+      <section className="space-y-3" aria-labelledby="about-heading">
+        <h2 id="about-heading" className="font-serif text-title">Help &amp; about</h2>
+        <BetaNote variant="about" />
       </section>
       <form action={signOut}>
         <SubmitButton pendingLabel="Signing out…" className="inline-flex h-12 items-center whitespace-nowrap text-base font-semibold text-pine">

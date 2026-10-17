@@ -6,7 +6,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { signOut } from "@/app/actions";
 
-import { IconCamera, IconCard, IconHome, IconInfo, IconMenu, IconPhone, IconSettings } from "./icons";
+import { IconCamera, IconCard, IconChat, IconHome, IconInfo, IconMenu, IconPhone, IconSettings } from "./icons";
+import { BetaTag } from "./beta";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
 import { APP_CODENAME } from "@/lib/version";
@@ -14,7 +15,9 @@ import { APP_CODENAME } from "@/lib/version";
 export function navCurrent(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/new") return pathname === "/new" || pathname.startsWith("/guide");
-  if (href === "/feedback/new") return pathname === "/feedback" || pathname.startsWith("/feedback/");
+  if (href === "/feedback/new") {
+    return pathname === "/feedback" || (pathname.startsWith("/feedback/") && !pathname.startsWith("/feedback/trade"));
+  }
   if (href === "/library") {
     return pathname === "/library" || (/^\/library\/(?!groups(?:\/|$)).+/.test(pathname));
   }
@@ -45,6 +48,7 @@ const menuSections = [
     links: [
       { href: "/install", label: "Get the app", icon: IconPhone, spot: "nav-install" },
       { href: "/feedback/new", label: "Feedback", icon: IconInfo, spot: "nav-feedback" },
+      { href: "/feedback/trade", label: "Request a feature", icon: IconChat, spot: "nav-request" },
     ],
   },
 ] as const;
@@ -128,6 +132,7 @@ export function Sidebar({
           <span className="block text-caption uppercase tracking-[0.14em] text-cream/70">{APP_CODENAME}</span>
         </span>
       </Link>
+      <BetaTag tone="pine" className="ml-16 self-start" />
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
         {sections.map((section) => (
           <FolderSection key={section.label} label={section.label} pathname={pathname} chosen={folders} onToggle={toggleFolder}>
@@ -245,6 +250,7 @@ export function PhoneMenu({
           <div className="flex h-12 items-center gap-2 px-3">
             <Logo tone="inverse" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
             <span className="min-w-0 truncate font-serif text-base leading-6">Price Ranger</span>
+            <BetaTag tone="pine" className="ml-0.5" />
             <button type="button" className="ml-auto inline-flex h-11 items-center px-3 text-sm font-semibold" onClick={() => setOpen(false)}>
               Close
             </button>
