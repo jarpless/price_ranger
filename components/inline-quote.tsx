@@ -25,7 +25,7 @@ import {
   type SheetColumnType,
   type SheetRow,
 } from "@/lib/guide/sheet";
-import { priceFarFromRange } from "@/lib/market";
+import { priceFarFromRange } from "@/lib/market-shared";
 import { formatUsd } from "@/lib/money";
 
 const TYPES: { value: SheetColumnType; label: string }[] = [

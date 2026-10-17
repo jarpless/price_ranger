@@ -1,4 +1,4 @@
-import type { Confidence } from "../market";
+import type { Confidence } from "../market-shared";
 import type { Unit } from "../types";
 import { isUnit } from "../units";
 

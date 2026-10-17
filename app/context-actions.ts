@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { draftLines, draftTotalCents, normalizeDraft } from "@/lib/context/draft";
 import { pricingAccess } from "@/lib/guide/access";
-import { suggestPrice } from "@/lib/guide/flow";
+import { suggestPrice } from "@/lib/guide/suggest";
 import { ensureGuideUser, recordFunnel, saveGuideQuote } from "@/lib/guide/store";
 import { marketPrice, withOverride } from "@/lib/market";
 import { guideDraftHref } from "@/lib/search-return";
