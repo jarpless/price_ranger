@@ -3,11 +3,15 @@ import { notFound } from "next/navigation";
 
 import { contactAboutPrice } from "@/app/share-contact";
 import { Logo } from "@/components/logo";
+import { MediaCarousel } from "@/components/media-carousel";
 import { TrackBeacon } from "@/components/track-beacon";
+import { getSessionUser } from "@/lib/auth";
+import { listQuoteMedia } from "@/lib/guide/media";
+import type { CarouselSlide } from "@/lib/guide/media-slides";
+import { publicSlides } from "@/lib/guide/media-slides";
 import { formatUsd } from "@/lib/money";
 import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
-import { getSessionUser } from "@/lib/auth";
-import { forPublic, readSharedSheet, shareOwnerId } from "@/lib/share";
+import { forPublic, readSharedSheet, readShareOwner } from "@/lib/share";
 import { shareGrowthOffer } from "@/lib/share-growth";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +34,15 @@ export default async function PublicSheetPage({
   const range = sheet.range || (live ? `${formatUsd(live.lowCents)}–${formatUsd(live.highCents)}` : "");
   const condition = sheet.condition || (live ? conditionLabel(live.condition) : "");
   const photo = sheet.photo || live?.comparables[0]?.thumbnail || pictureFor(sheet.title);
+  const [viewer, owner] = await Promise.all([getSessionUser(), readShareOwner(token)]);
+  const attached = owner ? publicSlides(token, sheet.title, await listQuoteMedia(owner.userId, owner.quoteId)) : [];
+  const slides: CarouselSlide[] = attached.length
+    ? attached
+    : photo
+      ? [{ id: "sheet", kind: "image", src: photo, poster: null, mime: "image/jpeg", alt: sheet.title }]
+      : [];
   const offer = shareGrowthOffer(token);
-  const [viewer, ownerId] = await Promise.all([getSessionUser(), shareOwnerId(token)]);
-  const showGrowth = !viewer || !ownerId || viewer.id !== ownerId;
+  const showGrowth = !viewer || !owner || viewer.id !== owner.userId;
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
@@ -52,10 +62,10 @@ export default async function PublicSheetPage({
       ) : null}
       {sheet.date ? <p className="mt-2 text-center text-caption text-muted">{sheet.date}</p> : null}
       {sheet.subtitle ? <p className="mt-2 text-center text-body text-muted">{sheet.subtitle}</p> : null}
-      {photo ? (
-        // The buyer opens this without an account. The picture is part of the sheet they were sent.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo} alt={sheet.title} data-share-photo="" className="mt-6 max-h-72 w-full rounded-2xl border border-line object-contain bg-paper" />
+      {slides.length ? (
+        <div className="mt-6" data-share-photo="">
+          <MediaCarousel slides={slides} />
+        </div>
       ) : null}
       {sheet.note ? <p className="mt-4 text-center text-body leading-6">{sheet.note}</p> : null}
       {sheet.grid && sheet.grid.rows.length > 0 ? (
