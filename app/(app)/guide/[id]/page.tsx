@@ -10,6 +10,7 @@ import {
   sendQuote,
 } from "@/app/guide-actions";
 import { GuideProgress } from "@/components/guide-ui";
+import { AddContextLink } from "@/components/add-context-link";
 import { QuoteMedia } from "@/components/quote-media";
 import { MarketCard } from "@/components/market-card";
 import { PathSwitch } from "@/components/path-switch";
@@ -23,7 +24,6 @@ import { listQuoteMedia } from "@/lib/guide/media";
 import { ownerSlides } from "@/lib/guide/media-slides";
 import { stepCopy } from "@/lib/guide/flow";
 import { ensureGuideUser, getGuideQuote } from "@/lib/guide/store";
-import { quoteBuilderEnabled } from "@/lib/guide/flags";
 import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, priceError } from "@/lib/guide/pricing";
 import { sheetDisplay, sheetFromSources } from "@/lib/guide/sheet";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
@@ -76,7 +76,7 @@ export default async function GuidePage({
   const host = headerList.get("x-forwarded-host") || headerList.get("host") || "";
   const proto = headerList.get("x-forwarded-proto") || "https";
   const shareUrl = host && shareHref ? `${proto}://${host}${shareHref}` : shareHref;
-  const storedSheet = quoteBuilderEnabled() ? sheetFromSources(row.sources) : null;
+  const storedSheet = sheetFromSources(row.sources);
   const linkGrid = storedSheet
     ? sheetDisplay(storedSheet, adjustment, readMarketMeta(row.sources).overrideCents ?? row.priceCents)
     : null;
@@ -114,7 +114,15 @@ export default async function GuidePage({
               className="mt-2 w-full rounded-2xl border border-line bg-paper px-4 py-3 text-base font-normal leading-6 outline-none focus:border-pine"
             />
           </label>
-          <QuoteMedia quoteId={id} initialSlides={slides} editable density="hero" priceOnPhoto addLabel="Add photo" />
+          <QuoteMedia
+            quoteId={id}
+            initialSlides={slides}
+            editable
+            density="hero"
+            priceOnPhoto
+            addLabel="Add photo"
+            beside={<AddContextLink compact />}
+          />
           <PrimaryDock>
             <Button type="submit">{copy.primary}</Button>
           </PrimaryDock>

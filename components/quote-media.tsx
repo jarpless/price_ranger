@@ -54,6 +54,7 @@ export function QuoteMedia({
   density = "hero",
   priceOnPhoto = false,
   addLabel = "Add photos",
+  beside = null,
 }: {
   quoteId: string;
   initialSlides: CarouselSlide[];
@@ -62,6 +63,8 @@ export function QuoteMedia({
   /** After a photo lands, submit the surrounding form. One tap, same as the old camera button. */
   priceOnPhoto?: boolean;
   addLabel?: string;
+  /** Sits next to the Add button, e.g. "+ Add context". */
+  beside?: React.ReactNode;
 }) {
   const router = useRouter();
   const [slides, setSlides] = useState(initialSlides);
@@ -197,6 +200,15 @@ export function QuoteMedia({
       />
     </label>
   ) : null;
+  const controlRow =
+    control && beside ? (
+      <div className="flex gap-2">
+        <div className="min-w-0 flex-1">{control}</div>
+        <div className="min-w-0 flex-1">{beside}</div>
+      </div>
+    ) : (
+      control
+    );
 
   return (
     <div data-quote-media="" data-media-count={slides.length}>
@@ -204,15 +216,15 @@ export function QuoteMedia({
         <MediaCarousel slides={slides} density={density} onRemove={editable ? onRemove : undefined} />
       ) : editable ? (
         priceOnPhoto ? (
-          control
+          controlRow
         ) : (
           <div className={density === "strip" ? "" : "rounded-2xl border border-dashed border-line bg-paper px-4 py-5 text-center"}>
             {density === "hero" ? <p className="text-body text-muted">Add photos or a short video for the buyer.</p> : null}
-            <div className={density === "hero" ? "mt-3" : ""}>{control}</div>
+            <div className={density === "hero" ? "mt-3" : ""}>{controlRow}</div>
           </div>
         )
       ) : null}
-      {slides.length && control ? <div className="mt-3">{control}</div> : null}
+      {slides.length && control ? <div className="mt-3">{controlRow}</div> : null}
       {notice ? (
         <p role="alert" className="mt-3 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
           {notice}

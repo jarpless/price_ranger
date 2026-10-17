@@ -13,12 +13,11 @@ export function PhotoField({ hero = false }: { hero?: boolean }) {
   return (
     <div>
       <label className={`flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-pine font-semibold text-cream ${hero ? "h-16 text-lg" : "h-12 border border-line bg-paper px-4 text-base text-ink"}`}>
-        {hero ? "Open camera" : "Add photo"}
+        Add photo
         <input
           name="photo"
           type="file"
           accept="image/*"
-          capture={hero ? "environment" : undefined}
           className="sr-only"
           onChange={(event) => {
             const input = event.target;
