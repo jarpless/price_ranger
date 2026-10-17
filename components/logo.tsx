@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import { BetaTag } from "./beta";
+
 /**
  * inverse: one-color cream knockout. Holes show whatever is behind it.
  * dark: pine field, paper ranger on a pine seal. For tan, cream, and paper.
@@ -27,7 +29,8 @@ export function LogoLockup() {
       <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-pine p-1.5">
         <Logo tone="light" width={48} height={48} className="h-12 w-12" alt="" />
       </span>
-      <span className="pr-2 font-serif text-title leading-8 text-ink">Price Ranger</span>
+      <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
+      <BetaTag signedIn={false} className="-ml-1 mr-2" />
     </div>
   );
 }

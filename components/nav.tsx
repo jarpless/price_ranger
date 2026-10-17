@@ -12,6 +12,7 @@ import type { IndustryId } from "@/lib/vocabulary";
 import { IconMenu } from "./icons";
 import { NavTree } from "./nav-tree";
 import { OPEN_MENU_EVENT } from "./tab-bar";
+import { BetaTag } from "./beta";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
 import { VERSION_LABEL } from "@/lib/version";
@@ -19,7 +20,9 @@ import { VERSION_LABEL } from "@/lib/version";
 export function navCurrent(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/new") return pathname === "/new" || pathname.startsWith("/guide");
-  if (href === "/feedback/new") return pathname === "/feedback" || pathname.startsWith("/feedback/");
+  if (href === "/feedback/new") {
+    return pathname === "/feedback" || (pathname.startsWith("/feedback/") && !pathname.startsWith("/feedback/trade"));
+  }
   if (href === "/library") {
     return pathname === "/library" || (/^\/library\/(?!groups(?:\/|$)).+/.test(pathname));
   }
@@ -57,6 +60,7 @@ export function Sidebar({
         <Logo tone="light" width={32} height={32} className="h-8 w-8 shrink-0" alt="" />
         <span className="font-serif text-title leading-8">Price Ranger</span>
       </Link>
+      <BetaTag tone="pine" className="ml-16 self-start" />
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
         <NavTree sections={sections} pathname={pathname} industry={industry} density="desk" />
         <div className="mt-auto border-t border-white/15 px-0 pb-6 pt-4">
@@ -147,6 +151,7 @@ export function PhoneMenu({
           <div className="flex h-12 items-center gap-2 px-3">
             <Logo tone="light" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
             <span className="min-w-0 truncate font-serif text-base leading-6">Price Ranger</span>
+            <BetaTag tone="pine" className="ml-0.5" />
             <button type="button" className="ml-auto inline-flex h-11 items-center px-3 text-sm font-semibold" onClick={() => setOpen(false)}>
               Close
             </button>

@@ -2,6 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { redirect } from "next/navigation";
 
 import { startSample } from "@/app/guide-actions";
+import { BetaNote } from "@/components/beta";
 import { GuideSetupNotice } from "@/components/guide-setup-notice";
 import { IconCamera } from "@/components/icons";
 import { PrimaryDock } from "@/components/primary-dock";
@@ -52,6 +53,7 @@ export default async function HomePage() {
                 Try a sample
               </SubmitButton>
             </form>
+            <BetaNote variant="home" />
           </div>
           <ol className="page-stack">
             {[
@@ -129,6 +131,7 @@ export default async function HomePage() {
         <div className="hidden lg:block">{newPrice}</div>
       </div>
       <div className="lg:hidden">{newPrice}</div>
+      <BetaNote variant="home" />
 
       <ul className="grid grid-cols-4 gap-2" aria-label="Next actions">
         {actions.map((action) => (

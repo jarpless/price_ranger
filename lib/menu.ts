@@ -98,6 +98,7 @@ export function buildMenu({ guest, owner = false }: { guest: boolean; owner?: bo
       { href: "/help", label: "Help & glossary", icon: "info", spot: "nav-help" },
       { href: "/install", label: "Get the app", icon: "phone", spot: "nav-install" },
       { href: "/feedback/new", label: "Feedback", icon: "info", spot: "nav-feedback" },
+      { href: "/feedback/trade", label: "Request a feature", icon: "chat", spot: "nav-request" },
       ...(owner ? [{ href: "/admin/feedback", label: "Feedback backlog", icon: "info" as const }] : []),
     ],
     folders: [],
@@ -110,7 +111,9 @@ export function menuActive(pathname: string, link: MenuLink): boolean {
   if (link.href.includes("?")) return false;
   if (href === "/") return pathname === "/";
   if (href === "/new") return pathname === "/new" || pathname.startsWith("/guide");
-  if (href === "/feedback/new") return pathname === "/feedback" || pathname.startsWith("/feedback/");
+  if (href === "/feedback/new") {
+    return pathname === "/feedback" || (pathname.startsWith("/feedback/") && !pathname.startsWith("/feedback/trade"));
+  }
   if (link.exact) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

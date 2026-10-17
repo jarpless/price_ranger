@@ -93,7 +93,7 @@ export function publicFeedbackIssueBody(
 
 export async function openFeedbackIssue(
   report: FeedbackReport,
-  options?: { summary?: string; agentFix?: boolean; redact?: string[] },
+  options?: { summary?: string; agentFix?: boolean; redact?: string[]; labels?: string[] },
 ): Promise<string | null> {
   if (!process.env.GITHUB_FEEDBACK_TOKEN) return null;
 
@@ -109,7 +109,12 @@ export async function openFeedbackIssue(
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80) || "Feedback";
-  const labels = options?.agentFix ? [kindLabel, "source:user-feedback", AGENT_FIX_LABEL] : [kindLabel, "source:user-feedback"];
+  const extraLabels = (options?.labels ?? []).filter((label) => /^[a-z0-9:_-]{1,50}$/.test(label));
+  for (const label of extraLabels) await ensureLabel(label, "C6A15B", "Feature request from Price Ranger.");
+  const labels = [
+    ...(options?.agentFix ? [kindLabel, "source:user-feedback", AGENT_FIX_LABEL] : [kindLabel, "source:user-feedback"]),
+    ...extraLabels,
+  ];
   let response = await github(`/repos/${REPO}/issues`, {
     method: "POST",
     body: JSON.stringify({ title, body, labels }),

@@ -11,12 +11,14 @@ export function FeedbackComposer({
   blob,
   source,
   route,
+  context = "",
   onClose,
 }: {
   preview: string;
   blob: Blob;
   source: "desktop" | "mobile" | "shake";
   route: string;
+  context?: string;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -34,6 +36,7 @@ export function FeedbackComposer({
     form.set("body", body);
     form.set("route", route);
     form.set("source", source);
+    if (context) form.set("context", context);
     form.set("viewport", `${window.innerWidth}x${window.innerHeight}`);
     form.set("userAgent", navigator.userAgent);
     form.set("consoleErrors", JSON.stringify(readConsoleErrors()));
@@ -63,6 +66,11 @@ export function FeedbackComposer({
       <div className="mx-auto max-w-[40rem]">
         <h2 className="font-serif text-display">Send feedback</h2>
         <p className="mt-2 text-body text-muted">The screenshot is attached. Add a title and a note if you want, and any other photos.</p>
+        {context === "beta" ? (
+          <p data-feedback-context="beta" className="mt-2 text-caption text-muted">
+            We&apos;ll include the screen you were on, your plan, and that you&apos;re on the beta.
+          </p>
+        ) : null}
         <label className="mt-6 block text-body font-semibold">
           Title
           <input
