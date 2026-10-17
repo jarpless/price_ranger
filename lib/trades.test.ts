@@ -33,9 +33,29 @@ test("guests see no account-only links", () => {
 });
 
 test("subcategories start a price with the search filled in", () => {
-  const roofing = tradeById("trades")?.subcategories.find((item) => item.id === "roofing");
-  assert.ok(roofing);
-  assert.equal(newPriceHref(roofing), "/new?q=Roof%20replacement");
+  const plumbing = tradeById("trades")?.subcategories.find((item) => item.id === "plumbing");
+  assert.ok(plumbing);
+  assert.equal(newPriceHref(plumbing), "/new?q=Plumbing%20repair");
+});
+
+test("handyman leads, and roofing is not the lead trade", () => {
+  assert.equal(TRADES[0].id, "home-services");
+  const trades = tradeById("trades")!.subcategories.map((item) => item.id);
+  assert.notEqual(trades[0], "roofing");
+  assert.equal(trades.at(-1), "roofing");
+});
+
+const BRANDS = ["nintendo", "switch oled", "playstation", "ps5", "xbox", "iphone", "ipad", "airpods", "macbook", "apple", "samsung", "ikea", "dewalt", "milwaukee", "jordan", "yeezy", "pokemon", "goodwill", "nike"];
+
+test("trade copy and keywords name no brands", () => {
+  const words = TRADES.flatMap((trade) => [
+    trade.label,
+    ...trade.subcategories.flatMap((item) => [item.label, item.query, ...item.keywords]),
+    ...trade.tools.flatMap((tool) => [tool.label, tool.blurb]),
+  ]).map((word) => word.toLowerCase());
+  for (const word of words) {
+    for (const brand of BRANDS) assert.ok(!new RegExp(`(^|[^a-z0-9])${brand}([^a-z0-9]|$)`).test(word), `${brand} in "${word}"`);
+  }
 });
 
 test("active rows match the page and never a prefilled search", () => {
@@ -59,12 +79,13 @@ test("the user's trade folder opens by default, the current trade wins", () => {
 });
 
 test("quotes are filed under a trade by keyword, then by path", () => {
-  assert.equal(classifyQuote({ description: "Nintendo Switch OLED", path: "item" })?.subcategory?.id, "games");
+  assert.equal(classifyQuote({ description: "Game console with dock", path: "item" })?.subcategory?.id, "games");
   assert.equal(classifyQuote({ description: "Replace a light switch", path: "job" })?.subcategory?.id, "electrical");
   assert.equal(classifyQuote({ description: "Mount a 65in TV", path: "job" })?.trade.id, "home-services");
   assert.equal(classifyQuote({ description: "Deck repair, 12 boards", path: "job" })?.subcategory?.id, "carpentry");
   assert.equal(classifyQuote({ description: "Fix a drywall patch", path: "job" })?.subcategory?.id, "repairs");
   assert.equal(classifyQuote({ description: "Spare part", path: "check" }), null);
+  assert.equal(classifyQuote({ description: "Laptop, 13in", path: "item" })?.subcategory?.id, "electronics");
   assert.equal(classifyQuote({ description: "Something odd", path: "item" })?.trade.id, "selling");
   assert.equal(classifyQuote({ description: "", path: "job" })?.trade.id, "trades");
 });
