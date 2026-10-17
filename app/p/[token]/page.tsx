@@ -31,13 +31,17 @@ export default async function PublicSheetPage({
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
-      <div className="flex items-center gap-3 rounded-3xl bg-pine px-4 py-4 text-cream">
+      <a
+        href="https://www.priceranger.app/?ref=share&utm_source=share&utm_medium=quote_header"
+        aria-label="Price Ranger home"
+        className="flex items-center gap-3 rounded-3xl bg-pine px-4 py-4 text-cream focus-visible:shadow-[inset_0_0_0_2px_#f3eee4]"
+      >
         <Logo tone="inverse" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" alt="" />
         <div className="min-w-0">
           <p className="truncate font-serif text-title leading-8">Price Ranger</p>
           <p className="text-caption text-cream/80">priceranger.app</p>
         </div>
-      </div>
+      </a>
       <h1 className="mt-6 text-center font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{sheet.title}</h1>
       {condition || range ? (
         <p className="mt-3 text-center text-body text-muted" data-share-range="">
