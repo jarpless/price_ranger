@@ -1,7 +1,7 @@
 /** Early-beta copy and the trade list for feature requests. Pricing is live, so nothing here promises free access. */
 
 export const BETA_DISCLOSURE = {
-  title: "Price Ranger is in early beta",
+  title: "What beta means",
   body: "Price Ranger is in early beta and still in development. We'd love your feedback and feature requests for how you use it.",
   meaning:
     "Beta means the core tools work and plans are billed as shown, but we're still adding features and smoothing rough edges. Some screens may change as we learn from you.",

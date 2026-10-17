@@ -6,6 +6,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { TRADES, type TradeId } from "@/lib/beta";
 
 import { BetaPill, trackEvent } from "./beta";
+import { PrimaryDock } from "./primary-dock";
 import { deviceId } from "./capture-shot";
 
 export function FeatureRequestForm({
@@ -146,14 +147,15 @@ export function FeatureRequestForm({
         </p>
       ) : null}
 
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+      <PrimaryDock>
         <button
           disabled={busy}
-          className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-6 text-base font-semibold text-cream active:opacity-70 disabled:opacity-50 lg:min-w-48"
+          data-haptic=""
+          className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine text-base font-semibold text-cream active:opacity-70 disabled:opacity-50 lg:w-auto lg:min-w-48 lg:px-6"
         >
           {busy ? "Sending" : "Send request"}
         </button>
-      </div>
+      </PrimaryDock>
     </form>
   );
 }

@@ -228,10 +228,7 @@ export function BetaNote({ variant }: { variant: "home" | "plans" | "about" }) {
     <section data-beta-note={variant} className="rounded-2xl border border-line bg-paper px-4 py-3 shadow-card">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <BetaPill />
-            <p className="text-caption font-semibold text-muted">Early beta</p>
-          </div>
+          <BetaPill />
           <p className="mt-2 text-body leading-6">{BETA_DISCLOSURE.body}</p>
         </div>
         {variant === "home" ? (
