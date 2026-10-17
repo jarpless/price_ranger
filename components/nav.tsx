@@ -9,7 +9,7 @@ import { signOut } from "@/app/actions";
 import { IconCamera, IconCard, IconHome, IconInfo, IconMenu, IconPhone, IconSettings } from "./icons";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
-import { APP_CODENAME } from "@/lib/version";
+import { VERSION_LABEL } from "@/lib/version";
 
 export function navCurrent(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -122,11 +122,8 @@ export function Sidebar({
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-stretch overflow-y-auto border-r border-pine-deep bg-pine text-cream lg:flex">
       <Link href="/" className="flex items-center gap-3 px-5 pb-2 pt-8">
-        <Logo tone="inverse" width={32} height={32} className="h-8 w-8" />
-        <span>
-          <span className="block font-serif text-title leading-8">Price Ranger</span>
-          <span className="block text-caption uppercase tracking-[0.14em] text-cream/70">{APP_CODENAME}</span>
-        </span>
+        <Logo tone="light" width={32} height={32} className="h-8 w-8 shrink-0" alt="" />
+        <span className="font-serif text-title leading-8">Price Ranger</span>
       </Link>
       <nav className="mt-6 flex flex-1 flex-col px-3" aria-label="Workspace">
         {sections.map((section) => (
@@ -185,6 +182,7 @@ export function Sidebar({
               </form>
             </div>
           )}
+          <p className="px-3 pt-4 text-caption text-cream/70">{VERSION_LABEL}</p>
         </div>
       </nav>
     </aside>
@@ -243,7 +241,7 @@ export function PhoneMenu({
       {open ? (
         <div id="phone-menu" role="dialog" aria-modal="true" aria-label="Menu" className="fixed inset-0 z-[80] flex flex-col bg-pine text-cream">
           <div className="flex h-12 items-center gap-2 px-3">
-            <Logo tone="inverse" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
+            <Logo tone="light" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
             <span className="min-w-0 truncate font-serif text-base leading-6">Price Ranger</span>
             <button type="button" className="ml-auto inline-flex h-11 items-center px-3 text-sm font-semibold" onClick={() => setOpen(false)}>
               Close
@@ -304,6 +302,7 @@ export function PhoneMenu({
                   </form>
                 </div>
               )}
+              <p className="px-3 pt-4 text-caption text-cream/70">{VERSION_LABEL}</p>
             </div>
           </nav>
         </div>

@@ -32,7 +32,7 @@ export default async function PublicSheetPage({
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
       <div className="flex items-center gap-3 rounded-3xl bg-pine px-4 py-4 text-cream">
-        <Logo tone="inverse" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" alt="" />
+        <Logo tone="light" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" alt="" />
         <div className="min-w-0">
           <p className="truncate font-serif text-title leading-8">Price Ranger</p>
           <p className="text-caption text-cream/80">priceranger.app</p>
