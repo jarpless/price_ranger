@@ -5,6 +5,7 @@ import { Feel } from "./feel";
 import { Logo } from "./logo";
 import { PhoneMenu, Sidebar } from "./nav";
 import { ScreenMotion } from "./screen-motion";
+import { TabBar } from "./tab-bar";
 import type { IndustryId } from "@/lib/vocabulary";
 
 export function Shell({
@@ -43,6 +44,7 @@ export function Shell({
           <ScreenMotion>{children}</ScreenMotion>
         </main>
       </div>
+      <TabBar />
       <div id="assistant-dock" className="assistant-dock" />
       <Feel />
     </div>

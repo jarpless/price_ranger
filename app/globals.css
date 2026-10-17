@@ -751,3 +751,14 @@ input[type="range"] {
     transition: none;
   }
 }
+
+/* Compact widths keep a 56px tab bar at the bottom. The assistant pill and its sheet float 16px above it. */
+@media (max-width: 63.99rem) {
+  html:root:has(.tab-bar) {
+    --ask-clearance: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+
+  body[data-ask="off"]:has(.tab-bar) .ask-lane {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+}

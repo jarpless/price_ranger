@@ -11,6 +11,7 @@ import type { IndustryId } from "@/lib/vocabulary";
 
 import { IconMenu } from "./icons";
 import { NavTree } from "./nav-tree";
+import { OPEN_MENU_EVENT } from "./tab-bar";
 import { SubmitButton } from "./ui";
 import { Logo } from "./logo";
 import { VERSION_LABEL } from "@/lib/version";
@@ -107,6 +108,12 @@ export function PhoneMenu({
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_MENU_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_MENU_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
