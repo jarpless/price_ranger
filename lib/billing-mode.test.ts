@@ -139,6 +139,18 @@ test("a mismatched live event does not change a plan while the key is a test key
   }
 });
 
+test("the test-mode label is a dark-on-amber badge, not muted caption text", () => {
+  const note = readFileSync(new URL("../components/stripe-mode-note.tsx", import.meta.url), "utf8");
+  const billing = readFileSync(new URL("../app/(app)/settings/billing/page.tsx", import.meta.url), "utf8");
+  const plans = readFileSync(new URL("../app/(app)/upgrade/page.tsx", import.meta.url), "utf8");
+  assert.match(note, /Stripe test mode\. No real charges\./);
+  assert.match(note, /bg-\[#f4e4c4\]/);
+  assert.match(note, /text-\[#3f2e10\]/);
+  assert.doesNotMatch(note, /text-muted/);
+  assert.match(billing, /StripeModeNote/);
+  assert.match(plans, /StripeModeNote/);
+});
+
 test("billing code has no hard-coded Stripe ids or secrets", () => {
   const source = readFileSync(new URL("./billing.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /sk_live_[A-Za-z0-9]{8,}/);

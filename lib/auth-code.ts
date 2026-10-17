@@ -13,9 +13,8 @@ export function emailCodeLabel(): string {
   return `${EMAIL_CODE_LENGTH}-digit code`;
 }
 
-/** Sign-in emails include a code. Hosted signup confirmation is a link until the template adds one. */
+/** Sign-in and signup mail both include an 8-digit code and a link. The sent screen offers both. */
 export function emailScreenHasCode(input: { backend: string; kind?: string | null; devCode?: string | null }): boolean {
   if (input.devCode) return true;
-  if (input.backend === "local") return true;
-  return input.kind === "signin";
+  return input.backend === "local" || input.backend === "supabase";
 }

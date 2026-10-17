@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
-import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 
-import { startAndPrice } from "@/app/guide-actions";
+import { createPricedDraft, startAndPriceDirect } from "@/app/guide-actions";
 import { CAPTURE_STATE_KEY, readCaptureState, withCaptureState } from "@/lib/capture-state";
 import { CATEGORIES, namesForAutocomplete, QUICK_ITEMS, searchSuggestions } from "@/lib/market";
 
@@ -36,8 +36,11 @@ function isCategory(value: string | null): value is (typeof CATEGORIES)[number] 
 function persistCapture(description: string, category: string | null) {
   const capture = { description: description.slice(0, 280), category };
   try {
-    // Update the current history entry only. Passing a URL makes Next.js restore the page and wipe the field.
-    window.history.replaceState(withCaptureState(window.history.state, capture), "");
+    const current = window.history.state;
+    // Keep Next's history marker. Replacing a bare state makes browser Back stay on the quote.
+    if (current && typeof current === "object" && "__NA" in current) {
+      window.history.replaceState(withCaptureState(current, capture), "");
+    }
   } catch {
     /* Private mode can reject history updates. The session copy still restores Back. */
   }
@@ -67,10 +70,12 @@ export function CaptureForm({
   initial?: string;
   initialCategory?: string | null;
 }) {
+  const router = useRouter();
   const [category, setCategory] = useState<(typeof CATEGORIES)[number] | null>(isCategory(initialCategory) ? initialCategory : null);
   const [description, setDescription] = useState(initial);
   const [barcode, setBarcode] = useState("");
-  const [error, submit, pending] = useActionState(startAndPrice, "");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
   const names = useMemo(() => namesForAutocomplete(), []);
   const matches = searchSuggestions(description, names);
   const items = QUICK_ITEMS.filter((item) => !category || item.category === category);
@@ -87,6 +92,30 @@ export function CaptureForm({
   useEffect(() => {
     if (!pending) guard.current = false;
   }, [pending]);
+
+  async function priceFrom(form: HTMLFormElement) {
+    if (guard.current || pending) return;
+    guard.current = true;
+    setPending(true);
+    setError("");
+    persistCapture(description, category);
+    try {
+      const result = await createPricedDraft(new FormData(form));
+      if (!result.ok) {
+        setError(result.error);
+        setPending(false);
+        guard.current = false;
+        return;
+      }
+      router.push(result.href);
+    } catch (error) {
+      const digest = typeof error === "object" && error && "digest" in error ? String((error as { digest?: unknown }).digest) : "";
+      if (digest.includes("NEXT_REDIRECT")) throw error;
+      setError("missing");
+      setPending(false);
+      guard.current = false;
+    }
+  }
 
   async function onBarcode(file: File, form: HTMLFormElement) {
     const Detector = "BarcodeDetector" in window ? window.BarcodeDetector : null;
@@ -115,18 +144,15 @@ export function CaptureForm({
 
   return (
     <form
-      action={submit}
+      action={startAndPriceDirect}
       className="space-y-5"
-      onSubmit={(event) => {
-        persistCapture(description, category);
-        if (guard.current || pending) {
-          event.preventDefault();
-          return;
-        }
-        guard.current = true;
+      onSubmit={(event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        void priceFrom(event.currentTarget);
       }}
     >
       <input type="hidden" name="path" value="item" />
+      <input type="hidden" name="category" value={category || ""} />
       <div className="rounded-3xl border border-line bg-paper p-4 shadow-card">
         <p className="font-serif text-title">Take a photo</p>
         <p className="mt-1 text-body text-muted">A clear shot of the item is enough. You don't have to type.</p>

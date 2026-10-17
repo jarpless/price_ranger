@@ -3,7 +3,8 @@ import { PendingLink as Link } from "@/components/pending-link";
 import { cancelSubscription, startPortal } from "@/app/guide-actions";
 import { readBillingProfile } from "@/lib/account/billing-profile";
 import { requireUser } from "@/lib/auth";
-import { readBillingDetails, stripeModeLabel, stripeSecretKey } from "@/lib/billing";
+import { StripeModeNote } from "@/components/stripe-mode-note";
+import { readBillingDetails, stripeSecretKey } from "@/lib/billing";
 import { formatUsd } from "@/lib/money";
 import { PLANS, type PlanId } from "@/lib/plans";
 
@@ -38,7 +39,7 @@ export default async function BillingPage({
         Settings
       </Link>
       <h1 className="font-serif text-display">Billing</h1>
-      <p className="text-caption text-muted">{stripeModeLabel()}</p>
+      <StripeModeNote />
       <section className="surface">
         <p className="text-caption font-semibold text-muted">Current plan</p>
         <p className="mt-1 font-serif text-title">{plan.name}</p>

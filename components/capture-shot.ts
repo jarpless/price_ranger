@@ -187,11 +187,65 @@ async function drawSvg(svgUrl: string): Promise<HTMLCanvasElement> {
   return paintImage(await loadImage(svgUrl));
 }
 
+const CAPTURE_LAYOUT = "[data-app-shell], .ask-lane, .app-main, .shell-main";
+
+/** Let the main column paint. Overflow clipping and container queries leave it blank next to the sidebar. */
+function relaxCaptureLayout(): () => void {
+  const nodes = [...document.querySelectorAll(CAPTURE_LAYOUT)].filter((node): node is HTMLElement => node instanceof HTMLElement);
+  const saved = nodes.map((node) => ({ node, cssText: node.style.cssText }));
+  for (const node of nodes) {
+    node.style.setProperty("overflow", "visible", "important");
+    node.style.setProperty("max-height", "none", "important");
+    node.style.setProperty("max-width", "none", "important");
+    node.style.setProperty("container-type", "normal", "important");
+    if (node.classList.contains("app-main") || node.classList.contains("ask-lane")) {
+      const height = Math.max(node.scrollHeight, node.getBoundingClientRect().height, 1);
+      node.style.setProperty("min-height", `${height}px`, "important");
+    }
+  }
+  return () => {
+    for (const item of saved) item.node.style.cssText = item.cssText;
+  };
+}
+
+export function sampleSpread(values: number[]): number {
+  if (values.length === 0) return 0;
+  let min = values[0] ?? 0;
+  let max = values[0] ?? 0;
+  for (const value of values) {
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
+  return max - min;
+}
+
+function regionSpread(canvas: HTMLCanvasElement, box: { x: number; y: number; w: number; h: number }): number {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context || box.w < 8 || box.h < 8) return 255;
+  const values: number[] = [];
+  const sample = 12;
+  try {
+    for (let y = 0; y < sample; y += 1) {
+      for (let x = 0; x < sample; x += 1) {
+        const px = Math.min(canvas.width - 1, Math.max(0, Math.floor(box.x + ((x + 0.5) * box.w) / sample)));
+        const py = Math.min(canvas.height - 1, Math.max(0, Math.floor(box.y + ((y + 0.5) * box.h) / sample)));
+        const pixel = context.getImageData(px, py, 1, 1).data;
+        values.push((pixel[0] || 0) + (pixel[1] || 0) + (pixel[2] || 0));
+      }
+    }
+  } catch {
+    return 255;
+  }
+  return sampleSpread(values);
+}
+
 async function paintElement(
   node: HTMLElement,
   extra: { width?: number; height?: number; style?: Partial<CSSStyleDeclaration>; skipFonts?: boolean },
 ): Promise<HTMLCanvasElement> {
+  const restore = relaxCaptureLayout();
   const { toSvg } = await import("html-to-image");
+  try {
   const svgUrl = await withSrgbStyles(() =>
     toSvg(node, {
       pixelRatio: 1,
@@ -205,6 +259,33 @@ async function paintElement(
     }),
   );
   return drawSvg(svgUrl);
+  } finally {
+    restore();
+  }
+}
+
+async function paintMainIfBlank(canvas: HTMLCanvasElement, target: HTMLElement): Promise<HTMLCanvasElement> {
+  const main = document.querySelector(".app-main");
+  if (!(main instanceof HTMLElement) || main === target) return canvas;
+  const targetRect = target.getBoundingClientRect();
+  const mainRect = main.getBoundingClientRect();
+  const scaleX = canvas.width / Math.max(1, targetRect.width);
+  const scaleY = canvas.height / Math.max(1, targetRect.height);
+  const box = {
+    x: (mainRect.left - targetRect.left) * scaleX,
+    y: (mainRect.top - targetRect.top) * scaleY,
+    w: mainRect.width * scaleX,
+    h: mainRect.height * scaleY,
+  };
+  if (regionSpread(canvas, box) >= 18) return canvas;
+  const mainCanvas = await paintElement(main, {
+    width: Math.max(main.scrollWidth, main.clientWidth, 1),
+    height: Math.max(main.scrollHeight, main.clientHeight, mainRect.height, 1),
+  });
+  const context = canvas.getContext("2d");
+  if (!context) return canvas;
+  context.drawImage(mainCanvas, box.x, box.y, Math.max(1, box.w), Math.max(1, box.h));
+  return canvas;
 }
 
 async function raster(node: HTMLElement, width: number, height: number): Promise<string> {
@@ -268,10 +349,13 @@ export async function captureAnnotated(box: DragBox): Promise<{ blob: Blob; prev
 }
 
 export async function captureShot(box: DragBox | null): Promise<{ blob: Blob; preview: string }> {
-  const width = Math.max(document.documentElement.clientWidth, window.innerWidth, 1);
-  const height = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, window.innerHeight, 1);
-  let canvas = await paintElement(document.body, { width, height });
-  if (canvasIsFlat(canvas)) canvas = await paintElement(document.body, { width, height, skipFonts: true });
+  const shell = document.querySelector("[data-app-shell]");
+  const target = shell instanceof HTMLElement ? shell : document.body;
+  const width = Math.max(target.scrollWidth, target.clientWidth, window.innerWidth, 1);
+  const height = Math.max(target.scrollHeight, target.clientHeight, window.innerHeight, 1);
+  let canvas = await paintElement(target, { width, height });
+  if (canvasIsFlat(canvas)) canvas = await paintElement(target, { width, height, skipFonts: true });
+  canvas = await paintMainIfBlank(canvas, target);
   if (canvasIsFlat(canvas)) throw new Error("Could not capture this screen.");
   if (box) {
     const scaleX = canvas.width / window.innerWidth;

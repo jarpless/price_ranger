@@ -44,7 +44,7 @@ export default async function SentPage({
             ? `If ${email} can receive mail, a message is on the way. `
             : "A message is on the way. "}
         {hasCode
-          ? `If the email includes an ${codeLabel}, enter it below. If it only has a link, open the link.`
+          ? `Enter the ${codeLabel} below, or open the link in the email. Either one signs you in.`
           : "Open the link in that email."}
         {notice === "resent" ? " We sent another one." : ""}
       </p>

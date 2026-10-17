@@ -20,7 +20,7 @@ export function Shell({
   owner?: boolean;
 }) {
   return (
-    <div className="min-h-dvh max-w-full overflow-x-clip bg-cream text-ink lg:flex">
+    <div data-app-shell="true" className="min-h-dvh max-w-full overflow-x-clip bg-cream text-ink lg:flex">
       <Sidebar quotesLabel={quotesLabel} account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />
       <div className="shell-main ask-lane flex min-h-dvh min-w-0 max-w-full flex-1 flex-col">
         <header className="shell-header sticky top-0 z-[70] h-12 shrink-0 bg-pine text-cream lg:hidden">

@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { backTarget, isRootPath } from "@/lib/nav";
+import { isRootPath } from "@/lib/nav";
+import { backHref } from "@/lib/search-return";
 import { useEffect } from "react";
 
 export function vibrate() {
@@ -52,7 +53,7 @@ export function Feel() {
       if (dx < 72 || Math.abs(dy) > 48) return;
       if (isRootPath(pathname)) return;
       vibrate();
-      router.push(backTarget(pathname));
+      router.push(backHref(pathname, window.location.search));
     }
 
     document.addEventListener("click", onClick);

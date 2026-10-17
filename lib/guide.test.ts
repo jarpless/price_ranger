@@ -19,6 +19,7 @@ import {
   variantForUser,
 } from "./guide/flow";
 import { captureFromQuery, readCaptureState, withCaptureState } from "./capture-state";
+import { backHref, guideDraftHref, searchReturnHref } from "./search-return";
 import { draftKey, reusableDraftId, shareDraftWork } from "./guide/drafts";
 import { nudgedCents } from "./guide/pricing";
 import {
@@ -280,6 +281,13 @@ test("back restores the search text and category", () => {
   assert.match(form, /persistCapture/);
   assert.match(form, /readCaptureState/);
   assert.match(form, /popstate/);
+  assert.match(form, /createPricedDraft/);
+  assert.match(form, /router\.push/);
+  assert.equal(searchReturnHref({ description: "used Nintendo Switch", category: "Games" }), "/new?q=used+Nintendo+Switch&cat=Games");
+  assert.equal(guideDraftHref("quote-1", "used Nintendo Switch", null), "/guide/quote-1?q=used+Nintendo+Switch");
+  assert.equal(backHref("/guide/quote-1", "?q=used+Nintendo+Switch"), "/new?q=used+Nintendo+Switch");
+  assert.equal(backHref("/guide/quote-1", ""), "/");
+  assert.equal(backHref("/settings", ""), "/");
 });
 
 test("an open draft is reused after Back and a double tap does not create a second one", async () => {

@@ -20,6 +20,7 @@ export function FeedbackComposer({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [extras, setExtras] = useState<File[]>([]);
   const [status, setStatus] = useState("");
@@ -29,6 +30,7 @@ export function FeedbackComposer({
     setBusy(true);
     setStatus("");
     const form = new FormData();
+    form.set("title", title);
     form.set("body", body);
     form.set("route", route);
     form.set("source", source);
@@ -60,7 +62,17 @@ export function FeedbackComposer({
     >
       <div className="mx-auto max-w-[40rem]">
         <h2 className="font-serif text-display">Send feedback</h2>
-        <p className="mt-2 text-body text-muted">The screenshot is attached. Add a note if you want, and any other photos.</p>
+        <p className="mt-2 text-body text-muted">The screenshot is attached. Add a title and a note if you want, and any other photos.</p>
+        <label className="mt-6 block text-body font-semibold">
+          Title
+          <input
+            value={title}
+            maxLength={80}
+            placeholder="Short title"
+            onChange={(event) => setTitle(event.target.value)}
+            className="mt-2 h-12 w-full rounded-2xl border border-line bg-paper px-4 text-body font-normal outline-none focus:border-pine"
+          />
+        </label>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={preview} alt="Screenshot for this note" className="mt-6 max-h-64 w-full rounded-2xl border border-line bg-paper object-contain shadow-card" />
         <label className="mt-6 block text-body font-semibold">

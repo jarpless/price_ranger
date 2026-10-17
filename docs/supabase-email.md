@@ -16,7 +16,7 @@ Both files print `{{ .Token }}` in the inbox preview and in a bordered box, and 
 Also confirm:
 
 - Authentication → Providers → Email is on.
-- Do not change Authentication → Email → OTP length. This app does not write templates or auth settings into the live project. Until the dashboard body includes `{{ .Token }}`, the email is a link only, and `/signin/sent` tells the person to open that link. It asks for the 8-digit code only when this server issued one (local mode).
+- Do not change Authentication → Email → OTP length. This app does not write templates or auth settings into the live project. The templates in this repo include `{{ .Token }}` and `{{ .ConfirmationURL }}`. `/signin/sent` asks for that 8-digit code and still accepts the link. `verifyOtp` with type `signup` signs the person in.
 - Site URL is `https://priceranger.app` and `https://priceranger.app/auth/callback` is an allowed redirect.
 - SMTP sender is `support@priceranger.app` via Resend. Do not put the Resend API key in `NEXT_PUBLIC_` variables.
 

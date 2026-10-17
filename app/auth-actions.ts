@@ -149,7 +149,10 @@ export async function signInWithPassword(formData: FormData) {
       if (error) {
         const classified = classifyAuthError(error);
         await keepEmail(email);
-        if (classified.code === "unverified") redirect("/signin/sent?notice=unverified");
+        if (classified.code === "unverified") {
+          await rememberEmailKind("signup");
+          redirect("/signin/sent?notice=unverified");
+        }
         redirect(authErrorPath(classified));
       }
       const { data } = await supabase.auth.getUser();

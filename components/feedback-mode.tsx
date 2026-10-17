@@ -79,19 +79,6 @@ export function FeedbackMode() {
   }
 
   useEffect(() => {
-    function onClick(event: MouseEvent) {
-      const target = event.target instanceof Element ? event.target.closest("[data-feedback-label]") : null;
-      if (!target) return;
-      event.preventDefault();
-      event.stopPropagation();
-      resetDraft();
-      setPhase("armed");
-    }
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, []);
-
-  useEffect(() => {
     if (phase === "off") return;
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
