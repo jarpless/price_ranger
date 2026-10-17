@@ -173,37 +173,41 @@ async function ownedQuoteId(userId: string, tierId: string): Promise<string | nu
 export const supabaseStore = {
   async listQuotes(userId: string): Promise<QuoteListItem[]> {
     const supabase = await client();
-    const quotes = await many(
-      supabase.from("quotes").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
-    );
-    const groupRows = await many(
-      supabase.from("line_item_groups").select("*").eq("user_id", userId),
-    );
-    const groups = mapGroups(
-      groupRows,
-      await groupItemsFor(
-        supabase,
-        groupRows.map((row) => text(row, "id")),
-      ),
-    );
-    const quoteIds = quotes.map((quote) => text(quote, "id"));
-    const tiers = quoteIds.length
-      ? await many(supabase.from("quote_tiers").select("*").in("quote_id", quoteIds))
-      : [];
-    const tierIds = tiers.map((tier) => text(tier, "id"));
-    const links = tierIds.length
-      ? await many(supabase.from("quote_tier_groups").select("*").in("tier_id", tierIds))
-      : [];
+    const loadQuotes = async () => {
+      const quotes = await many(
+        supabase.from("quotes").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
+      );
+      const quoteIds = quotes.map((quote) => text(quote, "id"));
+      const tiers = quoteIds.length
+        ? await many(supabase.from("quote_tiers").select("*").in("quote_id", quoteIds))
+        : [];
+      const tierIds = tiers.map((tier) => text(tier, "id"));
+      const links = tierIds.length
+        ? await many(supabase.from("quote_tier_groups").select("*").in("tier_id", tierIds))
+        : [];
+      return { quotes, tiers, links };
+    };
+    const loadGroups = async () => {
+      const groupRows = await many(supabase.from("line_item_groups").select("*").eq("user_id", userId));
+      return mapGroups(
+        groupRows,
+        await groupItemsFor(
+          supabase,
+          groupRows.map((row) => text(row, "id")),
+        ),
+      );
+    };
+    const [{ quotes, tiers, links }, groups] = await Promise.all([loadQuotes(), loadGroups()]);
     return quotes.map((quote) => toQuoteListItem(mapQuote(quote, tiers, links), groups));
   },
 
   async getQuote(userId: string, quoteId: string): Promise<QuoteRecord | null> {
     const supabase = await client();
-    const quote = await one(
-      supabase.from("quotes").select("*").eq("id", quoteId).eq("user_id", userId),
-    );
+    const [quote, tiers] = await Promise.all([
+      one(supabase.from("quotes").select("*").eq("id", quoteId).eq("user_id", userId)),
+      many(supabase.from("quote_tiers").select("*").eq("quote_id", quoteId)),
+    ]);
     if (!quote) return null;
-    const tiers = await many(supabase.from("quote_tiers").select("*").eq("quote_id", quoteId));
     const tierIds = tiers.map((tier) => text(tier, "id"));
     const links = tierIds.length
       ? await many(supabase.from("quote_tier_groups").select("*").in("tier_id", tierIds))
@@ -232,6 +236,56 @@ export const supabaseStore = {
       recommended: false,
     });
     if (tier.error) throw new Error(tier.error.message);
+    return id;
+  },
+
+  /** Three round trips. Each step waits only on the rows it references. */
+  async createItemQuote(
+    userId: string,
+    input: { title: string; customerName: string; itemName: string; unitPriceCents: number },
+  ): Promise<string> {
+    const supabase = await client();
+    const insertedId = async (query: Query) => {
+      const { data, error } = await query.single();
+      if (error) throw new Error(error.message);
+      return text(data as Record<string, unknown>, "id");
+    };
+    const [id, groupId, libraryItemId] = await Promise.all([
+      insertedId(supabase.from("quotes").insert({ user_id: userId, title: input.title, customer_name: input.customerName }).select("id")),
+      insertedId(
+        supabase.from("line_item_groups").insert({ user_id: userId, name: input.title, summary: "", summary_edited: false }).select("id"),
+      ),
+      insertedId(
+        supabase
+          .from("library_items")
+          .insert({
+            user_id: userId,
+            name: input.itemName,
+            unit: "each",
+            unit_price_cents: input.unitPriceCents,
+            sample_price: false,
+            source: "custom",
+          })
+          .select("id"),
+      ),
+    ]);
+    const [tierId, line] = await Promise.all([
+      insertedId(
+        supabase.from("quote_tiers").insert({ quote_id: id, name: "Standard", note: "", sort_order: 0, recommended: false }).select("id"),
+      ),
+      supabase.from("group_items").insert({
+        group_id: groupId,
+        library_item_id: libraryItemId,
+        name: input.itemName,
+        unit: "each",
+        unit_price_cents: input.unitPriceCents,
+        quantity: 1,
+        sort_order: 0,
+      }),
+    ]);
+    if (line.error) throw new Error(line.error.message);
+    const link = await supabase.from("quote_tier_groups").insert({ tier_id: tierId, group_id: groupId });
+    if (link.error) throw new Error(link.error.message);
     return id;
   },
 
@@ -503,11 +557,11 @@ export const supabaseStore = {
 
   async getGroup(userId: string, groupId: string): Promise<ItemGroup | null> {
     const supabase = await client();
-    const group = await one(
-      supabase.from("line_item_groups").select("*").eq("id", groupId).eq("user_id", userId),
-    );
+    const [group, items] = await Promise.all([
+      one(supabase.from("line_item_groups").select("*").eq("id", groupId).eq("user_id", userId)),
+      many(supabase.from("group_items").select("*").eq("group_id", groupId)),
+    ]);
     if (!group) return null;
-    const items = await many(supabase.from("group_items").select("*").eq("group_id", groupId));
     return mapGroups([group], items)[0] ?? null;
   },
 

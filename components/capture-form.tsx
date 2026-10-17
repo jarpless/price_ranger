@@ -101,6 +101,10 @@ export function CaptureForm({
     persistCapture(description, category);
     try {
       const result = await createPricedDraft(new FormData(form));
+      if (!result.ok && result.error === "limit") {
+        router.push("/upgrade");
+        return;
+      }
       if (!result.ok) {
         setError(result.error);
         setPending(false);
@@ -257,11 +261,7 @@ export function CaptureForm({
         </ul>
       ) : null}
 
-      {error === "limit" ? (
-        <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">
-          You&apos;ve used all your free prices. <a className="font-semibold underline" href="/upgrade">See plans</a> to add more.
-        </p>
-      ) : error ? (
+      {error ? (
         <p className="rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">Add a few words, or a photo.</p>
       ) : null}
       <PrimaryDock>
