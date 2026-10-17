@@ -5,6 +5,15 @@ import { bugIsValid, classifyByRules, findDuplicate } from "./classify";
 import { receiptEmail, sendSupportEmail } from "./mail";
 import { replaceDuplicateLine, scoreTicket } from "./model";
 import { composeFeedbackBody, readFeedbackAnswers, suggestFeedbackTitle } from "./note";
+import {
+  BETA_DISCLOSURE,
+  defaultTrade,
+  featureRequestBody,
+  featureRequestTitle,
+  isTradeId,
+  readFeatureRequestTrade,
+  tradeLabelName,
+} from "../beta";
 
 test("a pro trades account with a severe duplicated bug outranks a quiet free note", () => {
   const quiet = scoreTicket({
@@ -111,4 +120,32 @@ test("a feedback note keeps both answers, the box, and a title from the first an
   const read = readFeedbackAnswers(idea);
   assert.equal(read.answerA, "A darker toast");
   assert.equal(read.answerB, "It is easier to see");
+});
+
+test("a trade feature request is tagged with its type and trade, and dedupes on the typed need only", () => {
+  const body = featureRequestBody({ trade: "flipping", need: "  Margin after fees  ", followUp: true, route: "/feedback/trade?from=beta" });
+  assert.match(body, /^Type: feature_request$/m);
+  assert.match(body, /^Trade: flipping \(Flipping\)$/m);
+  assert.match(body, /^Follow-up email: yes$/m);
+  assert.equal(readFeatureRequestTrade(body), "flipping");
+  assert.equal(featureRequestTitle("trades", ""), "Feature request (Trades & jobs)");
+  assert.ok(featureRequestTitle("makers", "x".repeat(200)).length <= 80);
+  assert.equal(tradeLabelName("buying"), "trade:buying");
+  const empty = featureRequestBody({ trade: "other", need: "", followUp: false, route: "" });
+  assert.match(empty, /\(No details added\.\)/);
+  assert.equal(findDuplicate("", [{ id: "a", summary: "Feature request (Flipping)", body: empty }]), null);
+});
+
+test("trade ids are validated and default from the account industry", () => {
+  assert.equal(isTradeId("flipping"), true);
+  assert.equal(isTradeId("roofing"), false);
+  assert.equal(isTradeId(null), false);
+  assert.equal(defaultTrade("trades"), "trades");
+  assert.equal(defaultTrade("services"), "services");
+  assert.equal(defaultTrade(null), null);
+});
+
+test("beta copy does not promise free access", () => {
+  const copy = Object.values(BETA_DISCLOSURE).join(" ");
+  assert.doesNotMatch(copy, /\bfree\b|30.day|trial|no charge/i);
 });
