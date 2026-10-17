@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect, RedirectType } from "next/navigation";
 
+import { track } from "@/lib/analytics/track";
 import { requireUser, safeNext } from "@/lib/auth";
 import { createCheckout, parseCheckoutChoice, readCheckout, stripeSecretKey } from "@/lib/billing";
 import { saveBillingProfile } from "@/lib/account/billing-profile";
@@ -253,6 +254,7 @@ export async function createPricedDraft(formData: FormData): Promise<{ ok: true;
     visionNote = identified.note;
   }
   if (!text || looksLikeFilename(text)) return { ok: false, error: "photo" };
+  await track("price_started", { input: photo ? "camera" : "text", path }, { user });
   const quoteId = await shareDraftWork(draftKey(user.id, text), async () => {
     const recentId = reusableDraftId(await listGuideQuotes(user.id), text);
     if (recentId) return recentId;
@@ -292,6 +294,7 @@ export async function createPricedDraft(formData: FormData): Promise<{ ok: true;
     });
     if (photo) await saveQuotePhoto(user.id, createdId, photo.bytes, photo.mime).catch(() => undefined);
     await recordFunnel(user.id, "first_price_generated", { path, variant: guide.variant });
+    await track("price_result_shown", { path, confidence: suggestion.confidence, input: photo ? "camera" : "text" }, { user });
     return createdId;
   });
   refresh();
@@ -347,6 +350,7 @@ export async function startSample() {
     updatedAt: new Date().toISOString(),
   });
   await recordFunnel(user.id, "first_price_generated", { sample: "yes", variant: guide.variant });
+  await track("price_result_shown", { path: "item", confidence: suggestion.confidence, sample: true }, { user });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -410,6 +414,7 @@ export async function saveDescription(formData: FormData) {
   });
   if (uploaded) await saveQuotePhoto(user.id, quoteId, uploaded.bytes, uploaded.mime).catch(() => undefined);
   await recordFunnel(user.id, "first_price_generated", { path: row.path, variant: guide.variant });
+  await track("price_result_shown", { path, confidence: suggestion.confidence, input: uploaded ? "camera" : "text" }, { user });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -439,6 +444,7 @@ export async function applyAdjustment(formData: FormData) {
   const quoteId = clip(formData.get("quoteId"), 80);
   const row = await requireGuide(user.id, quoteId);
   const kind = clip(formData.get("kind"), 20);
+  await track("price_adjusted", { kind: kind || "other" }, { user });
   const data = await getData();
   let sources = row.sources;
   if (kind === "condition" || kind === "variant") {
@@ -555,6 +561,7 @@ export async function sendQuote(formData: FormData) {
     step: "share",
   });
   await recordFunnel(user.id, "first_share", { path: row.path, variant: guide.variant });
+  await track("quote_shared", { channel: "link", path: row.path }, { user });
   refresh();
   redirect(`/guide/${quoteId}`);
 }
@@ -576,6 +583,7 @@ export async function markOutcome(formData: FormData) {
   if (outcome === "sold") {
     await recordFunnel(user.id, "first_mark_sold", { path: row.path, variant: guide.variant });
   }
+  await track("item_marked_sold", { outcome, sold_cents: soldFor, suggested_cents: row.priceCents }, { user });
   refresh();
   redirect(`/guide/${quoteId}?done=1`);
 }
@@ -601,6 +609,7 @@ export async function startCheckout(formData?: FormData) {
   const user = await requireUser();
   const guide = await ensureGuideUser(user.id);
   await recordFunnel(user.id, "upgrade_viewed", { variant: guide.variant, source: "checkout" });
+  await track("checkout_started", { plan: clip(formData?.get("plan") ?? "plus", 20) }, { user });
   if (!stripeSecretKey()) redirect("/upgrade?error=payments");
   const choice = parseCheckoutChoice(
     clip(formData?.get("plan") ?? "plus", 20),

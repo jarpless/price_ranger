@@ -1,4 +1,5 @@
 import { getSessionUser } from "@/lib/auth";
+import { track } from "@/lib/analytics/track";
 import { loadAccount, localAskAnswer, redactedContext } from "@/lib/assistant/context";
 import { complete, llmProvider, type LlmResult, type LlmTurn } from "@/lib/assistant/llm";
 import { planLocally } from "@/lib/assistant/plan";
@@ -97,6 +98,7 @@ export async function POST(request: Request) {
   if (!body || (body.mode !== "ask" && body.mode !== "agent")) {
     return Response.json({ error: "Choose ask or agent." }, { status: 400 });
   }
+  await track("assistant_message", { mode: body.mode }, { user });
 
   const pathname = String(body.pathname || "/").slice(0, 200);
   const turns = turnsFrom(body.turns);
