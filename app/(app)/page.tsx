@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { startSample } from "@/app/guide-actions";
 import { GuideSetupNotice } from "@/components/guide-setup-notice";
+import { HomeCategories } from "@/components/home-categories";
 import { PrimaryDock } from "@/components/primary-dock";
 import { SubmitButton } from "@/components/ui";
 import { Landing } from "@/components/landing";
@@ -75,6 +76,7 @@ export default async function HomePage() {
             ))}
           </ol>
         </div>
+        {locked ? null : <HomeCategories />}
         <PrimaryDock>
           <Link
             href={primaryHref}
@@ -133,6 +135,7 @@ export default async function HomePage() {
           </Link>
         </aside>
       </div>
+      {locked ? null : <HomeCategories />}
       <PrimaryDock>
         <Link
           href={primaryHref}

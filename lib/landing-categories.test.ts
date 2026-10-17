@@ -29,7 +29,7 @@ test("the landing page offers several industries, each with items one tap away",
 });
 
 test("landing categories, items, and copy name no brand or roofing example", () => {
-  const source = ["../components/landing.tsx", "../components/landing-categories.tsx", "./landing-categories.ts"]
+  const source = ["../components/landing.tsx", "../components/landing-categories.tsx", "../components/home-categories.tsx", "./landing-categories.ts"]
     .map((file) => readFileSync(new URL(file, import.meta.url), "utf8"))
     .join("\n");
   assert.equal(brandWordIn(source), null);
