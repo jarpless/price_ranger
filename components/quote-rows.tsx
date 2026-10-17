@@ -58,8 +58,10 @@ export function QuoteRows({ quotes, empty, showTrade = true }: { quotes: GuideQu
   );
 }
 
+const PILL_LABEL: Record<ReturnType<typeof itemStatus>, string> = { ...ITEM_STATUS_LABEL, drafts: "Draft" };
+
 export function StatusPill({ status }: { status: ReturnType<typeof itemStatus> }) {
-  return <span className={status === "sold" ? "pill pill-sold" : "pill"}>{ITEM_STATUS_LABEL[status]}</span>;
+  return <span className={status === "sold" ? "pill pill-sold" : "pill"}>{PILL_LABEL[status]}</span>;
 }
 
 export function SegTabs({ tabs, label }: { tabs: { href: string; label: string; count?: number; active: boolean }[]; label: string }) {
