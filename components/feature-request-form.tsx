@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 import { PendingLink as Link } from "@/components/pending-link";
-import { TRADES, type TradeId } from "@/lib/beta";
+import { NEED_MIN_LENGTH, TRADES, needIsValid, type TradeId } from "@/lib/beta";
 
-import { BetaPill, trackEvent } from "./beta";
-import { PrimaryDock } from "./primary-dock";
+import { trackEvent } from "./beta";
 import { deviceId } from "./capture-shot";
 
 export function FeatureRequestForm({
@@ -32,11 +31,10 @@ export function FeatureRequestForm({
     trackEvent("feature_request_opened", { from });
   }, [from]);
 
+  const ready = Boolean(trade) && needIsValid(need);
+
   async function submit() {
-    if (!trade) {
-      setError("Pick who it's for.");
-      return;
-    }
+    if (!trade || !needIsValid(need) || busy) return;
     setBusy(true);
     setError("");
     const form = new FormData();
@@ -89,8 +87,7 @@ export function FeatureRequestForm({
         void submit();
       }}
     >
-      <BetaPill />
-      <h1 className="mt-3 font-serif text-display text-balance">Request a feature for your trade</h1>
+      <h1 className="font-serif text-display text-balance">Request a feature for your trade</h1>
       <p className="mt-2 text-body leading-6 text-muted">Tell us what would make Price Ranger work better for how you use it.</p>
 
       <fieldset className="mt-6">
@@ -119,14 +116,20 @@ export function FeatureRequestForm({
       </fieldset>
 
       <label className="mt-6 block text-body font-semibold">
-        What do you need? <span className="font-normal text-muted">Optional</span>
+        What do you need?
         <textarea
           value={need}
+          required
+          minLength={NEED_MIN_LENGTH}
           maxLength={1500}
           onChange={(event) => setNeed(event.target.value)}
           placeholder="For example, a materials line on job quotes"
+          aria-describedby="need-hint"
           className="mt-2 min-h-28 w-full rounded-2xl border border-line bg-paper px-4 py-3 text-body font-normal outline-none placeholder:text-muted/70 focus:border-pine"
         />
+        <span id="need-hint" className="mt-1 block text-caption font-normal text-muted">
+          A sentence is plenty.
+        </span>
       </label>
 
       {canFollowUp ? (
@@ -147,15 +150,16 @@ export function FeatureRequestForm({
         </p>
       ) : null}
 
-      <PrimaryDock>
+      <div data-request-footer="true" className="sticky bottom-0 z-10 -mx-4 mt-4 bg-cream px-4 pb-3 pt-3 shadow-[0_-12px_12px_-12px_rgba(28,25,21,0.18)] lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:shadow-none">
         <button
-          disabled={busy}
+          disabled={!ready || busy}
+          aria-disabled={!ready || busy}
           data-haptic=""
-          className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine text-base font-semibold text-cream active:opacity-70 disabled:opacity-50 lg:w-auto lg:min-w-48 lg:px-6"
+          className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine text-base font-semibold text-cream active:opacity-70 disabled:bg-line disabled:text-muted lg:w-auto lg:min-w-48 lg:px-6"
         >
           {busy ? "Sending" : "Send request"}
         </button>
-      </PrimaryDock>
+      </div>
     </form>
   );
 }
