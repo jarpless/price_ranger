@@ -144,7 +144,13 @@ select
     select 1 from public.pmf_events e
     where e.user_id = s.user_id and e.name = 'checkout_completed'
       and e.created_at < coalesce(f.first_price_at, s.signed_up_at) + interval '30 days'
-  ) as paid_30d
+  ) as paid_30d,
+  exists (
+    select 1
+    from public.pmf_events mine
+    join public.pmf_events click on click.anon_id = mine.anon_id and click.name = 'share_signup_click'
+    where mine.user_id = s.user_id and mine.anon_id is not null
+  ) as from_share
 from signups s
 left join firsts f on f.user_id = s.user_id;
 
@@ -157,7 +163,8 @@ select
   count(*) filter (where first_share_at is not null) as shared,
   count(*) filter (where first_sold_at is not null) as sold,
   count(*) filter (where priced_d1_7) as second_price_7d,
-  count(*) filter (where paid_30d) as paid_30d
+  count(*) filter (where paid_30d) as paid_30d,
+  count(*) filter (where from_share) as from_share
 from public.pmf_users;
 
 -- Retention triangle: weekly signup cohorts x D1 / D7 / D30 repeat.
