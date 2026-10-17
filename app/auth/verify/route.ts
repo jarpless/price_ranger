@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { LINK_COOKIE } from "@/lib/account/link";
+import { safeNext } from "@/lib/auth";
 import { dataBackend, siteOriginFromHeaders } from "@/lib/env";
 import { createSessionValue, KIND_COOKIE, readSessionValue, SESSION_COOKIE, sessionSecret } from "@/lib/session";
 import { reassignBasecamp } from "@/lib/store/basecamp";
@@ -28,7 +29,8 @@ export async function GET(request: Request) {
     }
   }
   const fresh = await getLocalUser(user.id);
-  const dest = isIndustryId(fresh?.industry) ? "/" : "/start";
+  const stored = cookieStore.get("pr_oauth_next")?.value || "";
+  const dest = stored ? safeNext(stored) : isIndustryId(fresh?.industry) ? "/" : "/start";
   const response = NextResponse.redirect(new URL(dest, origin));
   const options = {
     httpOnly: true,
@@ -40,5 +42,6 @@ export async function GET(request: Request) {
   response.cookies.set(SESSION_COOKIE, await createSessionValue(user.id, sessionSecret()), options);
   response.cookies.set(KIND_COOKIE, "user", options);
   response.cookies.set(LINK_COOKIE, "", { ...options, maxAge: 0 });
+  response.cookies.set("pr_oauth_next", "", { ...options, maxAge: 0 });
   return response;
 }

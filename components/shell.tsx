@@ -26,8 +26,8 @@ export function Shell({
         <header className="shell-header sticky top-0 z-[70] h-12 shrink-0 bg-pine text-cream lg:hidden">
           <div className="flex h-12 min-w-0 items-center gap-1 px-2">
             <BackButton />
-            <Logo tone="light" width={28} height={28} className="h-7 w-7" />
-            <Link href="/" className="min-w-0 truncate font-serif text-base tracking-tight">
+            <Logo tone="light" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
+            <Link href="/" className="min-w-0 flex-1 truncate font-serif text-base leading-6 tracking-tight">
               Price Ranger
             </Link>
             <PhoneMenu account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />

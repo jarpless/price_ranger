@@ -47,6 +47,29 @@ export function ShakeReport() {
     };
   }, [pathname, router]);
 
+  useEffect(() => {
+    async function onClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(link instanceof HTMLAnchorElement)) return;
+      if (link.hasAttribute("data-feedback-label")) return;
+      const href = link.getAttribute("href") || "";
+      if (href !== "/feedback/new" && !href.startsWith("/feedback/new?")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const shot = await captureShot(null);
+        window.sessionStorage.setItem(SHOT_KEY, shot.preview);
+        window.sessionStorage.setItem("pr-feedback-device", deviceId());
+      } catch {
+        window.sessionStorage.removeItem(SHOT_KEY);
+      }
+      router.push("/feedback/new?shot=1");
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [router]);
+
   return null;
 }
 

@@ -18,6 +18,7 @@ export function LoginForm({
   showPasskey,
   local,
   emailKind = "signin",
+  next = "",
 }: {
   email?: string;
   error?: string;
@@ -25,6 +26,7 @@ export function LoginForm({
   showPasskey: boolean;
   local: boolean;
   emailKind?: "signin" | "signup";
+  next?: string;
 }) {
   const [account, setAccount] = useState<Account>(emailKind === "signup" ? "create" : "signin");
   const [value, setValue] = useState(email);
@@ -39,6 +41,7 @@ export function LoginForm({
     <div className="mt-8 space-y-3">
       <h1 className="text-center font-serif text-display leading-tight">{heading}</h1>
       <form action={startOAuth}>
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <input type="hidden" name="provider" value="apple" />
         <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ink text-base font-semibold text-cream">
           <IconApple className="h-5 w-5" />
@@ -46,6 +49,7 @@ export function LoginForm({
         </button>
       </form>
       <form action={startOAuth}>
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <input type="hidden" name="provider" value="google" />
         <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-paper text-base font-semibold text-ink">
           <IconGoogle />
@@ -56,6 +60,7 @@ export function LoginForm({
       {local ? <p className="text-center text-caption text-muted">Apple, Google, and passkeys need the live sign-in project.</p> : null}
 
       <form action={action} className="space-y-3 pt-2">
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <div className="grid grid-cols-2 gap-1 rounded-2xl bg-line p-1" role="tablist" aria-label="Sign in or create account">
           {([
             ["signin", "Sign in"],
@@ -111,6 +116,7 @@ export function LoginForm({
         </button>
       </form>
       <form action={sendMagicLink}>
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <input type="hidden" name="email" value={value} />
         <button type="submit" className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-line bg-paper text-base font-semibold text-pine">
           {linkLabel}

@@ -59,6 +59,20 @@ async function rememberLocalChallenge(email: string) {
   cookieStore.set(DEV_CODE_COOKIE, code, devCookie);
 }
 
+export async function rememberReturnTo(formData: FormData) {
+  const next = clip(formData.get("next"), 200);
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/auth")) return;
+  const cookieStore = await cookies();
+  cookieStore.set("pr_oauth_next", safeNext(next), { ...linkCookie, maxAge: 60 * 10 });
+}
+
+async function takeNext() {
+  const cookieStore = await cookies();
+  const next = safeNext(cookieStore.get("pr_oauth_next")?.value || null);
+  cookieStore.set("pr_oauth_next", "", { ...linkCookie, maxAge: 0 });
+  return next;
+}
+
 async function finishLocalSignIn(userId: string) {
   const cookieStore = await cookies();
   const linked = cookieStore.get(LINK_COOKIE)?.value || "";
@@ -71,7 +85,7 @@ async function finishLocalSignIn(userId: string) {
   if (linked) cookieStore.set(LINK_COOKIE, "", { ...linkCookie, maxAge: 0 });
   await setLocalSession(userId, "user");
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(await takeNext());
 }
 
 function providerId(value: string): OAuthProvider | null {
@@ -81,11 +95,7 @@ function providerId(value: string): OAuthProvider | null {
 export async function startOAuth(formData: FormData) {
   const provider = providerId(clip(formData.get("provider"), 20));
   if (!provider || dataBackend() !== "supabase") redirect("/signin?error=provider");
-  const next = clip(formData.get("next"), 200);
-  if (next) {
-    const cookieStore = await cookies();
-    cookieStore.set("pr_oauth_next", safeNext(next), { ...linkCookie, maxAge: 60 * 10 });
-  }
+  await rememberReturnTo(formData);
   const origin = siteOriginFromHeaders(await headers());
   const supabase = await createClient();
   const current = await getSessionUser();
@@ -120,6 +130,7 @@ async function consumeGuestLink(userId: string) {
 }
 
 export async function signInWithPassword(formData: FormData) {
+  await rememberReturnTo(formData);
   const email = clip(formData.get("email"), 160).toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (!isEmail(email)) redirect("/signin?error=email");
@@ -148,7 +159,7 @@ export async function signInWithPassword(formData: FormData) {
       if (isNextRedirect(error)) throw error;
       redirect("/signin?error=auth");
     }
-    redirect("/");
+    redirect(await takeNext());
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await verifyLocalPassword(email, password);
@@ -164,6 +175,7 @@ export async function signInWithPassword(formData: FormData) {
 }
 
 export async function createPasswordAccount(formData: FormData) {
+  await rememberReturnTo(formData);
   const email = clip(formData.get("email"), 160).toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (!isEmail(email)) redirect("/signin?error=email");
@@ -203,6 +215,7 @@ export async function createPasswordAccount(formData: FormData) {
 }
 
 export async function verifyEmailCode(formData: FormData) {
+  await rememberReturnTo(formData);
   const cookieStore = await cookies();
   const email = (cookieStore.get(PENDING_EMAIL_COOKIE)?.value || clip(formData.get("email"), 160)).toLowerCase();
   const code = normalizeEmailCode(clip(formData.get("code"), 16));
@@ -223,7 +236,7 @@ export async function verifyEmailCode(formData: FormData) {
     if (!verified) redirect("/signin/sent?error=code");
     const { data } = await supabase.auth.getUser();
     if (data.user) await consumeGuestLink(data.user.id);
-    redirect("/");
+    redirect(await takeNext());
   }
   if (dataBackend() !== "local") redirect("/signin?error=provider");
   const user = await consumeEmailCode(email, code);

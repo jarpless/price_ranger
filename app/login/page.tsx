@@ -5,7 +5,7 @@ import { LogoLockup } from "@/components/logo";
 import { PendingLink } from "@/components/pending-link";
 import { RateLimitNotice } from "@/components/rate-limit-notice";
 import { Notice } from "@/components/ui";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, safeNext } from "@/lib/auth";
 import { passkeyConfigured } from "@/lib/auth-providers";
 import { EMAIL_KIND_COOKIE } from "@/lib/session";
 import { dataBackend } from "@/lib/env";
@@ -16,13 +16,16 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; reason?: string; detail?: string; notice?: string; email?: string; retry?: string }>;
+  searchParams: Promise<{ error?: string; reason?: string; detail?: string; notice?: string; email?: string; retry?: string; next?: string }>;
 }) {
-  const { error, reason, detail, notice, retry } = await searchParams;
+  const { error, reason, detail, notice, retry, next: requestedNext } = await searchParams;
   const user = await getSessionUser();
   const jar = await cookies();
   const remembered = jar.get("pr_pending_email")?.value || "";
-  const emailKind = jar.get(EMAIL_KIND_COOKIE)?.value === "signup" ? "signup" : "signin";
+  const share = reason === "share";
+  const emailKind = share || jar.get(EMAIL_KIND_COOKIE)?.value === "signup" ? "signup" : "signin";
+  const next = safeNext(requestedNext || jar.get("pr_oauth_next")?.value || null);
+  const nextField = next !== "/" ? next : "";
   const authDetail = detail ? guestErrorDetail(detail) : "";
   const local = dataBackend() === "local";
   const passkey = passkeyConfigured();
@@ -39,6 +42,11 @@ export default async function LoginPage({
       {reason === "save" ? (
         <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
           Save this price on an account. Your draft stays on this device if the email never arrives.
+        </p>
+      ) : null}
+      {share ? (
+        <p className="mt-6 rounded-2xl bg-[#f8f1df] px-4 py-3 text-body leading-6 text-ink">
+          Save these prices on a free account. You&apos;ll come back to the sheet you were sent.
         </p>
       ) : null}
       {notice === "deleted" ? (
@@ -70,7 +78,7 @@ export default async function LoginPage({
           <Notice code={error} detail={authDetail} />
         </div>
       ) : null}
-      <LoginForm email={remembered} error={error} notice={notice} showPasskey={passkey} local={local} emailKind={emailKind} />
+      <LoginForm email={remembered} error={error} notice={notice} showPasskey={passkey} local={local} emailKind={emailKind} next={nextField} />
       {user?.guest ? null : (
         <PendingLink
           href="/auth/guest?next=/new"
