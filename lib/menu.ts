@@ -95,6 +95,7 @@ export function buildMenu({ guest, owner = false }: { guest: boolean; owner?: bo
     id: "help",
     label: "Help & feedback",
     links: [
+      { href: "/help", label: "Help & glossary", icon: "info", spot: "nav-help" },
       { href: "/install", label: "Get the app", icon: "phone", spot: "nav-install" },
       { href: "/feedback/new", label: "Feedback", icon: "info", spot: "nav-feedback" },
       ...(owner ? [{ href: "/admin/feedback", label: "Feedback backlog", icon: "info" as const }] : []),
