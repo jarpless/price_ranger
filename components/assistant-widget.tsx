@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as
 import { createPortal } from "react-dom";
 
 import { chatTitle, readChats, upsertChat, writeChats, type SavedChat } from "@/lib/assistant/history";
+import { readDesktopPanel, writeDesktopPanel } from "@/lib/assistant/panel";
 import { inferAssistantMode } from "@/lib/assistant/intent";
 import {
   ASSISTANT_CHANNEL,
@@ -140,8 +141,14 @@ export function AssistantWidget({
   const ackWaiters = useRef(new Map<string, () => void>());
   const reclaimedRef = useRef(false);
   const dockWidthRef = useRef(380);
+  const chromeRef = useRef<AssistantChrome>("floating");
+  const wasMobile = useRef<boolean | null>(null);
+  const panelHydrated = useRef(false);
+  const suspendWrite = useRef(true);
+  const skipOpenOnce = useRef(false);
 
   modeRef.current = mode;
+  chromeRef.current = chrome;
   chatIdRef.current = chatId;
   runningRef.current = running;
   popoutRef.current = popout;
@@ -213,12 +220,52 @@ export function AssistantWidget({
     } else {
       setChats(readChats());
     }
+    const desktop = window.matchMedia("(min-width: 64rem)").matches;
+    wasMobile.current = !desktop;
+    if (desktop) {
+      const pref = readDesktopPanel();
+      suspendWrite.current = true;
+      panelHydrated.current = true;
+      setChrome(pref.chrome);
+      setOpen(pref.open || pathnameRef.current === "/ask");
+    }
     setReady(true);
   }, [signedIn]);
 
   useEffect(() => {
     if (pathname === "/ask") setOpen(true);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const prev = wasMobile.current;
+    wasMobile.current = mobile;
+    if (prev === null || prev === mobile) return;
+    if (mobile) {
+      if (chromeRef.current === "docked") setOpen(false);
+      return;
+    }
+    const pref = readDesktopPanel();
+    suspendWrite.current = true;
+    panelHydrated.current = true;
+    setChrome(pref.chrome);
+    setOpen(pref.open);
+  }, [ready, mobile]);
+
+  useEffect(() => {
+    if (!ready || mobile || !panelHydrated.current) return;
+    if (suspendWrite.current) {
+      suspendWrite.current = false;
+      return;
+    }
+    const saved = readDesktopPanel();
+    const rememberOpen = skipOpenOnce.current ? saved.open : open;
+    skipOpenOnce.current = false;
+    writeDesktopPanel({
+      open: rememberOpen,
+      chrome: chrome === "floating" ? "floating" : "docked",
+    });
+  }, [ready, mobile, open, chrome]);
 
   useEffect(() => {
     function openAsk() {
@@ -393,7 +440,7 @@ export function AssistantWidget({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const panelVisible = popout || open;
+  const panelVisible = popout || (ready && open);
   const modal = panelVisible && (popout || mobile || chrome !== "docked");
 
   useEffect(() => {
@@ -699,6 +746,7 @@ export function AssistantWidget({
     lastPingRef.current = Date.now();
     setPopoutAlive(true);
     claimHost();
+    skipOpenOnce.current = true;
     setOpen(false);
   }
 
@@ -816,7 +864,7 @@ export function AssistantWidget({
 
   const dockTarget = !popout && !mobile && chrome === "docked" && panelVisible ? document.getElementById("assistant-dock") : null;
   const docked = Boolean(dockTarget);
-  const showLauncher = !popout && !panelVisible;
+  const showLauncher = ready && !popout && !panelVisible;
   const launcherLabel = popoutAlive ? "Assistant open in another window, click to bring it back" : "Price Ranger";
 
   const panel = (
