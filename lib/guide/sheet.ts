@@ -197,8 +197,14 @@ export function sheetToMoneyLines(sheet: QuoteSheet): MoneyLine[] {
     const name = (item ? row.cells[item.id] : "").trim();
     if (!name) continue;
     const scope = rowScope(sheet, row);
-    const qty = numericCell(sheet, row, "qty", scope) || 1;
+    const hasQty = sheet.columns.some((column) => column.id === "qty");
+    const qtyValue = numericCell(sheet, row, "qty", scope);
+    const qty = hasQty ? (Number.isFinite(qtyValue) && qtyValue > 0 ? qtyValue : 0) : 1;
     const rateCents = moneyCents(row.cells.rate || "");
+    if (qty <= 0) {
+      lines.push({ name, quantity: 1, unitPriceCents: 0 });
+      continue;
+    }
     const computed = amount ? formulaCents(amount, scope) : null;
     const classicCents = Math.round(qty * rateCents);
     if (computed == null || Math.abs(computed - classicCents) <= 1) {
@@ -238,6 +244,14 @@ export function sheetDisplay(sheet: QuoteSheet, adjustment: Adjustment, askingCe
       }),
     ),
   };
+}
+
+export function formulaCellLabel(sheet: QuoteSheet, row: SheetRow, columnId: string): string {
+  const column = sheet.columns.find((item) => item.id === columnId);
+  if (!column || column.type !== "formula" || !column.formula) return "—";
+  const result = evaluateFormula(column.formula, rowScope(sheet, row));
+  if (!result.ok) return "—";
+  return formatUsd(Math.round(result.value * 100));
 }
 
 export function formulaHints(sheet: QuoteSheet): FormulaColumnHint[] {

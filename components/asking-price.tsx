@@ -29,7 +29,7 @@ function useAskingDraft(initial: number | null): number | null {
   return draft;
 }
 
-function usePricedView(lines: MoneyLine[], adjustment: Adjustment, askingCents: number | null) {
+export function useQuoteView(lines: MoneyLine[], adjustment: Adjustment, askingCents: number | null) {
   const draft = useAskingDraft(askingCents);
   return pricedView(lines, draft, adjustment);
 }
@@ -49,7 +49,7 @@ export function AskingTotal({
   highCents: number | null;
   className: string;
 }) {
-  const view = usePricedView(lines, adjustment, askingCents);
+  const view = useQuoteView(lines, adjustment, askingCents);
   const far = priceFarFromRange(view.totalCents, lowCents, highCents);
   const range = lowCents != null && highCents != null ? `${formatUsd(lowCents)}–${formatUsd(highCents)}` : "";
   return (
@@ -75,7 +75,7 @@ export function AskingLines({
   adjustment: Adjustment;
   askingCents: number | null;
 }) {
-  const view = usePricedView(lines, adjustment, askingCents);
+  const view = useQuoteView(lines, adjustment, askingCents);
   if (view.lines.length === 0) return null;
   return (
     <ul className="mt-4 border-t border-line pt-2">

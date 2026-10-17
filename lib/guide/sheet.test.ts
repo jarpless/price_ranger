@@ -42,6 +42,13 @@ test("your price still wins, and the displayed amount matches", () => {
   assert.equal(grid.rows[1][3], "$10");
 });
 
+test("a zero quantity does not charge the rate", () => {
+  const sheet = sheetFromLines([{ name: "Labor", quantity: 2, unitPriceCents: 4000 }]);
+  sheet.rows[0].cells.qty = "0";
+  assert.equal(sheetToMoneyLines(sheet)[0].unitPriceCents, 0);
+  assert.equal(sheetTotalCents(sheet, { percent: 0, includeFees: false }), 0);
+});
+
 test("a custom hours formula becomes the line total", () => {
   const sheet = sheetFromLines([{ name: "Labor", quantity: 1, unitPriceCents: 0 }]);
   sheet.columns.push({ id: "hours", label: "Hours", type: "number" });

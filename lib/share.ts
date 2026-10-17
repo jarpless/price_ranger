@@ -1,6 +1,7 @@
 import { dataBackend } from "./env";
 import { sendSupportEmail } from "./feedback/mail";
 import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, type Adjustment } from "./guide/pricing";
+import { sheetDisplay, type QuoteSheet, type SheetGrid } from "./guide/sheet";
 import { formatUsd } from "./money";
 import { publishLocalSheet, readLocalSheet } from "./store/local";
 import { createClient } from "./supabase/server";
@@ -28,6 +29,8 @@ export interface SharedSheet {
   condition?: string;
   range?: string;
   options: SheetOption[];
+  /** Settled cells from the inline quote, when the seller built one. */
+  grid?: SheetGrid;
 }
 
 const PLACEHOLDER_NAME = /^(buyer|customer|sample|price check|listing)$/i;
@@ -91,9 +94,10 @@ export function buyerSheet(
     seller?: string;
     date?: string;
     askingCents?: number | null;
+    quoteSheet?: QuoteSheet | null;
   } = {},
 ): SharedSheet {
-  return buildSheet(quote, groups, {
+  const built = buildSheet(quote, groups, {
     sources: guide.sources ?? [],
     note: guide.note || undefined,
     photo: guide.photo ?? null,
@@ -101,6 +105,14 @@ export function buyerSheet(
     date: guide.date,
     askingCents: guide.askingCents,
   });
+  if (guide.quoteSheet) {
+    built.grid = sheetDisplay(
+      guide.quoteSheet,
+      adjustmentFromSources(guide.sources ?? []),
+      guide.askingCents ?? null,
+    );
+  }
+  return built;
 }
 
 function isSheet(value: unknown): value is SharedSheet {
@@ -165,6 +177,12 @@ export function forPublic(sheet: SharedSheet): SharedSheet {
     condition: stripContact(sheet.condition || ""),
     range: stripContact(sheet.range || ""),
     options,
+    grid: sheet.grid
+      ? {
+          columns: sheet.grid.columns.map((column) => stripContact(column)),
+          rows: sheet.grid.rows.map((row) => row.map((cell) => stripContact(cell))),
+        }
+      : undefined,
   };
 }
 

@@ -74,10 +74,12 @@ export async function complete(input: {
   mode: "ask" | "agent";
   contextJson: string;
   turns: LlmTurn[];
+  /** Replaces the assistant system prompt for a narrow task such as a column formula. */
+  instructions?: string;
 }): Promise<LlmResult> {
   const provider = llmProvider();
   if (!provider) throw new Error("No assistant model is configured.");
-  const preamble = `${SYSTEM}\n\nMode: ${input.mode}\n\nContext:\n${input.contextJson}`;
+  const preamble = `${input.instructions || SYSTEM}\n\nMode: ${input.mode}\n\nContext:\n${input.contextJson}`;
   if (provider === "openai") return openAi(preamble, input);
   return anthropic(preamble, input);
 }
