@@ -32,5 +32,5 @@ export const FORM_ERRORS: Record<string, string> = {
   rate_limit: "Email is temporarily limited. Wait, then try again, or sign in with your password.",
   captcha: "The sign-in check failed. Try again.",
   auth: "We couldn't send that just now. Try again in a minute.",
-  payments: "Test payments aren't available from this server yet.",
+  payments: "Payments aren't available from this server yet. Test mode is the default until a Stripe key is set.",
 };

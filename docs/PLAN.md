@@ -229,6 +229,15 @@ A later connector implements the same `connectConnector(userId, slug)` path: res
 | `ASSISTANT_SEAL_SECRET` | No | Signs the short-lived redaction map. Falls back to `LOCAL_AUTH_SECRET`. |
 | `VERCEL_GIT_COMMIT_SHA` | Set by Vercel | Short sha on the stamp. Local stamp says `dev`. |
 | `VERCEL_ENV` | Set by Vercel | `production` → prod, `preview` → preview, otherwise local. |
+| `STRIPE_SECRET_KEY` | No | `sk_test_` or `sk_live_` secret. Test is the default. Live is used only when the value is an `sk_live_` key. |
+| `STRIPE_WEBHOOK_SECRET` | No | Signing secret for `/api/stripe/webhook`. Use the secret from the same Stripe mode as the key. |
+| `STRIPE_PRICE_PASS` | Live checkout | Price id for the $2.99 pass. Optional in test mode. |
+| `STRIPE_PRICE_PLUS_MONTH` | Live checkout | Price id for Plus monthly. Optional in test mode. |
+| `STRIPE_PRICE_PLUS_YEAR` | Live checkout | Price id for Plus yearly. Optional in test mode. |
+| `STRIPE_PRICE_PRO_MONTH` | Live checkout | Price id for Pro monthly. Optional in test mode. |
+| `STRIPE_AUTOMATIC_TAX` | No | `true` sends `automatic_tax[enabled]` on Checkout. Leave unset until Stripe Tax is configured. |
+
+Live mode is a set of environment variables, not a code switch. The steps are in [STRIPE_LIVE_CHECKLIST.md](STRIPE_LIVE_CHECKLIST.md). Do not put secret values in this file.
 
 Local:
 
