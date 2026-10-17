@@ -1,6 +1,18 @@
 import { TRADE_TAXONOMY, isTaxonomyId } from "./trades";
 
-/** Early-beta copy and the trade list for feature requests. Pricing is live, so nothing here promises free access. */
+/** Early-beta copy and the trade list for feature requests. */
+
+/** The one place the beta end date lives. Copy formats it from here. */
+export const BETA_ENDS_AT = "2027-01-31";
+
+export function betaEndsLabel(iso: string = BETA_ENDS_AT): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 export const BETA_DISCLOSURE = {
   title: "What beta means",
@@ -9,8 +21,9 @@ export const BETA_DISCLOSURE = {
     "Beta means the core tools work and plans are billed as shown, but we're still adding features and smoothing rough edges. Some screens may change as we learn from you.",
   pricingLead: "Beta pricing:",
   pricing:
-    "plan prices may go up after beta. Join during beta and you'll keep your current price for an extra year after beta ends.",
-  pricingShort: "Beta price – locked for 1 year after beta for early members",
+    "plan prices may go up after beta. Subscribe during beta and you'll keep your current price for an extra year after beta ends.",
+  firstHundred: `The first 100 beta testers get a free pass to everything until beta ends (${betaEndsLabel()}), then normal pricing applies.`,
+  pricingShort: "Beta price – locked for 1 year after beta for members who subscribe during beta",
 } as const;
 
 export const BETA_NOTE_DISMISSED_KEY = "pr-beta-note-dismissed";

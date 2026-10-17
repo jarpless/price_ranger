@@ -151,6 +151,9 @@ export function BetaSheet({ signedIn, onClose }: { signedIn: boolean; onClose: (
         <p data-beta-pricing="true" className="mt-3 text-body leading-6 text-muted">
           <span className="font-semibold text-ink">{BETA_DISCLOSURE.pricingLead}</span> {BETA_DISCLOSURE.pricing}
         </p>
+        <p data-beta-first-hundred="true" className="mt-3 text-body leading-6 text-muted">
+          {BETA_DISCLOSURE.firstHundred}
+        </p>
         <div className="mt-6 flex flex-col gap-2">
           {signedIn ? (
             <button

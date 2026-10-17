@@ -129,7 +129,7 @@ Use Jamie's own card. Don't record card numbers, keys, or secrets.
 
 ## 6. TODO: beta price lock (not built)
 
-The beta copy promises: "Join during beta and you'll keep your current price for an extra year after beta ends." Plans says "Beta price – locked for 1 year after beta for early members".
+The beta copy promises: "Subscribe during beta and you'll keep your current price for an extra year after beta ends." Plans says "Beta price – locked for 1 year after beta for members who subscribe during beta".
 
 Nothing in billing records or enforces this yet. Before any price goes up:
 
@@ -138,6 +138,9 @@ Nothing in billing records or enforces this yet. Before any price goes up:
 - Decide what happens for pass buyers (one-time) who later subscribe.
 
 ## 7. Known risks at launch
+
+- The beta sheet also says "The first 100 beta testers get a free pass to everything until beta ends (Jan 31, 2027)". The end date is `BETA_ENDS_AT` in `lib/beta.ts` (code, not an env var). The grant itself comes from the first-100 beta pass PR (#53); if that is not in this release, the copy promises something the app does not do yet.
+- Share pages must be served on `www.priceranger.app` for share-driven signups to be attributed: the header now links to the absolute `https://www.priceranger.app/?ref=share&utm_source=share&utm_medium=quote_header`, and attribution uses the first-party `pr_aid` cookie, which is host-only.
 
 - Migrations are verified on local Postgres with Supabase stubs, not on a Supabase branch. Take a backup (or point-in-time restore marker) before applying.
 - Add context's AI reader hasn't been run against a live model key; the fallback reader is unit-tested.
