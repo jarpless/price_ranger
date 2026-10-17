@@ -1,9 +1,9 @@
 import Image from "next/image";
 
 /**
- * inverse: one-color cream ranger badge, for pine and other green.
- * dark: two-color ranger badge, for near-black.
- * light: two-color ranger badge, for cream, paper, and tan.
+ * inverse: one-color cream knockout. Holes show whatever is behind it.
+ * dark: pine field, cream figure. For tan, cream, and paper.
+ * light: paper field, pine figure. For the dark green sidebar and other dark backgrounds.
  */
 export type LogoTone = "inverse" | "dark" | "light";
 
@@ -18,7 +18,7 @@ export function LogoLockup() {
   return (
     <div className="mx-auto mb-8 flex w-fit max-w-full items-center gap-4 rounded-3xl border border-line bg-paper px-4 py-4 shadow-card">
       <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-pine p-1.5">
-        <Logo tone="inverse" width={48} height={48} className="h-12 w-12" alt="" />
+        <Logo tone="light" width={48} height={48} className="h-12 w-12" alt="" />
       </span>
       <span className="pr-2 font-serif text-title leading-8 text-ink">Price Ranger</span>
     </div>
