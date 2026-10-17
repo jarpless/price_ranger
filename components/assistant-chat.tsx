@@ -81,6 +81,9 @@ export function AssistantChat({
   onPopOut,
   onDock,
   onFloat,
+  coach = null,
+  onDismissCoach,
+  onStartTour,
 }: {
   mobile: boolean;
   popout: boolean;
@@ -110,6 +113,9 @@ export function AssistantChat({
   onPopOut: () => void;
   onDock: () => void;
   onFloat: () => void;
+  coach?: { title: string; body: string; dismissed: boolean; replayLabel: string } | null;
+  onDismissCoach?: () => void;
+  onStartTour?: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -375,6 +381,7 @@ export function AssistantChat({
           </div>
         ) : (
           <>
+            {coach ? <CoachNote coach={coach} onDismiss={onDismissCoach} onStart={onStartTour} /> : null}
             <div className="relative min-h-0 flex-1">
             <div
               ref={scroller}
@@ -595,6 +602,55 @@ export function AssistantChat({
         )}
       </div>
     </div>
+  );
+}
+
+function CoachNote({
+  coach,
+  onDismiss,
+  onStart,
+}: {
+  coach: { title: string; body: string; dismissed: boolean; replayLabel: string };
+  onDismiss?: () => void;
+  onStart?: () => void;
+}) {
+  if (coach.dismissed) {
+    return (
+      <div className="px-4 pt-3">
+        <button type="button" className="h-11 text-sm font-semibold text-pine" onClick={onStart}>
+          {coach.replayLabel}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="mx-3 mt-3 rounded-2xl border border-line bg-cream px-3 py-3">
+      <div className="flex items-start gap-2">
+        <p className="min-w-0 flex-1 text-sm leading-6">
+          <span className="font-semibold">{coach.title}. </span>
+          {coach.body}
+        </p>
+        <button
+          type="button"
+          aria-label="Dismiss tip"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted"
+          onClick={onDismiss}
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <button type="button" className="mt-1 h-11 px-1 text-sm font-semibold text-pine" onClick={onStart}>
+        {coach.replayLabel}
+      </button>
+    </div>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }
 
