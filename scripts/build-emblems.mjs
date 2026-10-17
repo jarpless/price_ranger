@@ -1,8 +1,8 @@
 /**
  * Builds the Price Ranger ranger badge.
- * The outline is a few smooth curves fit to the reference silhouette:
- * a flat raised plateau, concave dips into rounded shoulders, a slight
- * side bulge, and a soft tip. Lettering, stripes, and the figure are original.
+ * The outline is the extracted silhouette in scripts/badge-silhouette.
+ * Stair-steps are smoothed by at most 0.12% of the height. Lettering,
+ * stripes, and the figure are original.
  *
  * Run: node scripts/build-emblems.mjs
  * Needs fontkit, @resvg/resvg-js, and sharp resolvable from /tmp/badge-tools
@@ -37,98 +37,82 @@ const paper = "#FFFDF8";
 const stripeDark = "#10281C";
 const stripeLight = "#8A7964";
 
-// Clean crown, shoulder, side, and tip. Points are on the reference silhouette
-// (photo pixels), then scaled into the badge. A flat plateau, a concave dip,
-// and a rounded shoulder are explicit, so the stroke stays smooth.
-const photoCx = 618.5;
-const photoTop = 124;
-const photoTip = 1402;
-const badgeTop = 36;
-const badgeTip = 988;
-const badgeCx = 512;
-const fit = (badgeTip - badgeTop) / (photoTip - photoTop);
-const rightPhoto = [
-  [photoCx + 165, photoTop],
-  [photoCx + 182, photoTop + 22],
-  [photoCx + 205, photoTop + 46],
-  [photoCx + 240, photoTop + 66],
-  [photoCx + 280, photoTop + 77],
-  [photoCx + 315, photoTop + 79],
-  [photoCx + 360, photoTop + 72],
-  [photoCx + 405, photoTop + 54],
-  [photoCx + 430, photoTop + 62],
-  [photoCx + 460, photoTop + 108],
-  [photoCx + 500, photoTop + 168],
-  [photoCx + 534, photoTop + 230],
-  [photoCx + 548, photoTop + 280],
-  [photoCx + 534, photoTop + 500],
-  [photoCx + 514, photoTop + 700],
-  [photoCx + 498, photoTop + 880],
-  [photoCx + 420, photoTop + 1045],
-  [photoCx + 280, photoTop + 1165],
-  [photoCx + 140, photoTop + 1255],
-  [photoCx + 48, photoTop + 1318],
-  [photoCx, photoTip],
-];
+// Extracted silhouette, viewBox 0 0 822.6 1000, aspect 0.8226.
+// A short smooth removes pixel stairs. Points may move at most 1.2 units
+// (0.12% of the height), inside the 0.5% edge limit.
+const srcW = 822.6;
+const srcH = 1000;
+const badgeH = 940;
+const badgeScale = badgeH / srcH;
+const badgeLeft = (W - srcW * badgeScale) / 2;
+const badgeTop = (W - badgeH) / 2;
+const badgeCx = badgeLeft + 411.3 * badgeScale;
+const dividerY = badgeTop + 0.24 * badgeH;
+const seal = { cx: badgeCx, cy: badgeTop + 600 * badgeScale };
 
-function mapPoint([x, y]) {
-  return [badgeCx + (x - photoCx) * fit, badgeTop + (y - photoTop) * fit];
+function sourcePoints() {
+  const line = readFileSync(resolve(root, "scripts/badge-silhouette/outline-path.txt"), "utf8")
+    .split("\n")[1]
+    .trim();
+  const nums = [...line.matchAll(/-?\d*\.?\d+/g)].map((match) => Number(match[0]));
+  const orig = [];
+  for (let i = 0; i < nums.length; i += 2) orig.push([nums[i], nums[i + 1]]);
+  if (Math.hypot(orig[0][0] - orig.at(-1)[0], orig[0][1] - orig.at(-1)[1]) < 0.05) orig.pop();
+  let cur = orig.map((point) => point.slice());
+  const maxMove = 1.2;
+  for (let pass = 0; pass < 4; pass++) {
+    const next = cur.map((point, index) => {
+      const count = cur.length;
+      const around = [
+        cur[(index - 2 + count) % count],
+        cur[(index - 1 + count) % count],
+        point,
+        cur[(index + 1) % count],
+        cur[(index + 2) % count],
+      ];
+      let x = (around[0][0] + around[1][0] + point[0] * 2 + around[3][0] + around[4][0]) / 6;
+      let y = (around[0][1] + around[1][1] + point[1] * 2 + around[3][1] + around[4][1]) / 6;
+      const dx = x - orig[index][0];
+      const dy = y - orig[index][1];
+      const dist = Math.hypot(dx, dy);
+      if (dist > maxMove) {
+        x = orig[index][0] + (dx / dist) * maxMove;
+        y = orig[index][1] + (dy / dist) * maxMove;
+      }
+      return [x, y];
+    });
+    cur = next;
+  }
+  return cur;
 }
 
-function reflect([x, y]) {
-  return [2 * badgeCx - x, y];
-}
+const silhouette = sourcePoints();
 
-function outlinePath() {
-  const right = rightPhoto.map(mapPoint);
-  const leftPlat = mapPoint([photoCx - 165, photoTop]);
-  const num = (v) => v.toFixed(2);
-  const cubics = [];
-  for (let i = 0; i < right.length - 1; i++) {
-    const p0 = i === 0 ? mapPoint([photoCx + 60, photoTop]) : right[i - 1];
-    const p1 = right[i];
-    const p2 = right[i + 1];
-    const p3 = right[Math.min(right.length - 1, i + 2)];
-    const last = i === right.length - 2;
-    let c1x;
-    let c1y;
-    let c2x;
-    let c2y;
-    if (last) {
-      const dirx = p1[0] - p0[0];
-      const diry = p1[1] - p0[1];
-      const len = Math.hypot(dirx, diry) || 1;
-      c1x = p1[0] + (dirx / len) * 28;
-      c1y = p1[1] + (diry / len) * 28;
-      c2x = p2[0];
-      c2y = p2[1] - 18;
-    } else {
-      c1x = p1[0] + (p2[0] - p0[0]) / 6;
-      c1y = p1[1] + (p2[1] - p0[1]) / 6;
-      c2x = p2[0] - (p3[0] - p1[0]) / 6;
-      c2y = p2[1] - (p3[1] - p1[1]) / 6;
-    }
-    cubics.push({ c1: [c1x, c1y], c2: [c2x, c2y], end: p2 });
-  }
-  let d = `M${num(leftPlat[0])} ${num(leftPlat[1])}L${num(right[0][0])} ${num(right[0][1])}`;
-  for (const seg of cubics) {
-    d += `C${num(seg.c1[0])} ${num(seg.c1[1])} ${num(seg.c2[0])} ${num(seg.c2[1])} ${num(seg.end[0])} ${num(seg.end[1])}`;
-  }
-  for (let i = cubics.length - 1; i >= 0; i--) {
-    const seg = cubics[i];
-    const start = i === 0 ? right[0] : cubics[i - 1].end;
-    const c1 = reflect(seg.c2);
-    const c2 = reflect(seg.c1);
-    const end = reflect(start);
-    d += `C${num(c1[0])} ${num(c1[1])} ${num(c2[0])} ${num(c2[1])} ${num(end[0])} ${num(end[1])}`;
+function cubicPath(points) {
+  const num = (value) => value.toFixed(2);
+  const count = points.length;
+  let d = `M${num(points[0][0])} ${num(points[0][1])}`;
+  for (let index = 0; index < count; index++) {
+    const p0 = points[(index - 1 + count) % count];
+    const p1 = points[index];
+    const p2 = points[(index + 1) % count];
+    const p3 = points[(index + 2) % count];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += `C${num(c1x)} ${num(c1y)} ${num(c2x)} ${num(c2y)} ${num(p2[0])} ${num(p2[1])}`;
   }
   return `${d}Z`;
 }
 
-const outline = outlinePath();
-const dividerY = mapPoint([photoCx, 364])[1];
-const shoulderX = mapPoint([photoCx + 548, photoTop])[0];
-const seal = { cx: badgeCx, cy: 568 };
+const outline = cubicPath(silhouette.map(([x, y]) => [badgeLeft + x * badgeScale, badgeTop + y * badgeScale]));
+const sourceOutline = cubicPath(silhouette);
+
+function ruleHalf(simplified) {
+  const outer = ((796 - 24) / 2) * badgeScale;
+  return outer - (simplified ? 72 : 48);
+}
 
 function place(box) {
   const scale = Math.min(box.w / vb.w, box.h / vb.h);
@@ -166,20 +150,22 @@ function textPath(font, text, { cx, baseline, cap, tracking, align = "center" })
 }
 
 function bannerText() {
-  // Even gaps: inner rim, PRICE, RANGER, then the shoulder rule.
-  const cap = 34;
+  // Even gaps from the inner rim of the plateau, through both lines, to the rule.
+  const cap = 32;
+  const innerTop = badgeTop + 26;
+  const gap = (dividerY - innerTop - cap * 2) / 3;
   const scale = cap / (outfit.capHeight || 700);
   const price = textPath(outfit, "PRICE", {
     cx: badgeCx,
-    baseline: 126,
+    baseline: innerTop + gap + cap,
     cap,
-    tracking: trackingFor(outfit, "PRICE", 280, scale),
+    tracking: trackingFor(outfit, "PRICE", 250, scale),
   });
   const rangerLine = textPath(outfit, "RANGER", {
     cx: badgeCx,
-    baseline: 184,
+    baseline: innerTop + gap * 2 + cap * 2,
     cap,
-    tracking: trackingFor(outfit, "RANGER", 360, scale),
+    tracking: trackingFor(outfit, "RANGER", 330, scale),
   });
   return `${price} ${rangerLine}`;
 }
@@ -188,7 +174,7 @@ const banner = bannerText();
 
 function stripeXs() {
   const gap = 28;
-  const reach = shoulderX - badgeCx - 36;
+  const reach = 340 * badgeScale;
   const steps = Math.floor(reach / gap);
   const xs = [];
   for (let i = -steps; i <= steps; i++) xs.push(badgeCx + i * gap);
@@ -225,8 +211,8 @@ function emblem({ field, ink, stripe, sealFill, figureFill, simplified }) {
     ? ""
     : `<g clip-path="url(#badge-clip)">${stripes(stripe, 8)}</g>`;
   const words = simplified ? "" : `<g clip-path="url(#badge-clip)"><path fill="${ink}" d="${banner}"/></g>`;
-  const ruleHalf = shoulderX - badgeCx - (simplified ? 64 : 56);
-  const rule = `<line x1="${(badgeCx - ruleHalf).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + ruleHalf).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="${ink}" stroke-width="${simplified ? 18 : 11}" stroke-linecap="butt"/>`;
+  const half = ruleHalf(simplified);
+  const rule = `<line x1="${(badgeCx - half).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + half).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="${ink}" stroke-width="${simplified ? 18 : 11}" stroke-linecap="butt"/>`;
   const discR = m.sealR + m.outerRing / 2 + 1;
   return `
   <defs>
@@ -256,7 +242,7 @@ function knockout({ simplified }) {
   const box = m.figR * 1.7;
   const transform = place({ x: seal.cx - box / 2, y: m.sealCy - box / 2 - 2, w: box, h: box });
   const words = simplified ? "" : `<path fill="#000" d="${banner}"/>`;
-  const ruleHalf = shoulderX - badgeCx - (simplified ? 64 : 56);
+  const half = ruleHalf(simplified);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="${W}" height="${W}" role="img" aria-label="Price Ranger badge, one color">
   <title>Price Ranger badge, one color</title>
@@ -268,7 +254,7 @@ function knockout({ simplified }) {
       </g>
       <circle cx="${seal.cx}" cy="${m.sealCy}" r="${m.sealR}" fill="none" stroke="#000" stroke-width="${m.outerRing}"/>
       <circle cx="${seal.cx}" cy="${m.sealCy}" r="${m.sealR - m.ringGap}" fill="none" stroke="#000" stroke-width="${m.innerRing}"/>
-      <line x1="${(badgeCx - ruleHalf).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + ruleHalf).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="#000" stroke-width="${simplified ? 20 : 12}" stroke-linecap="butt"/>
+      <line x1="${(badgeCx - half).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + half).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="#000" stroke-width="${simplified ? 18 : 11}" stroke-linecap="butt"/>
       ${words}
       <g clip-path="url(#seal-clip)"><path fill="#000" fill-rule="evenodd" transform="${transform}" d="${ranger}"/></g>
     </mask>
@@ -481,5 +467,99 @@ writeFileSync(
 `,
 );
 
+const maskScale = 496 / srcH;
+const maskOx = 62;
+const maskOy = 57;
+const maskW = 542;
+const maskH = 606;
+const fittedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskW}" height="${maskH}" viewBox="0 0 ${maskW} ${maskH}"><g transform="translate(${maskOx} ${maskOy}) scale(${maskScale})"><path d="${sourceOutline}" fill="#fff"/></g></svg>`;
+const fittedPng = new Resvg(fittedSvg, { fitTo: { mode: "width", value: maskW } }).render().asPng();
+const fitted = await sharp(fittedPng).raw().toBuffer({ resolveWithObject: true });
+const maskBuf = await sharp(resolve(root, "scripts/badge-silhouette/mask.png")).raw().toBuffer({ resolveWithObject: true });
+const maskOn = new Uint8Array(maskW * maskH);
+const pathOn = new Uint8Array(maskW * maskH);
+let overlap = 0;
+let either = 0;
+for (let index = 0; index < maskW * maskH; index++) {
+  const onMask = maskBuf.data[index * 3] > 127;
+  const onPath = fitted.data[index * 4] > 127;
+  maskOn[index] = onMask ? 1 : 0;
+  pathOn[index] = onPath ? 1 : 0;
+  if (onMask && onPath) overlap += 1;
+  if (onMask || onPath) either += 1;
+}
+const iou = overlap / either;
+
+function edgePoints(bits) {
+  const points = [];
+  for (let y = 1; y < maskH - 1; y++) {
+    for (let x = 1; x < maskW - 1; x++) {
+      const index = y * maskW + x;
+      if (!bits[index]) continue;
+      if (!bits[index - 1] || !bits[index + 1] || !bits[index - maskW] || !bits[index + maskW]) points.push([x, y]);
+    }
+  }
+  return points;
+}
+
+function farthest(from, to) {
+  const cell = 3;
+  const buckets = new Map();
+  for (const [x, y] of to) {
+    const key = `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+    const list = buckets.get(key);
+    if (list) list.push([x, y]);
+    else buckets.set(key, [[x, y]]);
+  }
+  let max = 0;
+  for (const [x, y] of from) {
+    let best = 1e9;
+    const cx = Math.floor(x / cell);
+    const cy = Math.floor(y / cell);
+    for (let radius = 0; radius < 12 && best > radius * cell; radius++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (radius && Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+          const list = buckets.get(`${cx + dx},${cy + dy}`);
+          if (!list) continue;
+          for (const [qx, qy] of list) best = Math.min(best, (qx - x) ** 2 + (qy - y) ** 2);
+        }
+      }
+    }
+    max = Math.max(max, Math.sqrt(best));
+  }
+  return max;
+}
+
+const maskEdge = edgePoints(maskOn);
+const pathEdge = edgePoints(pathOn);
+const edgePx = Math.max(farthest(maskEdge, pathEdge), farthest(pathEdge, maskEdge));
+const edgeLimit = 0.005 * 496;
+if (iou < 0.985 || edgePx > edgeLimit) {
+  throw new Error(`Silhouette fit IoU ${iou.toFixed(4)}, edge ${edgePx.toFixed(2)}px, limit ${edgeLimit.toFixed(2)}px`);
+}
+
+const strokeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskW}" height="${maskH}" viewBox="0 0 ${maskW} ${maskH}"><g transform="translate(${maskOx} ${maskOy}) scale(${maskScale})"><path d="${sourceOutline}" fill="none" stroke="#ff2bd6" stroke-width="7" stroke-linejoin="round"/></g></svg>`;
+const strokePng = new Resvg(strokeSvg, { fitTo: { mode: "width", value: maskW } }).render().asPng();
+const maskGold = await sharp(resolve(root, "scripts/badge-silhouette/mask.png"))
+  .ensureAlpha()
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+const gold = Buffer.alloc(maskW * maskH * 4);
+for (let index = 0; index < maskW * maskH; index++) {
+  const on = maskGold.data[index * 3] > 127;
+  gold[index * 4] = on ? 194 : 244;
+  gold[index * 4 + 1] = on ? 163 : 241;
+  gold[index * 4 + 2] = on ? 106 : 234;
+  gold[index * 4 + 3] = 255;
+}
+const silhouettePng = await sharp(gold, { raw: { width: maskW, height: maskH, channels: 4 } }).png().toBuffer();
+await sharp(silhouettePng)
+  .composite([{ input: strokePng }])
+  .resize(maskW * 2, maskH * 2)
+  .png()
+  .toFile("/tmp/outline-overlay.png");
+
 console.log(files.join("\n"));
 console.log("contact sheet", sheetW, "x", bandY);
+console.log(`silhouette IoU ${iou.toFixed(4)}, max edge ${edgePx.toFixed(2)}px (limit ${edgeLimit.toFixed(2)})`);
