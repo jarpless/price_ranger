@@ -384,7 +384,7 @@ export function ContextComposer() {
       <p className="flex items-start gap-2 px-1 text-caption text-muted">
         <IconLock className="mt-px h-4 w-4 shrink-0" />
         <span>
-          Private. Files are read once to build this draft, then thrown away. They aren&apos;t saved or shared. Up to {CONTEXT_LIMITS.files} files, 4 MB in total.
+          Private. Files are read once by our AI reader to build this draft, then thrown away. We don&apos;t save them or share them publicly. Up to {CONTEXT_LIMITS.files} files, 4 MB in total.
         </span>
       </p>
 
@@ -409,7 +409,7 @@ function SourceChip({ line, edited }: { line: DraftLine; edited: boolean }) {
   const badge = edited
     ? { label: "Edited", className: "bg-cream text-ink" }
     : line.priceFrom === "context"
-      ? { label: "From your file", className: "bg-pine/10 text-pine" }
+      ? { label: /^pasted /i.test(line.source) ? "From your text" : "From your file", className: "bg-pine/10 text-pine" }
       : line.priceFrom === "estimate"
         ? { label: "Estimate · check it", className: "bg-gold/25 text-[#6b5320]" }
         : { label: "No price yet", className: "bg-[#f8e8e4] text-danger" };
@@ -515,7 +515,7 @@ function ReviewDraft({
     <div className="space-y-4">
       <div className="rounded-3xl border border-line bg-paper p-4 shadow-card">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-pine/10 px-2.5 py-1 text-caption font-semibold text-pine">{draft.method === "ai" ? "Built by AI" : "Read from your text"}</span>
+          <span className="rounded-full bg-pine/10 px-2.5 py-1 text-caption font-semibold text-pine">{draft.method === "ai" ? "Built by AI" : "Read from what you added"}</span>
           <span className="text-caption text-muted">Check it before you save</span>
         </div>
         {draft.summary ? <p className="mt-3 text-body">{draft.summary}</p> : null}
@@ -718,7 +718,7 @@ function ReviewDraft({
               <span className="text-base font-semibold">Total</span>
               <span className="text-price font-semibold tabular-nums">{formatUsd(total)}</span>
             </div>
-            {draft.statedTotalCents != null && Math.abs(draft.statedTotalCents - total) > 100 ? (
+            {draft.statedTotalCents != null && draft.sources.length === 1 && Math.abs(draft.statedTotalCents - total) > 100 ? (
               <p className="mt-1 text-caption text-cream/80">Your file says {formatUsd(draft.statedTotalCents)}. Tax or fees may not be lines here.</p>
             ) : null}
             {unpriced || estimates ? (
