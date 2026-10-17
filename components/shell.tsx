@@ -1,6 +1,7 @@
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { BackButton } from "./back-button";
+import { BetaTag } from "./beta";
 import { Feel } from "./feel";
 import { Logo } from "./logo";
 import { PhoneMenu, Sidebar } from "./nav";
@@ -27,9 +28,10 @@ export function Shell({
           <div className="flex h-12 min-w-0 items-center gap-1 px-2">
             <BackButton />
             <Logo tone="inverse" width={28} height={28} className="h-7 w-7 shrink-0 object-contain" />
-            <Link href="/" className="min-w-0 flex-1 truncate font-serif text-base leading-6 tracking-tight">
+            <Link href="/" className="min-w-0 truncate font-serif text-base leading-6 tracking-tight">
               Price Ranger
             </Link>
+            <BetaTag tone="pine" className="ml-1.5" />
             <PhoneMenu account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />
           </div>
         </header>

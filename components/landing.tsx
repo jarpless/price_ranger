@@ -1,6 +1,7 @@
 import { LandingStage } from "@/components/landing-stage";
 import { PendingLink as Link } from "@/components/pending-link";
 
+import { BetaTag } from "./beta";
 import { Logo } from "./logo";
 
 export function Landing() {
@@ -12,7 +13,8 @@ export function Landing() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pine">
               <Logo tone="inverse" width={28} height={28} className="h-7 w-7" alt="" />
             </span>
-            <p className="truncate pr-1.5 font-serif text-base leading-6 text-ink lg:text-title lg:leading-8">Price Ranger</p>
+            <p className="truncate font-serif text-base leading-6 text-ink lg:text-title lg:leading-8">Price Ranger</p>
+            <BetaTag signedIn={false} className="mr-1.5" />
           </div>
           <Link
             href="/feedback/new"
