@@ -229,7 +229,7 @@ export function CaptureForm({
             setDescription(next);
             persistCapture(next, category);
           }}
-          placeholder="Nintendo Switch, iPhone, bike"
+          placeholder="Game console, dresser, road bike"
           autoComplete="off"
           role="combobox"
           aria-expanded={matches.length > 0}

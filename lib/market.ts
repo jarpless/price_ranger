@@ -51,7 +51,7 @@ interface VariantSeed {
   comps: { title: string; priceCents: number; condition: string; soldAt: string }[];
 }
 
-type ThumbShape = "console" | "phone" | "headphones" | "laptop" | "table";
+type ThumbShape = "console" | "phone" | "headphones" | "laptop" | "table" | "bike";
 
 interface ItemSeed {
   id: string;
@@ -76,6 +76,8 @@ function thumb(color: string, shape: ThumbShape): string {
           ? `<rect x="36" y="36" width="88" height="58" rx="6" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><path d="M28 108h104l-10-14H38z" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
           : shape === "table"
             ? `<rect x="28" y="48" width="104" height="14" rx="3" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="40" y="62" width="10" height="42" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="110" y="62" width="10" height="42" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/>`
+            : shape === "bike"
+              ? `<circle cx="48" cy="100" r="24" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><circle cx="112" cy="100" r="24" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><path d="M48 100l22-38h34l8 38M70 62l18 38h24M64 52h14M98 50h14" fill="none" stroke="#1c1915" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`
           : `<rect x="24" y="52" width="112" height="56" rx="12" fill="#fffdf8" stroke="#1c1915" stroke-width="4"/><rect x="36" y="64" width="40" height="28" rx="4" fill="${color}"/><circle cx="108" cy="72" r="6" fill="#1c1915"/><circle cx="108" cy="90" r="6" fill="#1c1915"/>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${color}"/>${mark}</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
@@ -86,6 +88,7 @@ function shapeFor(title: string): ThumbShape {
   if (/airpod|headphone|earbud/i.test(title)) return "headphones";
   if (/macbook|laptop|notebook/i.test(title)) return "laptop";
   if (/table|desk|chair|dresser/i.test(title)) return "table";
+  if (/\bbike\b|bicycle/i.test(title)) return "bike";
   return "console";
 }
 
@@ -170,7 +173,150 @@ function compsFor(variant: VariantSeed, item: ItemSeed): Comparable[] {
   }));
 }
 
+/**
+ * Generic items come first and back the quick picks. The named models after them
+ * only match when someone types that model, so earlier quotes still reprice.
+ */
 const ITEMS: ItemSeed[] = [
+  {
+    id: "game-console",
+    title: "Game console",
+    test: /\b(game|gaming|video game)\s+console\b/i,
+    color: "#d7e4dc",
+    shape: "console",
+    variants: [
+      {
+        id: "standard",
+        label: "With controller",
+        test: /.*/,
+        low: 15000,
+        high: 22000,
+        point: 18500,
+        query: "game console with controller",
+        comps: [
+          { title: "Game console with controller", priceCents: 17900, condition: "Good", soldAt: "2026-09-18" },
+          { title: "Home game console, two controllers", priceCents: 20500, condition: "Like new", soldAt: "2026-10-01" },
+          { title: "Game console with cables", priceCents: 16200, condition: "Good", soldAt: "2026-09-04" },
+          { title: "Game console, boxed", priceCents: 21500, condition: "Like new", soldAt: "2026-08-27" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "smartphone",
+    title: "Smartphone",
+    test: /\bsmart\s?phone\b/i,
+    color: "#e7e2d8",
+    shape: "phone",
+    variants: [
+      {
+        id: "unlocked",
+        label: "Unlocked",
+        test: /.*/,
+        low: 14000,
+        high: 22000,
+        point: 18000,
+        query: "unlocked smartphone 128GB",
+        comps: [
+          { title: "Unlocked smartphone 128GB", priceCents: 17500, condition: "Good", soldAt: "2026-09-16" },
+          { title: "Smartphone 128GB with case", priceCents: 16200, condition: "Good", soldAt: "2026-10-04" },
+          { title: "Unlocked smartphone, battery 90%", priceCents: 20500, condition: "Like new", soldAt: "2026-09-02" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "wireless-earbuds",
+    title: "Wireless earbuds",
+    test: /\b(wireless\s+)?ear\s?buds\b/i,
+    color: "#f3ebe3",
+    shape: "headphones",
+    variants: [
+      {
+        id: "with-case",
+        label: "With case",
+        test: /.*/,
+        low: 6000,
+        high: 11000,
+        point: 8500,
+        query: "wireless earbuds with charging case",
+        comps: [
+          { title: "Wireless earbuds with charging case", priceCents: 8200, condition: "Good", soldAt: "2026-09-20" },
+          { title: "Noise-canceling wireless earbuds", priceCents: 9900, condition: "Like new", soldAt: "2026-10-05" },
+          { title: "Wireless earbuds, sealed", priceCents: 10500, condition: "New", soldAt: "2026-09-01" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "laptop",
+    title: "Laptop",
+    test: /\blaptop\b/i,
+    color: "#ece7df",
+    shape: "laptop",
+    variants: [
+      {
+        id: "13-inch",
+        label: "13 inch",
+        test: /.*/,
+        low: 25000,
+        high: 42000,
+        point: 33000,
+        query: "13 inch laptop 8GB 256GB",
+        comps: [
+          { title: "13 inch laptop, 8GB, 256GB", priceCents: 31500, condition: "Good", soldAt: "2026-09-09" },
+          { title: "Thin 13 inch laptop with charger", priceCents: 35900, condition: "Good", soldAt: "2026-09-26" },
+          { title: "13 inch laptop, low battery cycles", priceCents: 39500, condition: "Like new", soldAt: "2026-10-07" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "dresser",
+    title: "Dresser",
+    test: /\bdresser\b/i,
+    color: "#c4a574",
+    shape: "table",
+    variants: [
+      {
+        id: "six-drawer",
+        label: "Six drawer",
+        test: /.*/,
+        low: 18000,
+        high: 32000,
+        point: 24000,
+        query: "solid wood six drawer dresser",
+        comps: [
+          { title: "Solid wood six drawer dresser", priceCents: 23500, condition: "Good", soldAt: "2026-09-12" },
+          { title: "Wooden dresser with mirror", priceCents: 27500, condition: "Good", soldAt: "2026-09-28" },
+          { title: "Painted wood dresser", priceCents: 19500, condition: "Fair", soldAt: "2026-10-03" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "road-bike",
+    title: "Road bike",
+    test: /\broad\s+bike\b/i,
+    color: "#dfe7ea",
+    shape: "bike",
+    variants: [
+      {
+        id: "aluminum",
+        label: "Aluminum frame",
+        test: /.*/,
+        low: 21000,
+        high: 36000,
+        point: 27500,
+        query: "aluminum road bike 54cm",
+        comps: [
+          { title: "Aluminum road bike, 54cm", priceCents: 26500, condition: "Good", soldAt: "2026-09-14" },
+          { title: "Road bike with clipless pedals", priceCents: 31000, condition: "Good", soldAt: "2026-10-02" },
+          { title: "Road bike, new tires", priceCents: 34500, condition: "Like new", soldAt: "2026-08-25" },
+        ],
+      },
+    ],
+  },
   {
     id: "switch",
     title: "Nintendo Switch",
@@ -343,16 +489,15 @@ const ITEMS: ItemSeed[] = [
 ];
 
 export const QUICK_ITEMS: { label: string; description: string; category: string }[] = [
-  { category: "Games", label: "Nintendo Switch", description: "Used Nintendo Switch with dock and Joy-Cons" },
-  { category: "Games", label: "Switch OLED", description: "Used Nintendo Switch OLED" },
-  { category: "Games", label: "PS5", description: "Used PlayStation 5 disc" },
-  { category: "Games", label: "Xbox Series X", description: "Used Xbox Series X" },
-  { category: "Phones", label: "iPhone 13", description: "Used iPhone 13 128GB unlocked" },
-  { category: "Audio", label: "AirPods Pro", description: "Used AirPods Pro 2" },
-  { category: "Computers", label: "MacBook Air", description: "Used MacBook Air M1" },
+  { category: "Games", label: "Game console", description: "Used game console with controller" },
+  { category: "Phones", label: "Smartphone", description: "Used unlocked smartphone 128GB" },
+  { category: "Audio", label: "Wireless earbuds", description: "Used wireless earbuds with case" },
+  { category: "Computers", label: "Laptop", description: "Used 13 inch laptop" },
+  { category: "Furniture", label: "Dresser", description: "Used wooden dresser" },
+  { category: "Outdoor", label: "Road bike", description: "Used road bike" },
 ];
 
-export const CATEGORIES = ["Games", "Phones", "Audio", "Computers"] as const;
+export const CATEGORIES = ["Games", "Phones", "Audio", "Computers", "Furniture", "Outdoor"] as const;
 
 export function conditionById(id: string | null | undefined): ConditionId {
   return CONDITIONS.some((item) => item.id === id) ? (id as ConditionId) : "good";
@@ -485,6 +630,12 @@ export function replaceMarketSources(sources: string[], quote: MarketQuote): str
 
 /** Regression cases checked against the sold-listing ranges above. */
 export const MARKET_REGRESSION: { description: string; low: number; high: number }[] = [
+  { description: "Used game console with controller", low: 15000, high: 22000 },
+  { description: "Used unlocked smartphone 128GB", low: 14000, high: 22000 },
+  { description: "Used wireless earbuds with case", low: 6000, high: 11000 },
+  { description: "Used 13 inch laptop", low: 25000, high: 42000 },
+  { description: "Used wooden dresser", low: 18000, high: 32000 },
+  { description: "Used road bike", low: 21000, high: 36000 },
   { description: "used Nintendo Switch with dock and Joy-Cons", low: 15000, high: 20000 },
   { description: "Nintendo Switch OLED", low: 21000, high: 27000 },
   { description: "Nintendo Switch Lite", low: 9000, high: 14000 },
