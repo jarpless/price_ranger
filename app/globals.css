@@ -502,13 +502,10 @@ input[type="range"] {
 
 .ask-launcher-mark {
   display: grid;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex: none;
   place-items: center;
-  border-radius: 999px;
-  background: var(--color-pine);
-  color: var(--color-cream);
 }
 
 .ask-float {

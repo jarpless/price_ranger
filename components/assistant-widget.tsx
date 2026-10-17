@@ -915,7 +915,7 @@ export function AssistantWidget({
           }}
         >
           <span className="ask-launcher-mark">
-            <Logo tone="light" width={28} height={28} className="h-6 w-6" alt="" />
+            <Logo tone="dark" width={36} height={36} className="h-9 w-9" alt="" />
           </span>
           <span>{launcherLabel}</span>
         </button>

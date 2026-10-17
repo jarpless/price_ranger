@@ -21,7 +21,7 @@ const sharp = require("sharp");
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, "public/brand/emblems");
 const iconDir = resolve(root, "public/brand/icons");
-const source = readFileSync(resolve(root, "public/images/logo-mark-light.svg"), "utf8");
+const source = readFileSync(resolve(root, "scripts/ranger-bust.svg"), "utf8");
 const ranger = source.match(/\bd="([^"]+)"/)?.[1];
 if (!ranger) throw new Error("Could not read the ranger path.");
 

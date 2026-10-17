@@ -20,14 +20,12 @@ const small: Record<LogoTone, string> = {
   light: "/brand/icons/badge-simplified-light.svg",
 };
 
-/** Sign-in lockup. The badge sits on a pine plate, and the name is ink beside it. */
+/** Sign-in lockup. The full badge sits beside the name, with no app-icon plate. */
 export function LogoLockup() {
   return (
-    <div className="mx-auto mb-8 flex w-fit max-w-full items-center gap-4 rounded-3xl border border-line bg-paper px-4 py-4 shadow-card">
-      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-pine p-1.5">
-        <Logo tone="light" width={48} height={48} className="h-12 w-12" alt="" />
-      </span>
-      <span className="pr-2 font-serif text-title leading-8 text-ink">Price Ranger</span>
+    <div className="mx-auto mb-8 flex w-fit max-w-full items-center gap-4">
+      <Logo tone="dark" width={72} height={72} className="h-[4.5rem] w-[4.5rem] shrink-0" alt="" priority />
+      <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
     </div>
   );
 }
