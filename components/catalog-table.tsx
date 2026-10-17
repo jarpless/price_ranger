@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { importPriceCsv, setCatalogPrice } from "@/app/basecamp-actions";
+import { DEFAULT_TRADE_CATEGORIES, isDefaultTradeCategory } from "@/lib/catalog";
 import { PRICE_CSV_TEMPLATE } from "@/lib/csv";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
 import type { CatalogHit, LibraryItem } from "@/lib/types";
@@ -11,11 +12,19 @@ import { unitWord } from "@/lib/units";
 
 type SortKey = "name" | "brand" | "category" | "price";
 
+const LEADING = "leading";
+
+function categoryRank(category: string): number {
+  const index = (DEFAULT_TRADE_CATEGORIES as readonly string[]).indexOf(category);
+  return index < 0 ? DEFAULT_TRADE_CATEGORIES.length : index;
+}
+
 export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: LibraryItem[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [brand, setBrand] = useState("all");
-  const [category, setCategory] = useState("all");
+  const leading = hits.some((hit) => isDefaultTradeCategory(hit.category));
+  const [category, setCategory] = useState(leading ? LEADING : "all");
   const [connector, setConnector] = useState("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
   const [editing, setEditing] = useState<string | null>(null);
@@ -25,7 +34,9 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
   const [importing, startImport] = useTransition();
 
   const brands = [...new Set(hits.map((hit) => hit.brandName).filter(Boolean))].sort();
-  const categories = [...new Set(hits.map((hit) => hit.category).filter(Boolean))].sort();
+  const categories = [...new Set(hits.map((hit) => hit.category).filter(Boolean))].sort(
+    (a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b),
+  );
   const connectors = [...new Set(hits.map((hit) => hit.connectorSlug))].sort();
   const owned = new Map(library.filter((item) => item.skuId).map((item) => [item.skuId as string, item]));
 
@@ -33,7 +44,7 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
     const needle = query.trim().toLowerCase();
     const filtered = hits.filter((hit) => {
       if (brand !== "all" && hit.brandName !== brand) return false;
-      if (category !== "all" && hit.category !== category) return false;
+      if (category === LEADING ? !needle && !isDefaultTradeCategory(hit.category) : category !== "all" && hit.category !== category) return false;
       if (connector !== "all" && hit.connectorSlug !== connector) return false;
       if (!needle) return true;
       return [hit.name, hit.brandName, hit.variation, hit.skuCode, hit.category]
@@ -86,6 +97,7 @@ export function CatalogTable({ hits, library }: { hits: CatalogHit[]; library: L
           ))}
         </select>
         <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-11 rounded-2xl border border-line bg-paper px-3 text-sm" aria-label="Category">
+          {leading ? <option value={LEADING}>Handyman &amp; trade tech</option> : null}
           <option value="all">All categories</option>
           {categories.map((item) => (
             <option key={item}>{item}</option>

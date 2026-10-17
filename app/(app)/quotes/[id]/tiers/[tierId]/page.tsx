@@ -46,7 +46,7 @@ export default async function TierPage({
           label="Note for the customer"
           name="note"
           defaultValue={tier.note}
-          placeholder="Optional. Our most popular roof."
+          placeholder="Optional. Our most popular option."
         />
         <Button type="submit" variant="secondary">
           Save option

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { pricedView, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
-import { priceFarFromRange } from "@/lib/market";
+import { priceFarFromRange } from "@/lib/market-shared";
 import { formatUsd } from "@/lib/money";
 
 const listeners = new Set<(cents: number | null) => void>();

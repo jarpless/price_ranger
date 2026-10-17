@@ -80,9 +80,9 @@ export function WelcomeSlides({
         </div>
         <div className="rounded-3xl border border-line bg-paper p-6 shadow-card" aria-hidden="true">
           <p className="text-caption font-semibold text-muted">Preview</p>
-          <p className="mt-3 font-serif text-title">Nintendo Switch</p>
-          <p className="mt-2 font-serif text-price text-pine tabular-nums">$175</p>
-          <p className="text-body text-muted">$150–$200 · Good · High confidence</p>
+          <p className="mt-3 font-serif text-title">Wooden dresser</p>
+          <p className="mt-2 font-serif text-price text-pine tabular-nums">$240</p>
+          <p className="text-body text-muted">$180–$320 · Good · High confidence</p>
         </div>
       </div>
     </div>

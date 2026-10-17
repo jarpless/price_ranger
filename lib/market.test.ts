@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { readFileSync } from "node:fs";
 
-import { answerFromMarket, comparableAnchorCents, comparableAnchorFromRange, comparablesForTitle, MARKET_REGRESSION, marketPrice, namesForAutocomplete, pictureFor, priceFarFromRange, searchSuggestions } from "./market";
+import { brandWordIn } from "./brand-words";
+import { answerFromMarket, CATEGORIES, comparableAnchorCents, comparableAnchorFromRange, comparablesForTitle, MARKET_REGRESSION, marketPrice, namesForAutocomplete, pictureFor, priceFarFromRange, QUICK_ITEMS, searchSuggestions } from "./market";
 
 test("a bare Nintendo Switch is the docked model, not the OLED", () => {
   const quote = marketPrice("Nintendo Switch");
@@ -85,12 +86,28 @@ test("a price far outside the sold range is called out", () => {
   assert.equal(priceFarFromRange(null, 15000, 20000), false);
 });
 
+test("quick picks, categories, and the search placeholder name no brand", () => {
+  assert.ok(QUICK_ITEMS.length >= 6);
+  for (const item of QUICK_ITEMS) {
+    assert.equal(brandWordIn(`${item.label} ${item.description}`), null, item.label);
+    assert.ok((CATEGORIES as readonly string[]).includes(item.category), item.category);
+    const quote = marketPrice(item.description);
+    assert.ok(quote, item.description);
+    assert.equal(quote.ambiguousModel, false, item.description);
+    assert.equal(brandWordIn([quote.title, quote.note, ...quote.comparables.map((comp) => comp.title)].join(" ")), null, item.description);
+  }
+  for (const name of namesForAutocomplete()) assert.equal(brandWordIn(name), null, name);
+  const form = readFileSync(new URL("../components/capture-form.tsx", import.meta.url), "utf8");
+  const placeholders = [...form.matchAll(/placeholder="([^"]*)"/g)].map((match) => match[1]).join(" ");
+  assert.equal(brandWordIn(placeholders), null);
+});
+
 test("search suggestions sit in the page instead of covering See price", () => {
-  const matches = searchSuggestions("switch", namesForAutocomplete());
+  const matches = searchSuggestions("used", namesForAutocomplete());
   assert.ok(matches.length > 0);
   assert.ok(matches.length <= 5);
-  assert.ok(matches.every((name) => name.toLowerCase().includes("switch")));
-  assert.deepEqual(searchSuggestions("Used Nintendo Switch OLED", namesForAutocomplete()), []);
+  assert.ok(matches.every((name) => name.toLowerCase().includes("used")));
+  assert.deepEqual(searchSuggestions("Used road bike", namesForAutocomplete()), []);
   const form = readFileSync(new URL("../components/capture-form.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(form, /<datalist/);
   assert.match(form, /searchSuggestions/);

@@ -27,19 +27,19 @@ export interface Vocabulary {
 export const VOCABULARIES: Record<IndustryId, Vocabulary> = {
   trades: {
     id: "trades",
-    label: "Trades",
-    blurb: "Roofing, repairs, and other job-site work.",
+    label: "Handyman & trades",
+    blurb: "Service calls, repairs, installs, and hourly work.",
     quote: "Quote",
     quotes: "Quotes",
     job: "Job",
     customer: "Customer",
     present: "Present to customer",
     customerExample: "Maria Alvarez",
-    jobExample: "Roof replacement",
+    jobExample: "Ceiling fan install",
     starters: [
-      { name: "Tear-off and haul", unit: "square", unitPriceCents: 8500 },
-      { name: "Install labor", unit: "square", unitPriceCents: 12000 },
-      { name: "Dumpster", unit: "each", unitPriceCents: 45000 },
+      { name: "Service call", unit: "each", unitPriceCents: 9500 },
+      { name: "Hourly labor", unit: "hour", unitPriceCents: 8500 },
+      { name: "Drywall patch", unit: "each", unitPriceCents: 17500 },
     ],
   },
   retail: {

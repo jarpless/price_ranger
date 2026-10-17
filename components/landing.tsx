@@ -1,4 +1,4 @@
-import { LandingStage } from "@/components/landing-stage";
+import { LandingCategories } from "@/components/landing-categories";
 import { PendingLink as Link } from "@/components/pending-link";
 
 import { Logo } from "./logo";
@@ -25,24 +25,22 @@ export function Landing() {
             Sign in
           </Link>
         </header>
-        <div className="grid w-full items-center gap-10 pb-16 pt-8 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-16">
-          <div className="min-w-0">
-            <h1 className="font-serif text-display text-balance lg:text-[3rem] lg:leading-[3.4rem]">See a fair price before you list it.</h1>
+        <div className="flex w-full flex-col gap-8 pb-16 pt-6 lg:gap-12 lg:pt-12">
+          <div className="min-w-0 max-w-2xl">
+            <h1 className="font-serif text-display text-balance lg:text-[3rem] lg:leading-[3.4rem]">A fair price for whatever you sell.</h1>
             <p className="mt-4 max-w-xl text-body leading-6 text-muted">
-              Snap a photo or tap an item. Price Ranger shows a sold-listing range, a condition, and a price you can share.
+              A repair, a job, a used dresser, or a bake-sale tray. Tap what you price, see a fair range, and send a price you can share.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link href="/auth/guest?next=/new" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-6 text-base font-semibold text-cream">
                 Try it first
               </Link>
-              <Link href="/signin" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-6 text-base font-semibold">
+              <Link href="/signin" className="hidden h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-6 text-base font-semibold sm:inline-flex">
                 Sign in
               </Link>
             </div>
           </div>
-          <div className="min-w-0">
-            <LandingStage />
-          </div>
+          <LandingCategories />
         </div>
       </div>
     </main>

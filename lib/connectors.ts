@@ -10,6 +10,14 @@ export interface ConnectorDefinition {
 
 export const CONNECTORS: ConnectorDefinition[] = [
   {
+    slug: "handyman",
+    name: "Handyman & trade tech",
+    availability: "sample",
+    summary: "Service calls, hourly labor, and common repairs, with sample prices.",
+    access:
+      "Generic jobs like a drywall patch, faucet replace, or ceiling fan install. Every dollar amount is a placeholder for your own rate.",
+  },
+  {
     slug: "home-depot",
     name: "Home Depot",
     availability: "stub",
@@ -27,19 +35,17 @@ export const CONNECTORS: ConnectorDefinition[] = [
   },
   {
     slug: "gaf",
-    name: "GAF",
+    name: "Roofing samples",
     availability: "sample",
-    summary: "Public GAF roofing product names, with sample prices.",
-    access:
-      "Names match GAF's public shingle line. GAF does not offer a free price API. Treat every dollar amount as a placeholder.",
+    summary: "Generic shingles, ridge cap, and underlayment, with sample prices.",
+    access: "Generic roofing materials. There is no price feed. Treat every dollar amount as a placeholder.",
   },
   {
     slug: "james-hardie",
-    name: "James Hardie",
+    name: "Siding samples",
     availability: "sample",
-    summary: "Public James Hardie siding products, with sample prices.",
-    access:
-      "Names match James Hardie's public siding line. There is no open price feed. Replace sample prices before you quote a customer.",
+    summary: "Generic fiber-cement siding, trim, and soffit, with sample prices.",
+    access: "Generic siding materials. There is no price feed. Replace sample prices before you quote a customer.",
   },
   {
     slug: "abc-supply",

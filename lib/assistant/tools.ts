@@ -279,7 +279,7 @@ export function llmToolDefinitions(): {
     },
     {
       name: "connect_catalog",
-      description: "Copy a sample catalog into the user's prices. slug is home-depot, lowes, gaf, or james-hardie.",
+      description: "Copy a sample catalog into the user's prices. slug is handyman (default for trades), home-depot, lowes, gaf (roofing samples), or james-hardie (siding samples).",
       parameters: { type: "object", properties: { slug: stringProp("Connector slug") }, required: ["slug"] },
     },
     {
