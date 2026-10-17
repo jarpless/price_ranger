@@ -11,9 +11,24 @@ function platform(): "web" | "pwa" {
   return standalone ? "pwa" : "web";
 }
 
-/** Fire-and-forget. Survives a navigation that starts on the same tap. */
+let firstRequest: Promise<unknown> | null = null;
+
+/**
+ * Fire-and-forget. Survives a navigation that starts on the same tap.
+ * Later calls wait for the first so a new visitor gets one id cookie, not one per parallel request.
+ */
 export function sendTrack(name: ClientEventName, props?: Record<string, string>) {
   const body = JSON.stringify({ name, props, platform: platform() });
+  if (!firstRequest) {
+    firstRequest = fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(
+      () => undefined,
+    );
+    return;
+  }
+  void firstRequest.then(() => post(body));
+}
+
+function post(body: string) {
   try {
     if (navigator.sendBeacon?.("/api/track", new Blob([body], { type: "application/json" }))) return;
   } catch {
