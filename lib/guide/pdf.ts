@@ -163,12 +163,12 @@ export function buildPricePdf(input: PdfInput): Uint8Array {
   const logo = jpegSize(MARK_JPEG) ? MARK_JPEG : null;
   const commands: string[] = [];
   commands.push("0.118 0.275 0.212 rg");
-  commands.push("0 744 612 48 re f");
-  if (logo) commands.push("q 32 0 0 32 40 752 cm /ImLogo Do Q");
+  commands.push("0 708 612 84 re f");
+  if (logo) commands.push("q 56 0 0 56 32 722 cm /ImLogo Do Q");
   commands.push("1 1 1 rg");
-  commands.push("BT /F1 16 Tf 82 760 Td (Price Ranger) Tj ET");
+  commands.push("BT /F1 18 Tf 100 746 Td (Price Ranger) Tj ET");
   commands.push("0.118 0.275 0.212 rg");
-  let y = 720;
+  let y = 684;
   const stamp = ["priceranger.app", input.date].filter(Boolean).join("  ·  ").slice(0, 80);
   commands.push(`BT /F1 10 Tf 48 ${y} Td (${escapePdf(stamp)}) Tj ET`);
   y -= 28;

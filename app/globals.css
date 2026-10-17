@@ -59,6 +59,8 @@
 html {
   background: var(--color-cream);
   max-width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Source Serif 4 at Medium. Fraunces’s f terminal crashed into the next
@@ -75,6 +77,19 @@ html {
 .font-serif.tabular-nums {
   letter-spacing: 0;
   font-feature-settings: "kern" 1, "liga" 0, "clig" 0, "dlig" 0, "calt" 0, "tnum" 1;
+}
+
+/* WebKit clips a serif descender when text-wrap: balance overflows a hidden
+   scrollport, and it can shove "Ranger" past the edge of a phone. Wrap, and
+   keep a little room under the line box so the g stays inside the clip. */
+h1.font-serif,
+h2.font-serif {
+  max-width: 100%;
+  min-width: 0;
+  text-wrap: wrap;
+  overflow-wrap: break-word;
+  line-height: 1.32;
+  padding-bottom: 0.08em;
 }
 
 body {

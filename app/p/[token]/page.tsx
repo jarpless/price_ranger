@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { contactAboutPrice } from "@/app/share-contact";
+import { Logo } from "@/components/logo";
 import { formatUsd } from "@/lib/money";
 import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
 import { forPublic, readSharedSheet } from "@/lib/share";
+import { shareGrowthOffer } from "@/lib/share-growth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +27,16 @@ export default async function PublicSheetPage({
   const range = sheet.range || (live ? `${formatUsd(live.lowCents)}–${formatUsd(live.highCents)}` : "");
   const condition = sheet.condition || (live ? conditionLabel(live.condition) : "");
   const photo = sheet.photo || live?.comparables[0]?.thumbnail || pictureFor(sheet.title);
+  const offer = shareGrowthOffer(token);
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
-      <div className="rounded-3xl bg-pine px-5 py-6 text-center text-cream">
-        <p className="font-serif text-title">Price Ranger</p>
-        <p className="mt-1 text-caption text-cream/80">priceranger.app</p>
+      <div className="flex items-center gap-3 rounded-3xl bg-pine px-4 py-4 text-cream">
+        <Logo tone="light" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" alt="" />
+        <div className="min-w-0">
+          <p className="truncate font-serif text-title leading-8">Price Ranger</p>
+          <p className="text-caption text-cream/80">priceranger.app</p>
+        </div>
       </div>
       <h1 className="mt-6 text-center font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{sheet.title}</h1>
       {condition || range ? (
@@ -97,6 +103,16 @@ export default async function PublicSheetPage({
           Download PDF
         </a>
       </div>
+      <aside className="mt-8 rounded-3xl border border-line bg-paper px-5 py-5 text-center">
+        <p className="font-serif text-title leading-8">Keep this price</p>
+        <p className="mt-2 text-body leading-6 text-muted">{offer.detail}</p>
+        <a
+          href={offer.href}
+          className="mt-4 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
+        >
+          {offer.label}
+        </a>
+      </aside>
     </main>
   );
 }

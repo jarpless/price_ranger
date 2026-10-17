@@ -15,6 +15,7 @@ function NewFeedback() {
   const router = useRouter();
   const params = useSearchParams();
   const shake = params.get("shake") === "1";
+  const storedShot = shake || params.get("shot") === "1";
   const [shot, setShot] = useState<{ preview: string; blob: Blob } | null>(null);
   const [error, setError] = useState("");
 
@@ -23,7 +24,7 @@ function NewFeedback() {
     async function run() {
       try {
         const stored = window.sessionStorage.getItem("pr-feedback-shot");
-        if (shake && stored) {
+        if (storedShot && stored) {
           const blob = await dataUrlToBlob(stored);
           if (!cancel) setShot({ preview: stored, blob });
           window.sessionStorage.removeItem("pr-feedback-shot");
@@ -39,7 +40,7 @@ function NewFeedback() {
     return () => {
       cancel = true;
     };
-  }, [shake]);
+  }, [shake, storedShot]);
 
   if (shot) {
     return (

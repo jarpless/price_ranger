@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { rememberReturnTo } from "@/app/auth-actions";
 import { requestMagicLink, requireUser, signOutUser } from "@/lib/auth";
 import { authErrorPath, classifyAuthError, isNextRedirect } from "@/lib/auth-errors";
 import { siteOriginFromHeaders } from "@/lib/env";
@@ -21,6 +22,7 @@ function refresh() {
 }
 
 export async function sendMagicLink(formData: FormData) {
+  await rememberReturnTo(formData);
   const email = clip(formData.get("email"), 160).toLowerCase();
   if (!isEmail(email)) redirect("/signin?error=email");
 
