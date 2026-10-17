@@ -9,13 +9,18 @@ export const BETA_DISCLOSURE = {
 
 export const BETA_NOTE_DISMISSED_KEY = "pr-beta-note-dismissed";
 
+/**
+ * The shared trade taxonomy (PR #147 and #149). Ids follow `lib/trades.ts` from #149 where it has
+ * the trade, so this list can be replaced by an import from there once #149 lands.
+ */
 export const TRADES = [
-  { id: "selling", label: "Selling my stuff" },
-  { id: "flipping", label: "Flipping" },
-  { id: "trades", label: "Trades & jobs" },
+  { id: "home-services", label: "Home services & handyman" },
+  { id: "trades", label: "Trades" },
+  { id: "selling", label: "Selling personal items" },
+  { id: "flipping", label: "Flipping & resale" },
   { id: "makers", label: "Makers & crafts" },
-  { id: "services", label: "Services" },
-  { id: "buying", label: "Buying" },
+  { id: "events-creative", label: "Events & creative" },
+  { id: "food-shop", label: "Food & small shop" },
   { id: "other", label: "Something else" },
 ] as const;
 
@@ -31,10 +36,17 @@ export function tradeLabel(id: TradeId): string {
 
 /** A sensible first chip from the account's industry, so the request can be two taps. */
 export function defaultTrade(industry: string | null | undefined): TradeId | null {
-  if (industry === "trades" || industry === "yard") return "trades";
-  if (industry === "services") return "services";
-  if (industry === "retail") return "selling";
+  if (industry === "services") return "home-services";
+  if (industry === "trades") return "trades";
+  if (industry === "yard") return "selling";
+  if (industry === "retail") return "flipping";
   return null;
+}
+
+export const NEED_MIN_LENGTH = 3;
+
+export function needIsValid(need: string): boolean {
+  return need.replace(/\s+/g, " ").trim().length >= NEED_MIN_LENGTH;
 }
 
 export function tradeLabelName(id: TradeId): string {
@@ -62,7 +74,7 @@ export function featureRequestBody(input: {
     `Trade: ${input.trade} (${tradeLabel(input.trade)})`,
     "",
     "What do you need?",
-    input.need.trim() || "(No details added.)",
+    input.need.trim(),
     "",
     `Follow-up email: ${input.followUp ? "yes" : "no"}`,
   ];
@@ -71,6 +83,6 @@ export function featureRequestBody(input: {
 }
 
 export function readFeatureRequestTrade(body: string): TradeId | null {
-  const match = body.match(/^Trade: ([a-z]+)/m);
+  const match = body.match(/^Trade: ([a-z-]+)/m);
   return match && isTradeId(match[1]) ? match[1] : null;
 }
