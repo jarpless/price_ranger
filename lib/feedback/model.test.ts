@@ -7,6 +7,8 @@ import { replaceDuplicateLine, scoreTicket } from "./model";
 import { composeFeedbackBody, readFeedbackAnswers, suggestFeedbackTitle } from "./note";
 import {
   BETA_DISCLOSURE,
+  BETA_ENDS_AT,
+  betaEndsLabel,
   defaultTrade,
   featureRequestBody,
   featureRequestTitle,
@@ -169,11 +171,21 @@ test("a feature request needs a few words", () => {
   assert.equal(needIsValid("CSV export"), true);
 });
 
-test("beta copy does not promise free access", () => {
-  const copy = Object.values(BETA_DISCLOSURE).join(" ");
-  assert.doesNotMatch(copy, /\bfree\b|30.day|trial|no charge/i);
+test("beta copy matches the approved wording, with the end date from BETA_ENDS_AT", () => {
+  assert.equal(BETA_ENDS_AT, "2027-01-31");
+  assert.equal(betaEndsLabel(), "Jan 31, 2027");
   assert.equal(
     `${BETA_DISCLOSURE.pricingLead} ${BETA_DISCLOSURE.pricing}`,
-    "Beta pricing: plan prices may go up after beta. Join during beta and you'll keep your current price for an extra year after beta ends.",
+    "Beta pricing: plan prices may go up after beta. Subscribe during beta and you'll keep your current price for an extra year after beta ends.",
   );
+  assert.equal(
+    BETA_DISCLOSURE.firstHundred,
+    "The first 100 beta testers get a free pass to everything until beta ends (Jan 31, 2027), then normal pricing applies.",
+  );
+  assert.equal(
+    BETA_DISCLOSURE.pricingShort,
+    "Beta price – locked for 1 year after beta for members who subscribe during beta",
+  );
+  const general = [BETA_DISCLOSURE.body, BETA_DISCLOSURE.meaning, BETA_DISCLOSURE.pricing].join(" ");
+  assert.doesNotMatch(general, /\bfree\b|30.day|trial|no charge/i);
 });
