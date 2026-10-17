@@ -124,7 +124,7 @@ Use Jamie's own card. Don't record card numbers, keys, or secrets.
 6. Settings → Billing: invoice listed. "Manage billing" opens the live customer portal.
 7. Start Plus monthly on a second account. In the portal, switch to Plus yearly (if switching is on): plan stays Plus, renewal date updates. Cancel: after `customer.subscription.deleted` the account is Free.
 8. Refund the test purchases from the Stripe dashboard.
-9. App smoke at phone and desktop widths: sign in, New price (Add photo, + Add context), quote builder add row/column and a formula, Send, open the share link signed out (header goes to `/?ref=share`, carousel shows), beta pill opens the sheet, Request a feature sends, phone tab bar works, version footer reads `Version: Lookout (v2.3.0)`.
+9. App smoke at phone and desktop widths: sign in, New price (Add photo, + Add context), quote builder add row/column and a formula, Send, open the share link signed out (header goes to `https://www.priceranger.app/?ref=share&utm_source=share&utm_medium=quote_header` and logs `share_header_click`, carousel shows), beta pill opens the sheet, Request a feature sends, phone tab bar works, version footer reads `Version: Lookout (v2.3.0)`.
 10. `/admin/pmf` loads for the owner and shows today's events (needs migration 4).
 
 ## 6. TODO: beta price lock (not built)

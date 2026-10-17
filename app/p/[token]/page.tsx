@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { contactAboutPrice } from "@/app/share-contact";
@@ -12,7 +11,7 @@ import { publicSlides } from "@/lib/guide/media-slides";
 import { formatUsd } from "@/lib/money";
 import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
 import { forPublic, readSharedSheet, readShareOwner } from "@/lib/share";
-import { shareGrowthOffer } from "@/lib/share-growth";
+import { SHARE_HEADER_HREF, shareGrowthOffer } from "@/lib/share-growth";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +46,18 @@ export default async function PublicSheetPage({
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
       <TrackBeacon view="share_viewed" />
-      <Link href="/?ref=share" data-track="share_header_click" className="flex items-center gap-3 rounded-3xl bg-pine px-4 py-4 text-cream">
+      <a
+        href={SHARE_HEADER_HREF}
+        aria-label="Price Ranger home"
+        data-track="share_header_click"
+        className="flex items-center gap-3 rounded-3xl bg-pine px-4 py-4 text-cream focus-visible:shadow-[inset_0_0_0_2px_#f3eee4]"
+      >
         <Logo tone="light" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" alt="" />
         <div className="min-w-0">
           <p className="truncate font-serif text-title leading-8">Price Ranger</p>
           <p className="text-caption text-cream/80">priceranger.app</p>
         </div>
-      </Link>
+      </a>
       <h1 className="mt-6 text-center font-serif text-display text-balance lg:text-[2.5rem] lg:leading-[3rem]">{sheet.title}</h1>
       {condition || range ? (
         <p className="mt-3 text-center text-body text-muted" data-share-range="">

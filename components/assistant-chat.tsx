@@ -300,7 +300,7 @@ export function AssistantChat({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-paper text-ink">
-      <header className="ask-top flex items-center gap-2 border-b border-line px-3 pb-2">
+      <header className="ask-top @container flex items-center gap-2 border-b border-line px-3 pb-2">
         <button
           type="button"
           className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink"
@@ -323,8 +323,20 @@ export function AssistantChat({
                 <PopOutIcon />
               </button>
               {docked ? (
-                <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full" aria-label="Float" onClick={onFloat}>
-                  <FloatIcon />
+                <button
+                  type="button"
+                  className="group/float relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full @[32rem]:w-auto @[32rem]:gap-1.5 @[32rem]:px-3"
+                  aria-label="Minimize to floating chat"
+                  onClick={onFloat}
+                >
+                  <PictureInPictureIcon />
+                  <span className="hidden text-sm font-semibold @[32rem]:inline">Pop out</span>
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute right-0 top-full z-30 mt-1 hidden whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-cream group-hover/float:block group-focus-visible/float:block"
+                  >
+                    Minimize to floating chat
+                  </span>
                 </button>
               ) : (
                 <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full" aria-label="Open in side panel" onClick={onDock}>
@@ -738,11 +750,18 @@ function DockIcon() {
   );
 }
 
-function FloatIcon() {
+/** Lucide picture-in-picture-2: the docked chat shrinks into a floating window. */
+function PictureInPictureIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="7" y="4" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M5 10v8a2 2 0 0 0 2 2h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="12" y="13" width="10" height="7" rx="2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }
