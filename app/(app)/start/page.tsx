@@ -29,7 +29,7 @@ export default async function StartPage({
         </svg>
       </Link>
       <div className="mt-4 flex items-center gap-3">
-        <Logo tone="light" width={48} height={48} className="h-12 w-12 shrink-0" alt="" />
+        <Logo tone="dark" width={64} height={64} className="h-16 w-16 shrink-0" alt="" />
         <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
       </div>
       <h1 className="mt-6 font-serif text-4xl leading-tight lg:text-5xl">What are you pricing?</h1>

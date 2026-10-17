@@ -10,7 +10,7 @@ import { VERSION_LABEL, APP_VERSION } from "./version";
 
 test("version label is the single Lookout stamp", () => {
   assert.equal(APP_VERSION, "2.3.0");
-  assert.equal(VERSION_LABEL, "v2.3 Lookout");
+  assert.equal(VERSION_LABEL, "Version: Lookout (v2.3.0)");
 });
 
 test("assistant caps come from the plan config", () => {

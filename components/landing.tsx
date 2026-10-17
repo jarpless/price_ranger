@@ -8,10 +8,8 @@ export function Landing() {
     <main className="landing-ground min-h-dvh text-ink">
       <div className="page-frame flex min-h-dvh flex-col">
         <header className="flex h-16 w-full items-center gap-2">
-          <div className="inline-flex min-w-0 items-center gap-2 rounded-2xl bg-paper/95 px-1.5 py-1 shadow-card ring-1 ring-line">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pine">
-              <Logo tone="inverse" width={28} height={28} className="h-7 w-7" alt="" />
-            </span>
+          <div className="inline-flex min-w-0 items-center gap-2 rounded-2xl bg-paper/95 px-2 py-1 shadow-card ring-1 ring-line">
+            <Logo tone="dark" width={40} height={40} className="h-10 w-10 shrink-0" alt="" priority />
             <p className="truncate pr-1.5 font-serif text-base leading-6 text-ink lg:text-title lg:leading-8">Price Ranger</p>
           </div>
           <Link

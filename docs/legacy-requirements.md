@@ -4,12 +4,7 @@ Recovered from the Price Ranger prototype in this repo. The last commit is 7 May
 
 ## What was kept
 
-The owner likes the Price Ranger logo. These originals stay in the repo:
-
-- `public/images/price_ranger_logo.png` — square lockup, ranger bust plus the words PRICE RANGER
-- `public/images/price_ranger_logo_emblem.png` — the ranger bust alone
-
-The new app uses smaller copies made from those files (`logo-full.png`, `logo-mark.png`) so a phone does not download a 1.6 MB PNG on the sign-in screen.
+The owner likes the Price Ranger ranger. The bust used inside the badge lives in `scripts/ranger-bust.svg`. The old square lockups (`price_ranger_logo.png`, `logo-full`, `logo-mark`, and the shield and round emblems) are not served. The app mark is the park badge under `public/brand/`.
 
 The useful product idea underneath the prototype is also kept, and restated in `docs/PLAN.md`: a simple tool for pricing a home-improvement job and presenting a few options to a customer.
 
