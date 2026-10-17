@@ -151,8 +151,24 @@ export function viewLabel(trade: Trade, view: TradeView): string {
   return "Tools";
 }
 
-export function newPriceHref(subcategory: TradeSubcategory): string {
-  return `/new?q=${encodeURIComponent(subcategory.query)}`;
+export function newPriceHref(trade: Trade, subcategory: TradeSubcategory): string {
+  return `/new?q=${encodeURIComponent(subcategory.query)}&trade=${trade.id}.${subcategory.id}`;
+}
+
+/** The `trade` param a subcategory link puts on /new, for the quote that page creates. */
+export function tradeFromUrl(url: string | null | undefined): { trade: string; category: string } | null {
+  if (!url) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(url, "http://local");
+  } catch {
+    return null;
+  }
+  if (parsed.pathname !== "/new") return null;
+  const [tradeId, categoryId] = (parsed.searchParams.get("trade") || "").split(".");
+  const trade = tradeById(tradeId);
+  const subcategory = trade?.subcategories.find((item) => item.id === categoryId);
+  return trade && subcategory ? { trade: trade.id, category: subcategory.id } : null;
 }
 
 export function tradeForIndustry(industry: IndustryId | null | undefined): Trade | null {
@@ -167,7 +183,7 @@ function matches(text: string, keyword: string): boolean {
 }
 
 /** Most keyword hits wins, a matching path breaks ties, then config order. */
-export function classifyQuote(quote: Pick<GuideQuote, "description" | "path">): { trade: Trade; subcategory: TradeSubcategory | null } | null {
+export function classifyQuote(quote: Pick<GuideQuote, "description" | "path">): Filed | null {
   const text = (quote.description || "").toLowerCase();
   let best: { trade: Trade; subcategory: TradeSubcategory; score: number } | null = null;
   if (text) {
@@ -183,6 +199,15 @@ export function classifyQuote(quote: Pick<GuideQuote, "description" | "path">): 
   if (best) return { trade: best.trade, subcategory: best.subcategory };
   const fallback = TRADES.find((trade) => trade.fallbackPath === quote.path);
   return fallback ? { trade: fallback, subcategory: null } : null;
+}
+
+type Filed = { trade: Trade; subcategory: TradeSubcategory | null };
+
+/** The trade saved on the quote wins; older rows fall back to keywords. */
+export function quoteTrade(quote: Pick<GuideQuote, "description" | "path" | "trade" | "tradeCategory">): Filed | null {
+  const trade = tradeById(quote.trade);
+  if (trade) return { trade, subcategory: trade.subcategories.find((item) => item.id === quote.tradeCategory) ?? null };
+  return classifyQuote(quote);
 }
 
 export type ItemStatus = "drafts" | "priced" | "shared" | "sold";

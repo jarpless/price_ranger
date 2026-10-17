@@ -70,7 +70,7 @@ export function buildMenu({ guest, owner = false }: { guest: boolean; owner?: bo
         label: trade.label,
         icon: trade.icon,
         prefix: tradeHref(trade),
-        links: trade.subcategories.map((subcategory) => ({ href: newPriceHref(subcategory), label: subcategory.label })),
+        links: trade.subcategories.map((subcategory) => ({ href: newPriceHref(trade, subcategory), label: subcategory.label })),
         views: [
           { href: tradeHref(trade), label: "Price", exact: true },
           ...TRADE_VIEWS.map((view) => ({ href: tradeHref(trade, view), label: viewLabel(trade, view), exact: true })),

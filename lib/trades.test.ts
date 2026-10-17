@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { allMenuLinks, buildMenu, folderOpenByDefault, menuActive } from "./menu";
-import { TRADES, classifyQuote, itemStatus, newPriceHref, tradeById } from "./trades";
+import { TRADES, classifyQuote, itemStatus, newPriceHref, quoteTrade, tradeById, tradeFromUrl } from "./trades";
 
 test("every trade becomes a folder with Price, Quotes, Sold, and Tools", () => {
   const trades = buildMenu({ guest: false }).find((section) => section.id === "trades");
@@ -33,9 +33,21 @@ test("guests see no account-only links", () => {
 });
 
 test("subcategories start a price with the search filled in", () => {
-  const plumbing = tradeById("trades")?.subcategories.find((item) => item.id === "plumbing");
-  assert.ok(plumbing);
-  assert.equal(newPriceHref(plumbing), "/new?q=Plumbing%20repair");
+  const trade = tradeById("trades")!;
+  const plumbing = trade.subcategories.find((item) => item.id === "plumbing")!;
+  const href = newPriceHref(trade, plumbing);
+  assert.equal(href, "/new?q=Plumbing%20repair&trade=trades.plumbing");
+  assert.deepEqual(tradeFromUrl(`https://www.priceranger.app${href}`), { trade: "trades", category: "plumbing" });
+  assert.equal(tradeFromUrl("https://www.priceranger.app/new?trade=trades.nope"), null);
+  assert.equal(tradeFromUrl("https://www.priceranger.app/guide/1?trade=trades.plumbing"), null);
+  assert.equal(tradeFromUrl("not a url ::"), null);
+});
+
+test("a saved trade beats the keyword guess", () => {
+  const quote = { description: "Laptop, 13in", path: "item" as const, trade: "flipping", tradeCategory: "bundles" };
+  assert.equal(quoteTrade(quote)?.subcategory?.id, "bundles");
+  assert.equal(quoteTrade({ ...quote, trade: "retired-trade" })?.subcategory?.id, "electronics");
+  assert.equal(quoteTrade({ ...quote, trade: null })?.trade.id, "selling");
 });
 
 test("handyman leads, and roofing is not the lead trade", () => {

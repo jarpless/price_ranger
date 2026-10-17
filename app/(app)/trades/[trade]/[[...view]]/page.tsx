@@ -5,7 +5,7 @@ import { QuoteRows, SegTabs } from "@/components/quote-rows";
 import { requireUser } from "@/lib/auth";
 import { listGuideQuotes } from "@/lib/guide/store";
 import { formatUsd } from "@/lib/money";
-import { TRADE_VIEWS, classifyQuote, isTradeView, newPriceHref, tradeById, tradeHref, viewLabel } from "@/lib/trades";
+import { TRADE_VIEWS, isTradeView, quoteTrade, newPriceHref, tradeById, tradeHref, viewLabel } from "@/lib/trades";
 
 export async function generateMetadata({ params }: { params: Promise<{ trade: string }> }) {
   const { trade } = await params;
@@ -18,7 +18,7 @@ export default async function TradePage({ params }: { params: Promise<{ trade: s
   const view = segments?.[0];
   if (!trade || (segments && (segments.length > 1 || !isTradeView(view)))) notFound();
   const user = await requireUser();
-  const mine = (await listGuideQuotes(user.id)).filter((quote) => classifyQuote(quote)?.trade.id === trade.id);
+  const mine = (await listGuideQuotes(user.id)).filter((quote) => quoteTrade(quote)?.trade.id === trade.id);
   const open = mine.filter((quote) => quote.outcome !== "sold");
   const sold = mine.filter((quote) => quote.outcome === "sold");
   const soldCents = sold.reduce((sum, quote) => sum + (quote.priceCents || 0), 0);
@@ -46,7 +46,7 @@ export default async function TradePage({ params }: { params: Promise<{ trade: s
             {trade.subcategories.map((subcategory) => (
               <li key={subcategory.id}>
                 <Link
-                  href={newPriceHref(subcategory)}
+                  href={newPriceHref(trade, subcategory)}
                   data-haptic=""
                   className="flex h-14 items-center rounded-xl border border-line bg-paper px-3 text-sm font-semibold leading-5 hover:border-pine lg:h-11"
                 >

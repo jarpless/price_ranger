@@ -2,7 +2,7 @@ import { PendingLink as Link } from "@/components/pending-link";
 
 import type { GuideQuote } from "@/lib/guide/store";
 import { formatUsd } from "@/lib/money";
-import { ITEM_STATUS_LABEL, classifyQuote, itemStatus } from "@/lib/trades";
+import { ITEM_STATUS_LABEL, itemStatus, quoteTrade } from "@/lib/trades";
 
 export function timeAgo(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return "";
@@ -26,7 +26,7 @@ export function QuoteRows({ quotes, empty, showTrade = true }: { quotes: GuideQu
     <ul className="overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_1px_2px_rgba(28,25,21,0.06)]" data-quote-rows="">
       {quotes.map((quote) => {
         const status = itemStatus(quote);
-        const filed = showTrade ? classifyQuote(quote) : null;
+        const filed = showTrade ? quoteTrade(quote) : null;
         return (
           <li key={quote.quoteId} className="border-line [&+&]:border-t">
             <Link
