@@ -172,4 +172,8 @@ test("a feature request needs a few words", () => {
 test("beta copy does not promise free access", () => {
   const copy = Object.values(BETA_DISCLOSURE).join(" ");
   assert.doesNotMatch(copy, /\bfree\b|30.day|trial|no charge/i);
+  assert.equal(
+    `${BETA_DISCLOSURE.pricingLead} ${BETA_DISCLOSURE.pricing}`,
+    "Beta pricing: plan prices may go up after beta. Join during beta and you'll keep your current price for an extra year after beta ends.",
+  );
 });

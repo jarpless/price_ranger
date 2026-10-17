@@ -139,7 +139,7 @@ export function BetaSheet({ signedIn, onClose }: { signedIn: boolean; onClose: (
         aria-modal="true"
         aria-labelledby="beta-sheet-title"
         tabIndex={-1}
-        className="w-full max-w-md rounded-t-3xl bg-paper px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 text-ink shadow-[0_-8px_32px_rgba(28,25,21,0.18)] outline-none lg:rounded-3xl lg:pb-6 lg:pt-6"
+        className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-t-3xl bg-paper px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 text-ink shadow-[0_-8px_32px_rgba(28,25,21,0.18)] outline-none lg:rounded-3xl lg:pb-6 lg:pt-6"
       >
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-line lg:hidden" />
         <BetaPill />
@@ -148,6 +148,9 @@ export function BetaSheet({ signedIn, onClose }: { signedIn: boolean; onClose: (
         </h2>
         <p className="mt-2 text-body leading-6">{BETA_DISCLOSURE.body}</p>
         <p className="mt-3 text-body leading-6 text-muted">{BETA_DISCLOSURE.meaning}</p>
+        <p data-beta-pricing="true" className="mt-3 text-body leading-6 text-muted">
+          <span className="font-semibold text-ink">{BETA_DISCLOSURE.pricingLead}</span> {BETA_DISCLOSURE.pricing}
+        </p>
         <div className="mt-6 flex flex-col gap-2">
           {signedIn ? (
             <button
@@ -229,6 +232,11 @@ export function BetaNote({ variant }: { variant: "home" | "plans" | "about" }) {
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-body leading-6">{BETA_DISCLOSURE.body}</p>
+          {variant === "plans" ? (
+            <p data-beta-pricing-short="true" className="mt-2 text-caption font-semibold text-pine">
+              {BETA_DISCLOSURE.pricingShort}
+            </p>
+          ) : null}
         </div>
         {variant === "home" ? (
           <button

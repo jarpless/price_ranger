@@ -5,6 +5,10 @@ export const BETA_DISCLOSURE = {
   body: "Price Ranger is in early beta and still in development. We'd love your feedback and feature requests for how you use it.",
   meaning:
     "Beta means the core tools work and plans are billed as shown, but we're still adding features and smoothing rough edges. Some screens may change as we learn from you.",
+  pricingLead: "Beta pricing:",
+  pricing:
+    "plan prices may go up after beta. Join during beta and you'll keep your current price for an extra year after beta ends.",
+  pricingShort: "Beta price – locked for 1 year after beta for early members",
 } as const;
 
 export const BETA_NOTE_DISMISSED_KEY = "pr-beta-note-dismissed";
