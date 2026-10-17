@@ -33,5 +33,5 @@ export const FORM_ERRORS: Record<string, string> = {
   send: "We couldn't send the sign-up email. Try again in a few minutes.",
   captcha: "The sign-in check failed. Try again.",
   auth: "We couldn't send that just now. Try again in a minute.",
-  payments: "Payments aren't available from this server yet. Test mode is the default until a Stripe key is set.",
+  payments: "Payments aren't available right now. Try again in a little while.",
 };
