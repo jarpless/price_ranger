@@ -1,4 +1,5 @@
 import { getSessionUser } from "@/lib/auth";
+import { track } from "@/lib/analytics/track";
 import { buildStamp } from "@/lib/build-info";
 import { intakeFeedback } from "@/lib/feedback/intake";
 import { composeFeedbackBody, type FeedbackKind } from "@/lib/feedback/note";
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
     title,
   });
 
+  await track("feedback_submitted", { type: kind ?? "note", source: sourceOf(String(form.get("source") || "")) }, { user });
   return Response.json({
     id: result.report.id,
     summary: result.summary,

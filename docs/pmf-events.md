@@ -12,7 +12,7 @@ await track("quote_shared", { channel: "link" });
 
 `track()` never throws. It reads the session user, the anonymous id cookie, the session cookie, and the platform cookie, then adds `plan`, `trade`, and `guest` to the props. A failed insert is logged once every five minutes and the caller carries on.
 
-Browsers can only send the events in `CLIENT_EVENTS` (share page and session start) through `POST /api/track`. Everything else is recorded on the server.
+Browsers can only send the events in `CLIENT_EVENTS` (share-page view and clicks, session start) through `POST /api/track`. Everything else is recorded on the server.
 
 ## Identity and privacy
 
@@ -50,7 +50,7 @@ Events that existed before #55 keep their names. The spec name is shown where it
 | `share_viewed` | share-page view | Recipient opens `/p/[token]` | |
 | `share_header_click` | share-header click | Recipient taps the Price Ranger header | |
 | `share_signup_click` | share signup CTA click | Recipient taps the sign-up card | `action` |
-| `pdf_downloaded` | `pdf_downloaded` | Download PDF tapped on the share page | `where` |
+| `pdf_downloaded` | `pdf_downloaded` | A share-link PDF is generated (seller or recipient) | |
 | `first_mark_sold` | | First item marked sold (once) | `path`, `variant` |
 | `item_marked_sold` | `item_marked_sold` | Every mark sold | `outcome` |
 | `assistant_message` | `assistant_message` | A message sent to the assistant | `mode` |

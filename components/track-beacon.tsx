@@ -24,7 +24,7 @@ export function sendTrack(name: ClientEventName, props?: Record<string, string>)
 
 /**
  * Sends `view` once on mount, and a click event for any element inside the page
- * marked `data-track="<event>"` (optional `data-track-action` / `data-track-where`).
+ * marked `data-track="<event>"` (optional `data-track-action`).
  */
 export function TrackBeacon({ view }: { view?: ClientEventName }) {
   useEffect(() => {
@@ -35,7 +35,6 @@ export function TrackBeacon({ view }: { view?: ClientEventName }) {
       const name = target.dataset.track as ClientEventName;
       const props: Record<string, string> = {};
       if (target.dataset.trackAction) props.action = target.dataset.trackAction;
-      if (target.dataset.trackWhere) props.where = target.dataset.trackWhere;
       sendTrack(name, props);
     }
     document.addEventListener("click", onClick, { capture: true });

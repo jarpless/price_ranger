@@ -14,7 +14,7 @@ import { track } from "@/lib/analytics/track";
 
 export const dynamic = "force-dynamic";
 
-const CLIENT_PROP_KEYS = ["action", "where"] as const;
+const CLIENT_PROP_KEYS = ["action"] as const;
 
 function newId(): string {
   return crypto.randomUUID().replaceAll("-", "");

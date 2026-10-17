@@ -23,12 +23,12 @@ export const PMF_EVENTS = [
 export type PmfEventName = (typeof PMF_EVENTS)[number];
 
 /** Events a browser may send to /api/track. Everything else is recorded on the server only. */
-export const CLIENT_EVENTS = ["share_viewed", "share_header_click", "share_signup_click", "pdf_downloaded", "session_started"] as const;
+export const CLIENT_EVENTS = ["share_viewed", "share_header_click", "share_signup_click", "session_started"] as const;
 
 export type ClientEventName = (typeof CLIENT_EVENTS)[number];
 
 /** Events an account-less visitor may record. Matches the anon insert policy. */
-export const ANON_EVENTS: readonly PmfEventName[] = CLIENT_EVENTS;
+export const ANON_EVENTS: readonly PmfEventName[] = [...CLIENT_EVENTS, "pdf_downloaded"];
 
 export type Platform = "web" | "pwa";
 

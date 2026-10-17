@@ -101,8 +101,6 @@ export default async function PublicSheetPage({
       <div className="mt-6 flex justify-center">
         <a
           href={`/p/${token}/pdf`}
-          data-track="pdf_downloaded"
-          data-track-where="share"
           className="inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine text-base font-semibold text-cream lg:w-auto lg:min-w-48 lg:px-6"
         >
           Download PDF
