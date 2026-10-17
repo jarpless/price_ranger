@@ -91,6 +91,7 @@ function Folder({
       <button
         type="button"
         aria-expanded={open}
+        title={folder.label}
         onClick={onToggle}
         className={`${rowClass(density, false)} ${here ? "text-cream" : ""}`}
       >

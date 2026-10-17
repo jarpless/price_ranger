@@ -166,16 +166,21 @@ function matches(text: string, keyword: string): boolean {
   return new RegExp(`(^|[^a-z0-9])${escaped}`).test(text);
 }
 
-/** Keyword match on the description first, then the quote's path. */
+/** Most keyword hits wins, a matching path breaks ties, then config order. */
 export function classifyQuote(quote: Pick<GuideQuote, "description" | "path">): { trade: Trade; subcategory: TradeSubcategory | null } | null {
   const text = (quote.description || "").toLowerCase();
+  let best: { trade: Trade; subcategory: TradeSubcategory; score: number } | null = null;
   if (text) {
     for (const trade of TRADES) {
       for (const subcategory of trade.subcategories) {
-        if (subcategory.keywords.some((keyword) => matches(text, keyword))) return { trade, subcategory };
+        const hits = subcategory.keywords.filter((keyword) => matches(text, keyword)).length;
+        if (hits === 0) continue;
+        const score = hits + (trade.fallbackPath === quote.path ? 0.5 : 0);
+        if (!best || score > best.score) best = { trade, subcategory, score };
       }
     }
   }
+  if (best) return { trade: best.trade, subcategory: best.subcategory };
   const fallback = TRADES.find((trade) => trade.fallbackPath === quote.path);
   return fallback ? { trade: fallback, subcategory: null } : null;
 }

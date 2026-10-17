@@ -62,6 +62,8 @@ test("quotes are filed under a trade by keyword, then by path", () => {
   assert.equal(classifyQuote({ description: "Nintendo Switch OLED", path: "item" })?.subcategory?.id, "games");
   assert.equal(classifyQuote({ description: "Replace a light switch", path: "job" })?.subcategory?.id, "electrical");
   assert.equal(classifyQuote({ description: "Mount a 65in TV", path: "job" })?.trade.id, "home-services");
+  assert.equal(classifyQuote({ description: "Deck repair, 12 boards", path: "job" })?.subcategory?.id, "carpentry");
+  assert.equal(classifyQuote({ description: "Fix a drywall patch", path: "job" })?.subcategory?.id, "repairs");
   assert.equal(classifyQuote({ description: "Spare part", path: "check" }), null);
   assert.equal(classifyQuote({ description: "Something odd", path: "item" })?.trade.id, "selling");
   assert.equal(classifyQuote({ description: "", path: "job" })?.trade.id, "trades");

@@ -12,7 +12,6 @@ import { getSessionUser } from "@/lib/auth";
 import { planStatusLine, pricingAccess } from "@/lib/guide/access";
 import { ensureGuideUser, listGuideQuotes } from "@/lib/guide/store";
 import { formatUsd } from "@/lib/money";
-import { PLANS } from "@/lib/plans";
 import { itemStatus, type ItemStatus } from "@/lib/trades";
 import { vocabulary } from "@/lib/vocabulary";
 
@@ -26,7 +25,6 @@ export default async function HomePage() {
   const quotes = await listGuideQuotes(user.id);
   const access = await pricingAccess(user);
   const locked = !access.ok;
-  const plan = PLANS[user.plan];
   const industry = user.industry ? vocabulary(user.industry).label : null;
   const primaryHref = locked ? "/upgrade" : "/new";
   const primaryLabel = locked ? "Upgrade" : "New price";
@@ -178,9 +176,7 @@ export default async function HomePage() {
             </ol>
           </section>
           <section className="rounded-2xl border border-line bg-paper px-3 py-2.5">
-            <p className="text-caption font-semibold text-muted">
-              {plan.name} plan
-            </p>
+            <p className="text-caption font-semibold text-muted">Your plan</p>
             <p className="mt-0.5 text-sm leading-5">{planStatusLine(access)}</p>
             <Link href="/upgrade" className="mt-1 inline-flex h-8 items-center text-sm font-semibold text-pine">
               See plans
