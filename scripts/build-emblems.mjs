@@ -28,7 +28,6 @@ if (!ranger) throw new Error("Could not read the ranger path.");
 const outfit = fontkit.openSync(resolve(root, "app/fonts/outfit-latin-700-normal.woff2"));
 const serif = fontkit.openSync(resolve(root, "app/fonts/source-serif-4-latin-700-normal.woff2"));
 
-const vb = { x: 64.6, y: -28.1, w: 792.5, h: 792.5 };
 const W = 1024;
 
 const pine = "#1E4636";
@@ -48,7 +47,17 @@ const badgeLeft = (W - srcW * badgeScale) / 2;
 const badgeTop = (W - badgeH) / 2;
 const badgeCx = badgeLeft + 411.3 * badgeScale;
 const dividerY = badgeTop + 0.24 * badgeH;
-const seal = { cx: badgeCx, cy: badgeTop + 600 * badgeScale };
+// Measured on the reference badge (gold body, straight-on):
+// seal outer diameter / badge width = 0.7405
+// seal center = 0.4833 of the span from the band rule to the tip.
+const silhouetteW = 820.6;
+const ruleSrc = 240;
+const tipSrc = 998;
+const sealFieldFrac = 0.4833;
+const sealOuterRatio = 0.7405;
+const sealCySrc = ruleSrc + sealFieldFrac * (tipSrc - ruleSrc);
+const sealOuterR = (sealOuterRatio * silhouetteW * badgeScale) / 2;
+const seal = { cx: badgeCx, cy: badgeTop + sealCySrc * badgeScale };
 
 function sourcePoints() {
   const line = readFileSync(resolve(root, "scripts/badge-silhouette/outline-path.txt"), "utf8")
@@ -112,13 +121,6 @@ const sourceOutline = cubicPath(silhouette);
 function ruleHalf(simplified) {
   const outer = ((796 - 24) / 2) * badgeScale;
   return outer - (simplified ? 72 : 48);
-}
-
-function place(box) {
-  const scale = Math.min(box.w / vb.w, box.h / vb.h);
-  const x = box.x + (box.w - vb.w * scale) / 2 - vb.x * scale;
-  const y = box.y + (box.h - vb.h * scale) / 2 - vb.y * scale;
-  return `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${scale.toFixed(5)})`;
 }
 
 function lineWidth(font, text, tracking) {
@@ -189,20 +191,131 @@ function stripes(color, width) {
 
 function metrics(simplified) {
   // Outer ring stays thin; the inner ring is heavier, with a clear gap and no lettering.
+  // sealR is the outer ring's centerline, so the stroke's outer edge matches the reference.
   const rim = simplified ? 70 : 30;
-  const outerRing = simplified ? 16 : 7;
-  const innerRing = simplified ? 22 : 14;
-  const ringGap = simplified ? 40 : 28;
-  const sealR = 196;
+  const outerRing = simplified ? 16 : 10;
+  const innerRing = simplified ? 26 : 18;
+  const ringGap = simplified ? 46 : 36;
+  const sealR = sealOuterR - outerRing / 2;
   const innerEdge = sealR - ringGap - innerRing / 2;
   const figR = innerEdge - (simplified ? 4 : 8);
   return { rim, outerRing, innerRing, ringGap, sealR, sealCy: seal.cy, innerEdge, figR };
 }
 
+// Ink bounds of the ranger drawing (viewBox units). Spans are the bust cut,
+// measured from the source path so the shirt extension welds to it.
+const figInk = { left: 86.4, right: 834.3, top: 50.2, cut: 678, spans: [] };
+
+{
+  const probe = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="64.6 -28.1 792.5 792.5"><path fill="#fff" fill-rule="evenodd" d="${ranger}"/></svg>`;
+  const probed = new Resvg(probe).render();
+  const png = probed.asPng();
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const pw = info.width;
+  const ph = info.height;
+  const sx = 792.5 / pw;
+  const sy = 792.5 / ph;
+  const vx = (px) => 64.6 + px * sx;
+  const vy = (py) => -28.1 + py * sy;
+  const bottom = new Array(pw).fill(-1);
+  let yMax = -1;
+  for (let y = 0; y < ph; y++) {
+    for (let x = 0; x < pw; x++) {
+      if (data[(y * pw + x) * info.channels + 3] > 20) {
+        bottom[x] = y;
+        if (y > yMax) yMax = y;
+      }
+    }
+  }
+  figInk.cut = vy(yMax);
+  const near = 16 / sy;
+  const runs = [];
+  let start = -1;
+  for (let x = 0; x < pw; x++) {
+    const on = bottom[x] >= 0 && yMax - bottom[x] <= near;
+    if (on && start < 0) start = x;
+    if (!on && start >= 0) {
+      runs.push([start, x - 1]);
+      start = -1;
+    }
+  }
+  if (start >= 0) runs.push([start, pw - 1]);
+  const merged = [];
+  for (const run of runs) {
+    const prev = merged.at(-1);
+    if (prev && run[0] - prev[1] < 220) prev[1] = run[1];
+    else merged.push(run.slice());
+  }
+  figInk.spans = merged
+    .filter(([a, b]) => vx(b) - vx(a) > 22)
+    .map(([a, b]) => {
+      const edge = [];
+      for (let x = a; x <= b; x += 3) {
+        const onCut = bottom[x] >= 0 && yMax - bottom[x] <= near;
+        const y = onCut ? bottom[x] : yMax;
+        edge.push([vx(x), vy(y)]);
+      }
+      const endOn = bottom[b] >= 0 && yMax - bottom[b] <= near;
+      edge.push([vx(b), vy(endOn ? bottom[b] : yMax)]);
+      return { edge };
+    });
+}
+
+function figureTransform(radius, cy) {
+  const inkW = figInk.right - figInk.left;
+  const scale = (radius * 1.58) / inkW;
+  const hatTop = cy - radius * 0.9;
+  const tx = seal.cx - ((figInk.left + figInk.right) / 2) * scale;
+  const ty = hatTop - figInk.top * scale;
+  return { transform: `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${scale.toFixed(5)})`, scale, ty };
+}
+
+function bustExtension(scale, ty, radius, cy) {
+  const circleBottom = (cy + radius - ty) / scale + 70;
+  const bottom = Math.max(circleBottom, figInk.cut + 260);
+  const num = (value) => value.toFixed(1);
+  const pieces = [];
+  let widest = null;
+  for (const span of figInk.spans) {
+    const edge = span.edge;
+    const top = edge.map(([x, y]) => [x, y - 12]);
+    const left = top[0][0];
+    const right = top[top.length - 1][0];
+    const inset = Math.min(16, (right - left) * 0.04);
+    let d = `M${num(top[0][0])} ${num(top[0][1])}`;
+    for (const [x, y] of top.slice(1)) d += `L${num(x)} ${num(y)}`;
+    d += `L${num(right - inset)} ${num(bottom)}L${num(left + inset)} ${num(bottom)}Z`;
+    pieces.push(d);
+    if (!widest || right - left > widest.right - widest.left) widest = { left, right, topY: Math.min(...edge.map((p) => p[1])) };
+  }
+  const frame = (x, y, w, h, t) =>
+    `M${num(x)} ${num(y)}h${num(w)}v${num(h)}h${num(-w)}Z` +
+    `M${num(x + t)} ${num(y + t)}h${num(w - 2 * t)}v${num(h - 2 * t)}h${num(-(w - 2 * t))}Z`;
+  const button = (cx, y) => {
+    const r = 15;
+    const inner = 6;
+    return (
+      `M${num(cx - r)} ${num(y)}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0` +
+      `M${num(cx - inner)} ${num(y)}a${inner} ${inner} 0 1 0 ${inner * 2} 0a${inner} ${inner} 0 1 0 ${-inner * 2} 0`
+    );
+  };
+  // Pockets and buttons sit on the main torso span, below the old cut.
+  const mid = (widest.left + widest.right) / 2;
+  const pocketY = widest.topY + 28;
+  const pocketW = Math.min(150, (widest.right - widest.left) * 0.28);
+  const pocketH = 150;
+  const detail =
+    frame(mid - pocketW - 36, pocketY, pocketW, pocketH, 10) +
+    frame(mid + 36, pocketY, pocketW, pocketH, 10) +
+    `M${num(mid - 6)} ${num(widest.topY + 8)}h12V${num(bottom)}h-12Z` +
+    [70, 150, 230, 310].map((dy) => button(mid, widest.topY + dy)).join("");
+  return pieces.join("") + detail;
+}
+
 function figure(fill, radius, cy) {
-  const box = radius * 1.7;
-  const transform = place({ x: seal.cx - box / 2, y: cy - box / 2 - 2, w: box, h: box });
-  return `<g clip-path="url(#seal-clip)"><path fill="${fill}" fill-rule="evenodd" transform="${transform}" d="${ranger}"/></g>`;
+  const { transform, scale, ty } = figureTransform(radius, cy);
+  const extension = bustExtension(scale, ty, radius, cy);
+  return `<g clip-path="url(#seal-clip)" transform="${transform}"><path fill="${fill}" fill-rule="evenodd" d="${ranger}"/><path fill="${fill}" fill-rule="evenodd" d="${extension}"/></g>`;
 }
 
 function emblem({ field, ink, stripe, sealFill, figureFill, simplified }) {
@@ -239,8 +352,8 @@ function knockout({ simplified }) {
       holes.push(`<line x1="${x.toFixed(1)}" y1="${(dividerY + 10).toFixed(1)}" x2="${x.toFixed(1)}" y2="1040" stroke="#000" stroke-width="8"/>`);
     }
   }
-  const box = m.figR * 1.7;
-  const transform = place({ x: seal.cx - box / 2, y: m.sealCy - box / 2 - 2, w: box, h: box });
+  const { transform, scale, ty } = figureTransform(m.figR, m.sealCy);
+  const extension = bustExtension(scale, ty, m.figR, m.sealCy);
   const words = simplified ? "" : `<path fill="#000" d="${banner}"/>`;
   const half = ruleHalf(simplified);
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -256,7 +369,7 @@ function knockout({ simplified }) {
       <circle cx="${seal.cx}" cy="${m.sealCy}" r="${m.sealR - m.ringGap}" fill="none" stroke="#000" stroke-width="${m.innerRing}"/>
       <line x1="${(badgeCx - half).toFixed(1)}" y1="${dividerY.toFixed(1)}" x2="${(badgeCx + half).toFixed(1)}" y2="${dividerY.toFixed(1)}" stroke="#000" stroke-width="${simplified ? 18 : 11}" stroke-linecap="butt"/>
       ${words}
-      <g clip-path="url(#seal-clip)"><path fill="#000" fill-rule="evenodd" transform="${transform}" d="${ranger}"/></g>
+      <g clip-path="url(#seal-clip)" transform="${transform}"><path fill="#000" fill-rule="evenodd" d="${ranger}"/><path fill="#000" fill-rule="evenodd" d="${extension}"/></g>
     </mask>
     <clipPath id="badge-clip"><path d="${outline}"/></clipPath>
     <clipPath id="seal-clip"><circle cx="${seal.cx}" cy="${m.sealCy}" r="${m.figR}"/></clipPath>
