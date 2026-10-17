@@ -716,12 +716,23 @@ input[type="range"] {
   background-size: 72px 72px;
 }
 
+.landing-art {
+  transition: opacity 480ms ease;
+}
+
+.landing-dot {
+  transition: width 300ms ease, background-color 300ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-in,
   .ask-float,
   .ask-popout,
   .ask-shimmer span,
-  .ask-caret {
+  .ask-caret,
+  .landing-art,
+  .landing-dot {
     animation: none;
+    transition: none;
   }
 }
