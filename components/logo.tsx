@@ -2,15 +2,22 @@ import Image from "next/image";
 
 /**
  * inverse: one-color cream knockout. Holes show whatever is behind it.
- * dark: pine field, cream figure. For tan, cream, and paper.
- * light: paper field, pine figure. For the dark green sidebar and other dark backgrounds.
+ * dark: pine field, paper ranger on a pine seal. For tan, cream, and paper.
+ * light: paper field, pine ranger on a paper seal. For the dark green sidebar.
+ * At 48px and below the mark drops the banner words and uses thicker strokes.
  */
 export type LogoTone = "inverse" | "dark" | "light";
 
-const sources: Record<LogoTone, string> = {
+const full: Record<LogoTone, string> = {
   inverse: "/brand/emblems/badge-inverse.svg",
   dark: "/brand/emblems/badge-dark.svg",
   light: "/brand/emblems/badge-light.svg",
+};
+
+const small: Record<LogoTone, string> = {
+  inverse: "/brand/icons/badge-simplified-inverse.svg",
+  dark: "/brand/icons/badge-simplified-dark.svg",
+  light: "/brand/icons/badge-simplified-light.svg",
 };
 
 /** Sign-in lockup. The badge sits on a pine plate, and the name is ink beside it. */
@@ -40,9 +47,10 @@ export function Logo({
   className?: string;
   priority?: boolean;
 }) {
+  const src = width <= 48 && height <= 48 ? small[tone] : full[tone];
   return (
     <Image
-      src={sources[tone]}
+      src={src}
       alt={alt}
       width={width}
       height={height}
