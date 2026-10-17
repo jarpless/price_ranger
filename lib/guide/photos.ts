@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -184,6 +184,74 @@ async function readServiceStorage(userId: string, name: string): Promise<PhotoBy
   } catch {
     return null;
   }
+}
+
+async function diskBytes(userId: string, name: string): Promise<number | null> {
+  const id = safeId(userId);
+  for (const root of roots()) {
+    try {
+      const info = await stat(path.join(root, id, name));
+      if (info.isFile() && info.size >= 32) return info.size;
+    } catch {
+      // Missing on this root.
+    }
+  }
+  return null;
+}
+
+/**
+ * Byte size of a stored object, without downloading it.
+ * Disk first. On Supabase, `info` under the existing read policy.
+ */
+export async function storedObjectBytes(userId: string, name: string): Promise<number | null> {
+  const disk = await diskBytes(userId, name);
+  if (disk != null) return disk;
+  if (dataBackend() !== "supabase") return null;
+  const objectPath = storagePath(userId, name);
+  const clients = [];
+  try {
+    clients.push(await createClient());
+  } catch {
+    // No user session to ask.
+  }
+  const service = await serviceStorage();
+  if (service) clients.push(service);
+  for (const client of clients) {
+    try {
+      const { data, error } = await client.storage.from("feedback").info(objectPath);
+      if (!error && typeof data?.size === "number" && data.size >= 32) return data.size;
+    } catch {
+      // Try the next client. Never log the path or the error body.
+    }
+  }
+  return null;
+}
+
+/**
+ * Signed upload URL for `{userId}/price-photos/{name}` in the existing feedback bucket.
+ * The user session is first (insert policy). The service role is only a server-side fallback.
+ * Returns null when this process is not on Supabase.
+ */
+export async function signedPricePhotoUpload(userId: string, name: string): Promise<{ url: string } | null> {
+  if (dataBackend() !== "supabase") return null;
+  const objectPath = storagePath(userId, name);
+  const clients = [];
+  try {
+    clients.push(await createClient());
+  } catch {
+    // Fall through to the service role.
+  }
+  const service = await serviceStorage();
+  if (service) clients.push(service);
+  for (const client of clients) {
+    try {
+      const { data, error } = await client.storage.from("feedback").createSignedUploadUrl(objectPath, { upsert: true });
+      if (!error && data?.signedUrl) return { url: data.signedUrl };
+    } catch {
+      // The next client may be allowed. Do not log the URL.
+    }
+  }
+  return null;
 }
 
 /** Disk first, then the signed-in user's object, then the service role for a public share. */

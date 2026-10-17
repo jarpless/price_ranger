@@ -18,7 +18,8 @@ export type MediaError =
   | "video-large"
   | "unsupported"
   | "limit"
-  | "store";
+  | "store"
+  | "upload";
 
 const ID = /^[a-zA-Z0-9_-]{1,40}$/;
 
@@ -59,6 +60,7 @@ function videoMime(bytes: Uint8Array): string | null {
 export function classifyUpload(
   bytes: Uint8Array,
   hinted = "",
+  options?: { maxVideoBytes?: number; byteLength?: number },
 ): { kind: MediaKind; mime: string } | { error: MediaError } {
   const kind = sniffKind(bytes, hinted);
   if (kind === "heic") return { error: "heic" };
@@ -68,12 +70,14 @@ export function classifyUpload(
     if (issue) return { error: "unreadable" };
     return { kind: "image", mime: mimeFor(bytes, hinted) };
   }
+  const length = options?.byteLength ?? bytes.length;
+  const videoCap = options?.maxVideoBytes ?? MAX_VIDEO_BYTES;
   const video = videoMime(bytes);
   if (video) {
-    if (bytes.length > MAX_VIDEO_BYTES) return { error: "video-large" };
+    if (length > videoCap) return { error: "video-large" };
     return { kind: "video", mime: video };
   }
-  if (bytes.length > MAX_VIDEO_BYTES && hinted.startsWith("video/")) return { error: "video-large" };
+  if (length > videoCap && hinted.startsWith("video/")) return { error: "video-large" };
   return { error: "unsupported" };
 }
 

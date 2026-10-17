@@ -12,7 +12,6 @@ import { GuideProgress } from "@/components/guide-ui";
 import { QuoteMedia } from "@/components/quote-media";
 import { MarketCard } from "@/components/market-card";
 import { PathSwitch } from "@/components/path-switch";
-import { PhotoField } from "@/components/photo-field";
 import { PrimaryDock } from "@/components/primary-dock";
 import { ShareActions } from "@/components/share-actions";
 import { InfoTip } from "@/components/info-tip";
@@ -84,7 +83,7 @@ export default async function GuidePage({
       {priceError(error) ? (
         <p className="mt-4 rounded-2xl bg-[#f8e8e4] px-4 py-3 text-body text-danger">{priceError(error)}</p>
       ) : null}
-      {slides.length || row.step !== "describe" ? (
+      {row.step !== "describe" ? (
         <div className="mt-6">
           <QuoteMedia quoteId={id} initialSlides={slides} editable density="hero" />
         </div>
@@ -104,7 +103,7 @@ export default async function GuidePage({
               className="mt-2 w-full rounded-2xl border border-line bg-paper px-4 py-3 text-base font-normal leading-6 outline-none focus:border-pine"
             />
           </label>
-          <PhotoField />
+          <QuoteMedia quoteId={id} initialSlides={slides} editable density="hero" priceOnPhoto addLabel="Add photo" />
           <PrimaryDock>
             <Button type="submit">{copy.primary}</Button>
           </PrimaryDock>

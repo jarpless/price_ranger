@@ -68,6 +68,49 @@ async function posterBytes(bytes: Uint8Array | null | undefined): Promise<Uint8A
   return bytes;
 }
 
+export async function firstAlbumImage(
+  userId: string,
+  quoteId: string,
+): Promise<{ bytes: Uint8Array; mime: string } | null> {
+  const items = await listQuoteMedia(userId, quoteId);
+  const image = items.find((item) => item.kind === "image");
+  if (!image) return null;
+  return readQuoteMediaFile(userId, quoteId, image.id);
+}
+
+/** The clip is already in storage. This only writes the poster and the album index. */
+export async function commitUploadedMedia(
+  userId: string,
+  quoteId: string,
+  input: { id: string; mime: string; poster?: Uint8Array | null },
+): Promise<{ item: QuoteMediaItem } | { error: MediaError }> {
+  if (!/^[a-zA-Z0-9_-]{1,40}$/.test(input.id)) return { error: "unsupported" };
+  if (!input.mime.startsWith("video/")) return { error: "unsupported" };
+  return withLock(async () => {
+    const existing = await listUnlocked(userId, quoteId);
+    const already = existing.find((entry) => entry.id === input.id);
+    if (already) return { item: already };
+    if (existing.length >= QUOTE_MEDIA_LIMIT) return { error: "limit" };
+    const item: QuoteMediaItem = {
+      id: input.id,
+      kind: "video",
+      mime: input.mime,
+      createdAt: new Date().toISOString(),
+      poster: false,
+    };
+    const poster = await posterBytes(input.poster);
+    if (poster) {
+      const wrote = await writeStoredFile(userId, posterObjectName(quoteId, item.id), poster, "image/jpeg");
+      item.poster = wrote;
+    }
+    const items = existing.filter((entry) => entry.id !== "cover");
+    items.push(item);
+    const saved = await writeIndex(userId, quoteId, items);
+    if (!saved) return { error: "store" };
+    return { item };
+  });
+}
+
 export async function addQuoteMedia(
   userId: string,
   quoteId: string,
