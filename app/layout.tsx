@@ -27,6 +27,7 @@ const sourceSerif = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.priceranger.app"),
   title: {
     default: "Price Ranger",
     template: "%s · Price Ranger",
@@ -40,8 +41,20 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/images/logo-mark.png",
-    apple: "/images/logo-mark.png",
+    icon: [
+      { url: "/brand/icons/icon-light-32.png", sizes: "32x32", type: "image/png", media: "(prefers-color-scheme: light)" },
+      { url: "/brand/icons/icon-dark-32.png", sizes: "32x32", type: "image/png", media: "(prefers-color-scheme: dark)" },
+    ],
+    apple: [{ url: "/brand/icons/apple-touch.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    title: "Price Ranger",
+    description: "Price an item, a job, or a guess, then send it.",
+    images: [{ url: "/brand/og.png", width: 1200, height: 630, alt: "Price Ranger" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/brand/og.png"],
   },
 };
 

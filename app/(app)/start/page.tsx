@@ -28,7 +28,10 @@ export default async function StartPage({
           <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </Link>
-      <Logo tone="ink" width={48} height={48} className="mt-4 h-12 w-12" />
+      <div className="mt-4 flex items-center gap-3">
+        <Logo tone="light" width={48} height={48} className="h-12 w-12 shrink-0" alt="" />
+        <span className="font-serif text-title leading-8 text-ink">Price Ranger</span>
+      </div>
       <h1 className="mt-6 font-serif text-4xl leading-tight lg:text-5xl">What are you pricing?</h1>
       <p className="mt-3 max-w-xl text-base leading-relaxed text-muted">
         This picks a few starter prices and the words on the screen. You can still add anything you sell.

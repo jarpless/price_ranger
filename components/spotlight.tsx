@@ -50,7 +50,7 @@ export function Spotlight({
       {caption ? (
         <div className="fixed inset-x-4 top-4 z-[80] mx-auto max-w-lg rounded-3xl bg-paper p-4 text-ink shadow-2xl lg:top-6">
           <p className="flex items-center gap-2 text-caption font-semibold uppercase tracking-wide text-pine">
-            <Logo tone="ink" width={20} height={20} className="h-5 w-5 shrink-0" alt="" />
+            <Logo tone="light" width={20} height={20} className="h-5 w-5 shrink-0" alt="" />
             Price Ranger
           </p>
           <p className="mt-1 text-sm leading-relaxed">{caption}</p>

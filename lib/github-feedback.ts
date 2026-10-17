@@ -28,50 +28,55 @@ async function ensureLabel(name: string, color: string, description = "Opened fr
 
 export const AGENT_FIX_LABEL = "agent-fix";
 
-export async function openFeedbackIssue(
+const EMAIL = /[A-Z0-9._%+'-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const URL = /https?:\/\/[^\s)]+/gi;
+const PRIVATE_URL = /supabase|storage|token=|x-amz|signature=|screenshot|\/feedback\//i;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Removes account identifiers and signed screenshot links from text that will be public. */
+export function redactPublicFeedbackText(text: string, hidden: Array<string | null | undefined> = []): string {
+  let out = text;
+  const direct = [...new Set(hidden.map((value) => (value || "").trim()).filter((value) => value.length >= 8))];
+  const encoded = direct
+    .map((secret) => encodeURIComponent(secret))
+    .filter((value) => value.length >= 8 && !direct.includes(value));
+  const secrets = [...direct, ...encoded].sort((left, right) => right.length - left.length);
+  for (const secret of secrets) out = out.replace(new RegExp(escapeRegExp(secret), "gi"), "[redacted]");
+  out = out.replace(EMAIL, "[redacted]");
+  out = out.replace(URL, (url) => (PRIVATE_URL.test(url) ? "[redacted]" : url));
+  return out;
+}
+
+/**
+ * Public GitHub issue text. The email, user id, browser details, error log, and
+ * screenshot stay on the private feedback row. The issue only names that row.
+ */
+export function publicFeedbackIssueBody(
   report: FeedbackReport,
-  screenshotUrl: string | null,
-  options?: { summary?: string; agentFix?: boolean; email?: string },
-): Promise<string | null> {
-  if (!process.env.GITHUB_FEEDBACK_TOKEN) return null;
-
-  const kindLabel = report.kind === "bug" ? "type:bug" : "type:feature";
-  await ensureLabel(kindLabel, report.kind === "bug" ? "8D3B32" : "1E4636", "Opened from Price Ranger feedback.");
-  await ensureLabel("source:user-feedback", "C6A15B", "Sent from feedback mode.");
-  if (options?.agentFix) {
-    await ensureLabel(AGENT_FIX_LABEL, "1E4636", "A person must review. Never auto-deploy.");
-  }
-
-  const consoleBlock = report.consoleErrors.length
-    ? report.consoleErrors.map((line) => `- ${line}`).join("\n")
-    : "None captured.";
-  const shot = screenshotUrl
-    ? `![Annotated screenshot](${screenshotUrl})`
-    : "The annotated screenshot is stored with this feedback record in the admin inbox.";
-
-  const summary = options?.summary?.replace(/\s+/g, " ").trim() || report.body.replace(/\s+/g, " ").trim();
+  options?: { summary?: string; agentFix?: boolean; redact?: string[] },
+): string {
+  const hidden = [report.userId, ...(options?.redact ?? [])];
+  const summary = redactPublicFeedbackText(options?.summary || report.body, hidden).replace(/\s+/g, " ").trim();
+  const note = redactPublicFeedbackText(report.body, hidden).trim();
+  const publicId = hidden.some((value) => (value || "").trim() === report.id) ? "" : report.id;
   const bodyLines = [
-    summary,
+    summary || "Feedback",
     "",
-    report.body,
-    "",
-    shot,
+    note && note !== summary ? note : "",
+    note && note !== summary ? "" : "",
+    "The account, browser details, error log, and screenshot stay on the private feedback record.",
     "",
     "| | |",
     "| --- | --- |",
     `| Type | ${report.kind} |`,
-    `| Route | \`${report.route}\` |`,
-    `| Version | ${report.versionLabel} |`,
-    `| Git | \`${report.gitSha}\` |`,
-    `| Env | ${report.env} |`,
-    `| Viewport | ${report.viewport} |`,
-    `| User agent | ${report.userAgent} |`,
-    `| User id | \`${report.userId}\` |`,
-    `| Email | ${options?.email || "none"} |`,
-    `| Feedback id | \`${report.id}\` |`,
-    "",
-    "### Recent console errors",
-    consoleBlock,
+    `| Route | \`${redactPublicFeedbackText(report.route, hidden)}\` |`,
+    `| Version | ${redactPublicFeedbackText(report.versionLabel, hidden)} |`,
+    `| Git | \`${redactPublicFeedbackText(report.gitSha, hidden)}\` |`,
+    `| Env | ${redactPublicFeedbackText(report.env, hidden)} |`,
+    publicId ? `| Feedback id | \`${publicId}\` |` : "",
     "",
     "Status in the app starts at `triage`. Follow-up mail is not sent from the app.",
   ];
@@ -83,8 +88,27 @@ export async function openFeedbackIssue(
       "Do not deploy. A person reviews the change and ships it.",
     );
   }
-  const body = bodyLines.join("\n");
-  const title = summary.slice(0, 80);
+  return bodyLines.filter((line, index, all) => line !== "" || all[index - 1] !== "").join("\n");
+}
+
+export async function openFeedbackIssue(
+  report: FeedbackReport,
+  options?: { summary?: string; agentFix?: boolean; redact?: string[] },
+): Promise<string | null> {
+  if (!process.env.GITHUB_FEEDBACK_TOKEN) return null;
+
+  const kindLabel = report.kind === "bug" ? "type:bug" : "type:feature";
+  await ensureLabel(kindLabel, report.kind === "bug" ? "8D3B32" : "1E4636", "Opened from Price Ranger feedback.");
+  await ensureLabel("source:user-feedback", "C6A15B", "Sent from feedback mode.");
+  if (options?.agentFix) {
+    await ensureLabel(AGENT_FIX_LABEL, "1E4636", "A person must review. Never auto-deploy.");
+  }
+
+  const body = publicFeedbackIssueBody(report, options);
+  const title = redactPublicFeedbackText(options?.summary || report.body, [report.userId, ...(options?.redact ?? [])])
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80) || "Feedback";
   const labels = options?.agentFix ? [kindLabel, "source:user-feedback", AGENT_FIX_LABEL] : [kindLabel, "source:user-feedback"];
   let response = await github(`/repos/${REPO}/issues`, {
     method: "POST",
@@ -104,13 +128,17 @@ export async function openFeedbackIssue(
   return payload.html_url ?? null;
 }
 
-export async function commentOnFeedbackIssue(issueUrl: string, text: string): Promise<void> {
+export async function commentOnFeedbackIssue(
+  issueUrl: string,
+  text: string,
+  hidden: Array<string | null | undefined> = [],
+): Promise<void> {
   if (!process.env.GITHUB_FEEDBACK_TOKEN) return;
   const match = issueUrl.match(/\/issues\/(\d+)/);
   if (!match) return;
   const response = await github(`/repos/${REPO}/issues/${match[1]}/comments`, {
     method: "POST",
-    body: JSON.stringify({ body: text.slice(0, 6000) }),
+    body: JSON.stringify({ body: redactPublicFeedbackText(text, hidden).slice(0, 6000) }),
   });
   if (!response.ok) {
     const detail = await response.text();

@@ -27,9 +27,9 @@ The migration is `supabase/migrations/20261013140000_feedback_system.sql`. It on
 
 ## GitHub
 
-When `GITHUB_FEEDBACK_TOKEN` is set, a new note opens an issue on `jarpless/price_ranger` labeled `type:bug` or `type:feature`, plus `source:user-feedback`. A bug that is not a duplicate, and that has a screenshot or a real description, also gets `agent-fix`. That label is only a signal that an agent may pick the issue up. The issue text says not to deploy. This app never calls a deploy API from feedback. New notes start at status `triage`.
+When `GITHUB_FEEDBACK_TOKEN` is set, a new note opens an issue on `jarpless/price_ranger` labeled `type:bug` or `type:feature`, plus `source:user-feedback`. The public issue contains the feedback id and a redacted note. It does not contain the email, user id, browser details, error log, or screenshot. Those stay on the private feedback row. A bug that is not a duplicate, and that has a screenshot or a real description, also gets `agent-fix`. That label is only a signal that an agent may pick the issue up. The issue text says not to deploy. This app never calls a deploy API from feedback. New notes start at status `triage`.
 
-A duplicate adds a comment on the existing issue instead of opening another one. Replies in the app are copied to that issue when the token is set.
+A duplicate adds a redacted comment on the existing issue instead of opening another one. Replies in the app are copied to that issue after the same redaction when the token is set.
 
 ## Email
 

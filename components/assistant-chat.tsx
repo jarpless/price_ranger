@@ -307,7 +307,7 @@ export function AssistantChat({
           <Chevron />
         </button>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pine">
-          <Logo tone="light" width={22} height={22} className="h-5 w-5" alt="" />
+          <Logo tone="inverse" width={22} height={22} className="h-5 w-5" alt="" />
         </span>
         <h1 className="min-w-0 truncate font-serif text-lg leading-none">Price Ranger</h1>
         <div className="ml-auto flex items-center">
@@ -386,8 +386,11 @@ export function AssistantChat({
             >
               {lines.length === 0 ? (
                 <div className="flex min-h-full flex-col items-center justify-center px-6 py-10 text-center">
-                  <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pine">
-                    <Logo tone="light" width={40} height={40} className="h-10 w-10" alt="" />
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pine">
+                      <Logo tone="inverse" width={40} height={40} className="h-10 w-10" alt="" />
+                    </span>
+                    <span className="font-serif text-title leading-8">Price Ranger</span>
                   </span>
                   <p className="mt-5 max-w-sm font-serif text-2xl leading-snug">{greeting}</p>
                   <div className="mt-6 flex max-w-md flex-wrap justify-center gap-2">
