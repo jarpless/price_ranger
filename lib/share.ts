@@ -18,10 +18,16 @@ export interface SheetOption {
   total: string;
 }
 
+export interface SheetMedia {
+  id: string;
+  kind: "image" | "video";
+}
+
 export interface SharedSheet {
   title: string;
   subtitle: string;
   photo?: string | null;
+  media?: SheetMedia[];
   note?: string;
   seller?: string;
   date?: string;
@@ -160,12 +166,25 @@ export function forPublic(sheet: SharedSheet): SharedSheet {
     title,
     subtitle: subtitle && subtitle !== title && subtitle !== note ? subtitle : "",
     photo: sheet.photo ?? null,
+    media: publicMedia(sheet.media),
     note: note && note !== title ? note : "",
     date: sheet.date,
     condition: stripContact(sheet.condition || ""),
     range: stripContact(sheet.range || ""),
     options,
   };
+}
+
+function publicMedia(media: SheetMedia[] | undefined): SheetMedia[] | undefined {
+  if (!media?.length) return undefined;
+  const items = media.filter(
+    (item) =>
+      item &&
+      (item.kind === "image" || item.kind === "video") &&
+      typeof item.id === "string" &&
+      /^[a-zA-Z0-9_-]{1,40}$/.test(item.id),
+  );
+  return items.length ? items.map((item) => ({ id: item.id, kind: item.kind })) : undefined;
 }
 
 async function sellerEmail(token: string): Promise<string | null> {
@@ -205,6 +224,24 @@ export async function deliverShareNote(
     text: `${name} wrote about a Price Ranger price:\n\n${message}\n`,
   });
   return result.sent ? "sent" : "held";
+}
+
+/** Who published this share. Used to stream their photos. Never send this to the browser. */
+export async function readShareOwner(token: string): Promise<{ userId: string; quoteId: string } | null> {
+  if (!token || token.length > 80) return null;
+  if (dataBackend() !== "supabase") {
+    const { readLocalShareOwner } = await import("./store/local");
+    return readLocalShareOwner(token);
+  }
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient: createService } = await import("@supabase/supabase-js");
+  const service = createService(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const quote = await service.from("quotes").select("id, user_id").eq("share_token", token).maybeSingle();
+  const row = quote.data as { id?: string; user_id?: string } | null;
+  if (!row?.id || !row.user_id) return null;
+  return { userId: row.user_id, quoteId: row.id };
 }
 
 export async function readSharedSheet(token: string): Promise<SharedSheet | null> {
