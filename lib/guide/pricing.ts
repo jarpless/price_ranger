@@ -1,4 +1,4 @@
-import { readMarketMeta, withOverride } from "../market";
+import { readMarketMeta, withOverride } from "../market-shared";
 import { formatUsd } from "../money";
 import { applyDiscount } from "./flow";
 

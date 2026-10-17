@@ -112,6 +112,9 @@ async function read(): Promise<Db> {
     db.magicLinks ??= [];
     db.emailCodes ??= [];
     db.shares ??= [];
+    db.brands = BRANDS;
+    db.products = PRODUCTS;
+    db.skus = SKUS;
     return db;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyDb();

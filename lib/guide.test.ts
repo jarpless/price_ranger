@@ -14,10 +14,10 @@ import {
   recordOnce,
   stepCopy,
   stepIndex,
-  suggestPrice,
   TAP_AUDIT,
   variantForUser,
 } from "./guide/flow";
+import { suggestPrice } from "./guide/suggest";
 import { captureFromQuery, readCaptureState, withCaptureState } from "./capture-state";
 import { backHref, guideDraftHref, searchReturnHref } from "./search-return";
 import { draftKey, reusableDraftId, shareDraftWork } from "./guide/drafts";

@@ -1,3 +1,5 @@
+import { TRADE_TAXONOMY, isTaxonomyId } from "./trades";
+
 /** Early-beta copy and the trade list for feature requests. Pricing is live, so nothing here promises free access. */
 
 export const BETA_DISCLOSURE = {
@@ -13,25 +15,13 @@ export const BETA_DISCLOSURE = {
 
 export const BETA_NOTE_DISMISSED_KEY = "pr-beta-note-dismissed";
 
-/**
- * The shared trade taxonomy (PR #147 and #149). Ids follow `lib/trades.ts` from #149 where it has
- * the trade, so this list can be replaced by an import from there once #149 lands.
- */
-export const TRADES = [
-  { id: "home-services", label: "Home services & handyman" },
-  { id: "trades", label: "Trades" },
-  { id: "selling", label: "Selling personal items" },
-  { id: "flipping", label: "Flipping & resale" },
-  { id: "makers", label: "Makers & crafts" },
-  { id: "events-creative", label: "Events & creative" },
-  { id: "food-shop", label: "Food & small shop" },
-  { id: "other", label: "Something else" },
-] as const;
+/** Trade chips for feature requests, from the shared taxonomy in `lib/trades.ts`. */
+export const TRADES = TRADE_TAXONOMY;
 
-export type TradeId = (typeof TRADES)[number]["id"];
+export type TradeId = string;
 
 export function isTradeId(value: string | null | undefined): value is TradeId {
-  return TRADES.some((trade) => trade.id === value);
+  return isTaxonomyId(value);
 }
 
 export function tradeLabel(id: TradeId): string {

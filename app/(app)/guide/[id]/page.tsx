@@ -96,7 +96,7 @@ export default async function GuidePage({
               name="description"
               rows={4}
               defaultValue={row.description}
-              placeholder="Oak table, or a small roof"
+              placeholder="Oak table, or a drywall patch"
               className="mt-2 w-full rounded-2xl border border-line bg-paper px-4 py-3 text-base font-normal leading-6 outline-none focus:border-pine"
             />
           </label>

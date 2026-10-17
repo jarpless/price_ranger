@@ -38,7 +38,7 @@ export default async function LibraryPage({
       <section data-spotlight="price-add" className="surface page-stack">
         <h2 className="font-serif text-title">Add your own</h2>
         <form action={createCustomItem} className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] lg:items-end">
-          <TextField label="Name" name="name" required placeholder="Tear-off and haul" />
+          <TextField label="Name" name="name" required placeholder="Service call" />
           <SelectField label="Unit" name="unit" defaultValue="each">
             {UNIT_OPTIONS.map((unit) => (
               <option key={unit.value} value={unit.value}>

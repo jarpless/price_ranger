@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { startSample } from "@/app/guide-actions";
 import { BetaNote } from "@/components/beta";
 import { GuideSetupNotice } from "@/components/guide-setup-notice";
+import { HomeCategories } from "@/components/home-categories";
 import { IconCamera } from "@/components/icons";
 import { PrimaryDock } from "@/components/primary-dock";
 import { SubmitButton } from "@/components/ui";
@@ -70,6 +71,7 @@ export default async function HomePage() {
             ))}
           </ol>
         </div>
+        {locked ? null : <HomeCategories />}
         <PrimaryDock>
           <Link
             href={primaryHref}
@@ -146,6 +148,8 @@ export default async function HomePage() {
           </li>
         ))}
       </ul>
+
+      {locked ? null : <HomeCategories />}
 
       <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <section className="min-w-0" aria-labelledby="home-recent">

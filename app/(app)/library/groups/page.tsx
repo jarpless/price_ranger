@@ -35,7 +35,7 @@ export default async function GroupsPage() {
       </Link>
       {groups.length === 0 ? (
         <p className="text-sm leading-relaxed text-muted">
-          A group is a bundle the customer can understand, like “Architectural roof” or “Tear-off”.
+          A group is a bundle the customer can understand, like “Bathroom refresh” or “Service call”.
           Price Ranger writes the description for you.
         </p>
       ) : (

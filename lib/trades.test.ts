@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { allMenuLinks, buildMenu, folderOpenByDefault, menuActive } from "./menu";
-import { TRADES, classifyQuote, itemStatus, newPriceHref, quoteTrade, tradeById, tradeFromUrl } from "./trades";
+import { TRADES as BETA_TRADES } from "./beta";
+import { brandWordIn } from "./brand-words";
+import { LANDING_CATEGORIES } from "./landing-categories";
+import { TRADES, TRADE_TAXONOMY, classifyQuote, isTaxonomyId, itemStatus, newPriceHref, quoteTrade, tradeById, tradeFromUrl } from "./trades";
 
 test("every trade becomes a folder with Price, Quotes, Sold, and Tools", () => {
   const trades = buildMenu({ guest: false }).find((section) => section.id === "trades");
@@ -57,17 +60,23 @@ test("handyman leads, and roofing is not the lead trade", () => {
   assert.equal(trades.at(-1), "roofing");
 });
 
-const BRANDS = ["nintendo", "switch oled", "playstation", "ps5", "xbox", "iphone", "ipad", "airpods", "macbook", "apple", "samsung", "ikea", "dewalt", "milwaukee", "jordan", "yeezy", "pokemon", "goodwill", "nike"];
-
 test("trade copy and keywords name no brands", () => {
   const words = TRADES.flatMap((trade) => [
     trade.label,
     ...trade.subcategories.flatMap((item) => [item.label, item.query, ...item.keywords]),
     ...trade.tools.flatMap((tool) => [tool.label, tool.blurb]),
-  ]).map((word) => word.toLowerCase());
-  for (const word of words) {
-    for (const brand of BRANDS) assert.ok(!new RegExp(`(^|[^a-z0-9])${brand}([^a-z0-9]|$)`).test(word), `${brand} in "${word}"`);
-  }
+  ]);
+  for (const word of words) assert.equal(brandWordIn(word), null, word);
+});
+
+test("one taxonomy: menu trades, feature-request chips, and landing categories share ids", () => {
+  const ids = TRADE_TAXONOMY.map((trade) => trade.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual(ids.slice(0, TRADES.length), TRADES.map((trade) => trade.id));
+  assert.deepEqual(BETA_TRADES.map((trade) => trade.id), ids);
+  for (const category of LANDING_CATEGORIES) assert.ok(isTaxonomyId(category.id), category.id);
+  assert.ok(ids.includes("selling"));
+  assert.ok(!ids.includes("personal-items"));
 });
 
 test("active rows match the page and never a prefilled search", () => {

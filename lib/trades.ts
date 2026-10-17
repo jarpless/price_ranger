@@ -130,6 +130,21 @@ export const TRADES: Trade[] = [
   },
 ];
 
+/**
+ * The one trade taxonomy. Menu trades come first, then categories that have no menu folder yet.
+ * Feature requests, landing categories, and Home quick starts all use these ids.
+ */
+export const TRADE_TAXONOMY: readonly { id: string; label: string }[] = [
+  ...TRADES.map(({ id, label }) => ({ id, label })),
+  { id: "events-creative", label: "Events & creative" },
+  { id: "food-shop", label: "Food & small shop" },
+  { id: "other", label: "Something else" },
+];
+
+export function isTaxonomyId(value: string | null | undefined): boolean {
+  return TRADE_TAXONOMY.some((trade) => trade.id === value);
+}
+
 export const TRADE_VIEWS = ["quotes", "sold", "tools"] as const;
 export type TradeView = (typeof TRADE_VIEWS)[number];
 
