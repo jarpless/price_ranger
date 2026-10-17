@@ -18,7 +18,6 @@ import { suggestPrice } from "@/lib/guide/suggest";
 import { firstAlbumImage } from "@/lib/guide/media";
 import { inspectPhoto, mimeFor, photoDataUrl, readPendingPhoto, readQuotePhoto, savePendingPhoto, saveQuotePhoto } from "@/lib/guide/photos";
 import { draftKey, reusableDraftId, shareDraftWork } from "@/lib/guide/drafts";
-import { quoteBuilderEnabled } from "@/lib/guide/flags";
 import { adjustmentFromSources, commitAskingPrice, looksLikeFilename, nudgedCents, settledTotal, withAdjustment, type Adjustment, type MoneyLine } from "@/lib/guide/pricing";
 import { alignSheet, normalizeSheet, sheetFromLines, sheetFromSources, sheetToMoneyLines, sourcesWithSheet } from "@/lib/guide/sheet";
 import { identifyPhoto, type PhotoIdentity } from "@/lib/guide/vision";
@@ -116,7 +115,6 @@ async function replaceQuoteLines(userId: string, quoteId: string, lines: MoneyLi
 }
 
 async function rememberSheet(userId: string, quoteId: string, sources: string[]) {
-  if (!quoteBuilderEnabled()) return sources;
   const lines = await quoteLines(userId, quoteId);
   const current = sheetFromSources(sources);
   const next = current ? alignSheet(current, lines) : sheetFromLines(lines);
@@ -547,7 +545,6 @@ export async function saveInlineSheet(formData: FormData) {
   const user = await requireUser();
   const quoteId = clip(formData.get("quoteId"), 80);
   const row = await requireGuide(user.id, quoteId);
-  if (!quoteBuilderEnabled()) redirect(`/guide/${quoteId}`);
   let parsed = null;
   try {
     parsed = normalizeSheet(JSON.parse(String(formData.get("sheet") || "")));
@@ -582,7 +579,7 @@ export async function sendQuote(formData: FormData) {
   if (!quote) redirect("/");
   const meta = readMarketMeta(row.sources);
   const askingCents = meta.overrideCents ?? row.priceCents;
-  const storedSheet = quoteBuilderEnabled() ? sheetFromSources(row.sources) : null;
+  const storedSheet = sheetFromSources(row.sources);
   if (storedSheet) {
     await replaceQuoteLines(user.id, quoteId, sheetToMoneyLines(storedSheet));
   } else if (askingCents != null) {

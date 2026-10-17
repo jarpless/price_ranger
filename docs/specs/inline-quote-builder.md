@@ -25,7 +25,7 @@ Rows and columns reorder by dragging a handle, or from a small move menu. Order 
 
 `supabase/migrations/20261017120000_quote_builder.sql` adds `guide_quotes.sheet jsonb`. The app does not apply it and does not write that column.
 
-Until that migration is applied in a separate database, the sheet is stored in the existing `sources` jsonb array as one `meta:sheet=` value. `visibleSources` already hides `meta:` entries. Set `QUOTE_BUILDER=0` to keep the old controls outside the card. `QUOTE_BUILDER_SCHEMA=1` is reserved and unused.
+Until that migration is applied in a separate database, the sheet is stored in the existing `sources` jsonb array as one `meta:sheet=` value. `visibleSources` already hides `meta:` entries. The builder is always on; the `QUOTE_BUILDER=0` switch was removed for launch. `QUOTE_BUILDER_SCHEMA=1` is reserved and unused.
 
 Existing quotes have no sheet. The screen builds one from the current lines and only writes it when the seller edits.
 

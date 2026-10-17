@@ -1,10 +1,9 @@
 import { applyAdjustment } from "@/app/guide-actions";
-import { AskingLines, AskingTotal, publishAskingDraft } from "@/components/asking-price";
+import { publishAskingDraft } from "@/components/asking-price";
 import { InlineQuote } from "@/components/inline-quote";
 import { InfoTip } from "@/components/info-tip";
 import { MoneyField } from "@/components/money-field";
 import { PriceSlider } from "@/components/price-slider";
-import { quoteBuilderEnabled } from "@/lib/guide/flags";
 import type { Adjustment, MoneyLine } from "@/lib/guide/pricing";
 import { sheetFromLines, sheetFromSources } from "@/lib/guide/sheet";
 import { dollarsInputValue, formatUsd } from "@/lib/money";
@@ -54,7 +53,6 @@ export function MarketCard({
   const condition = (meta.condition || live?.condition || "good") as ConditionId;
   const point = priceCents ?? live?.cents ?? null;
   const suggested = meta.suggestedCents ?? live?.cents ?? null;
-  const builder = quoteBuilderEnabled();
   const initialSheet = sheetFromSources(sources) ?? sheetFromLines(lines);
   const comparables = live?.comparables.length
     ? live.comparables
@@ -170,20 +168,6 @@ export function MarketCard({
             Save price
           </button>
         </form>
-        {builder ? null : (
-          <form action={applyAdjustment} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-            <input type="hidden" name="quoteId" value={quoteId} />
-            <input type="hidden" name="kind" value="line" />
-            <label className="block min-w-0 flex-1 text-base font-semibold">
-              Add a line
-              <input name="name" placeholder="Delivery" className="mt-1 h-12 w-full rounded-2xl border border-line px-3 text-base font-normal" />
-            </label>
-            <MoneyField name="amount" label="Amount" defaultValue="" />
-            <button type="submit" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-2xl border border-line bg-paper px-4 text-base font-semibold">
-              Add line
-            </button>
-          </form>
-        )}
       </section>
     </>
   );
@@ -199,34 +183,18 @@ export function MarketCard({
           <InfoTip id="condition" />
         </div>
         <p className="mt-2 text-caption font-semibold uppercase tracking-wide text-muted">Total</p>
-        {builder ? (
-          <InlineQuote
-            quoteId={quoteId}
-            initialSheet={initialSheet}
-            adjustment={adjustment}
-            askingCents={point}
-            lowCents={low}
-            highCents={high}
-          >
-            {quoteMeta}
-          </InlineQuote>
-        ) : (
-          <>
-            <AskingTotal
-              lines={lines}
-              adjustment={adjustment}
-              askingCents={point}
-              lowCents={low}
-              highCents={high}
-              className="font-serif text-price text-pine tabular-nums lg:text-[3rem] lg:leading-[3.5rem]"
-            />
-            {quoteMeta}
-            <AskingLines lines={lines} adjustment={adjustment} askingCents={point} />
-          </>
-        )}
-        {builder ? <div className="mt-4 border-t border-line pt-3">{controls}</div> : null}
+        <InlineQuote
+          quoteId={quoteId}
+          initialSheet={initialSheet}
+          adjustment={adjustment}
+          askingCents={point}
+          lowCents={low}
+          highCents={high}
+        >
+          {quoteMeta}
+        </InlineQuote>
+        <div className="mt-4 border-t border-line pt-3">{controls}</div>
       </section>
-      {builder ? null : controls}
       {comparables.length > 0 ? (
         <section>
           <div className="flex items-center gap-1">
