@@ -5,6 +5,8 @@ import { Feel } from "./feel";
 import { Logo } from "./logo";
 import { PhoneMenu, Sidebar } from "./nav";
 import { ScreenMotion } from "./screen-motion";
+import { TabBar } from "./tab-bar";
+import type { IndustryId } from "@/lib/vocabulary";
 
 export function Shell({
   children,
@@ -12,16 +14,18 @@ export function Shell({
   guest,
   accountLabel = null,
   owner = false,
+  industry = null,
 }: {
   children: React.ReactNode;
   quotesLabel: string;
   guest: boolean;
   accountLabel?: string | null;
   owner?: boolean;
+  industry?: IndustryId | null;
 }) {
   return (
     <div data-app-shell="true" className="min-h-dvh max-w-full overflow-x-clip bg-cream text-ink lg:flex">
-      <Sidebar quotesLabel={quotesLabel} account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />
+      <Sidebar quotesLabel={quotesLabel} account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} industry={industry} />
       <div className="shell-main ask-lane flex min-h-dvh min-w-0 max-w-full flex-1 flex-col">
         <header className="shell-header sticky top-0 z-[70] h-12 shrink-0 bg-pine text-cream lg:hidden">
           <div className="flex h-12 min-w-0 items-center gap-1 px-2">
@@ -30,7 +34,7 @@ export function Shell({
             <Link href="/" className="min-w-0 flex-1 truncate font-serif text-base leading-6 tracking-tight">
               Price Ranger
             </Link>
-            <PhoneMenu account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} />
+            <PhoneMenu account={guest ? "guest" : "member"} accountLabel={accountLabel} owner={owner} industry={industry} />
           </div>
         </header>
         <main className="app-main">
@@ -40,6 +44,7 @@ export function Shell({
           <ScreenMotion>{children}</ScreenMotion>
         </main>
       </div>
+      <TabBar />
       <div id="assistant-dock" className="assistant-dock" />
       <Feel />
     </div>
