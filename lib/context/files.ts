@@ -180,7 +180,7 @@ export function cleanTranscript(text: string): string {
     if (/-->/.test(line)) continue;
     line = line.replace(TIMESTAMP, "");
     line = line.replace(/^<v\s+[^>]+>/i, "").replace(/<\/?[^>]+>/g, "");
-    line = line.replace(/^(?:speaker\s*\d+|[A-Z][\w.'-]*(?:\s[A-Z][\w.'-]*)?)\s*(?:\(\d{1,2}:\d{2}(?::\d{2})?\))?\s*:\s+(?=\S)/, "");
+    line = line.replace(/^(?:[Ss]peaker\s*\d+|[A-Z][\w.'-]*(?:\s[A-Z][\w.'-]*)?)\s*(?:\(\d{1,2}:\d{2}(?::\d{2})?\))?\s*:\s+(?=\S)/, "");
     line = line.replace(TIMESTAMP, "");
     if (line) out.push(line);
   }

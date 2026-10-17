@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { deflateRawSync, deflateSync } from "node:zlib";
 
+import { draftFromModelJson } from "./ai";
 import { draftTotalCents, normalizeDraft } from "./draft";
 import { cleanTranscript, contextFileProblem, contextKind, docxText, looksLikeTranscript, pdfText, readContextFile, xlsxSheets } from "./files";
 import { draftFromRules, parseTextLine } from "./rules";
@@ -124,6 +125,15 @@ test("transcripts lose timestamps and speakers but keep the asks", () => {
   assert.equal(cleanTranscript(vtt), "We want the two bedrooms painted.\nOkay, that's about 2 rooms at $450 each, and 1 door swap for $180.");
   const pasted = "Speaker 1 (00:01): Hi there\nSpeaker 2 (00:04): I need 4 hours of labor at $80\nSpeaker 1 (00:09): sounds good";
   assert.equal(looksLikeTranscript(pasted), true);
+  assert.equal(cleanTranscript(pasted), "Hi there\nI need 4 hours of labor at $80\nsounds good");
+  const call = draftFromRules(
+    [{ name: "Pasted transcript", kind: "transcript", tabular: false, text: cleanTranscript("Speaker 1 (00:01): Hi, thanks for coming out.\nSpeaker 2 (00:05): So we'd need 4 hours of labor at $80 and 2 new faucets at $140 each.\nSpeaker 1 (00:12): Sounds good.") }],
+    ["Pasted transcript"],
+  );
+  assert.deepEqual(
+    call.sections.flatMap((section) => section.lines.map((line) => `${line.quantity} ${line.unit} ${line.name} ${line.unitPriceCents}`)),
+    ["4 hour Labor 8000", "2 each New faucets 14000"],
+  );
   const draft = draftFromRules(readContextFile("call.vtt", "", new TextEncoder().encode(vtt)), ["call.vtt"]);
   const names = draft.sections.flatMap((section) => section.lines.map((line) => `${line.quantity} ${line.name} ${line.unitPriceCents}`));
   assert.deepEqual(names, ["2 Rooms 45000", "1 Door swap 18000"]);
@@ -152,6 +162,41 @@ test("titles skip labels and priced lines, then fall back to a file name", () =>
   const longer = draftFromRules([{ name: "Pasted text", kind: "text", tabular: false, text: "Nintendo Switch OLED, white. Barely used, with case and box. Asking $250-$300" }], ["Pasted text"]);
   assert.equal(longer.title, "Nintendo Switch OLED");
   assert.equal(parseTextLine("Plus 3 hours of patching at $65")?.name, "Patching");
+});
+
+test("model JSON in dollars maps onto the draft and keeps citations honest", () => {
+  const draft = draftFromModelJson(
+    {
+      format: "job",
+      title: "Kitchen faucet swap",
+      customer: "Pat",
+      confidence: "high",
+      stated_total: 520.5,
+      sections: [
+        {
+          name: "Plumbing",
+          lines: [
+            { name: "Faucet", qty: 1, unit: "each", unit_price: 380, price_from: "context", source: "quote.pdf p1", evidence: "Faucet & install $380" },
+            { name: "Labor", qty: 2, unit: "hours", unit_price: 70.25, price_from: "context", source: "quote.pdf p1", evidence: "" },
+            { name: "Supply lines", qty: 2, unit: "each", unit_price: null, price_from: "estimate", source: "call.vtt" },
+          ],
+        },
+      ],
+    },
+    ["quote.pdf", "call.vtt"],
+  );
+  assert.ok(draft);
+  assert.equal(draft.method, "ai");
+  assert.equal(draft.customerName, "Pat");
+  assert.equal(draft.statedTotalCents, 52050);
+  const [faucet, labor, supply] = draft.sections[0].lines;
+  assert.equal(faucet.unitPriceCents, 38000);
+  assert.equal(faucet.priceFrom, "context");
+  assert.equal(labor.unit, "hour");
+  assert.equal(labor.unitPriceCents, 7025);
+  assert.equal(labor.priceFrom, "estimate");
+  assert.equal(supply.priceFrom, "none");
+  assert.equal(draftFromModelJson(null, []), null);
 });
 
 test("normalizeDraft never trusts a price without evidence as sourced", () => {

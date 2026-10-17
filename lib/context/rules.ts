@@ -37,7 +37,8 @@ function heading(line: string): string | null {
   return null;
 }
 
-const LEAD_FILLER = /^(?:and|plus|also|then|for|so|of|we need|need|i need|it's|its|that's|thats|about|around|roughly)\s+/i;
+const LEAD_FILLER =
+  /^(?:and|plus|also|then|for|so|of|okay|ok|yeah|um|uh|(?:we|i|you)(?:'d|'ll| would| will)? (?:need|want)|need|want|add|install|get|it's|its|that's|thats|about|around|roughly)\s+/i;
 const TRAIL_FILLER = /\s+(?:at|for|is|costs?|runs?|would be|will be|about|around|roughly|so|asking|selling for|price|priced at|obo)$/i;
 const EDGE_PUNCT = /^[\s,;:.!?–—-]+|[\s,;:.!?–—-]+$/g;
 
@@ -244,7 +245,9 @@ function textLines(text: string, transcript: boolean): { text: string; number: n
   text.split("\n").forEach((line, index) => {
     const trimmed = line.trim();
     if (!trimmed) return;
-    const parts = transcript || trimmed.length > 140 ? trimmed.split(/(?<=[.!?;])\s+|,\s+(?:and|plus|then)\s+|\s+and then\s+/i) : [trimmed];
+    const parts = (transcript || trimmed.length > 140 ? trimmed.split(/(?<=[.!?;])\s+|,\s+(?:and|plus|then)\s+|\s+and then\s+/i) : [trimmed]).flatMap((part) =>
+      amounts(part).length > 1 ? part.split(/,?\s+(?:and|plus)\s+(?=(?:\d|one|two|three|four|five|six|a|an)\b)/i) : [part],
+    );
     for (const part of parts) if (part.trim()) out.push({ text: part.trim(), number: index + 1 });
   });
   return out;
