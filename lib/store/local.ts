@@ -399,6 +399,11 @@ export async function readLocalSheet(token: string): Promise<unknown | null> {
 }
 
 /** Seller address for a share token. Callers must not send this to the browser. */
+export async function readLocalShareOwner(token: string): Promise<string | null> {
+  const db = await read();
+  return db.shares.find((item) => item.token === token)?.userId ?? null;
+}
+
 export async function readLocalShareSeller(token: string): Promise<string | null> {
   const db = await read();
   const share = db.shares.find((item) => item.token === token);
@@ -810,6 +815,43 @@ export const localStore = {
       if (!group) return false;
       group.summary = "";
       group.summaryEdited = false;
+      return true;
+    });
+  },
+
+  async replaceGroupLines(
+    userId: string,
+    groupId: string,
+    lines: { name: string; quantity: number; unitPriceCents: number }[],
+  ): Promise<boolean> {
+    return update((db) => {
+      if (!requireGroup(db, userId, groupId)) return false;
+      db.groupItems = db.groupItems.filter((item) => item.groupId !== groupId);
+      lines.forEach((line, index) => {
+        const libraryId = crypto.randomUUID();
+        db.library.push({
+          id: libraryId,
+          userId,
+          skuId: null,
+          connectorSlug: null,
+          name: line.name,
+          unit: "each",
+          unitPriceCents: line.unitPriceCents,
+          samplePrice: false,
+          source: "custom",
+          createdAt: nowIso(),
+        });
+        db.groupItems.push({
+          id: crypto.randomUUID(),
+          groupId,
+          libraryItemId: libraryId,
+          name: line.name,
+          unit: "each",
+          unitPriceCents: line.unitPriceCents,
+          quantity: line.quantity > 0 ? line.quantity : 1,
+          sortOrder: index,
+        });
+      });
       return true;
     });
   },

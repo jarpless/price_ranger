@@ -6,7 +6,8 @@ import { Logo } from "@/components/logo";
 import { TrackBeacon } from "@/components/track-beacon";
 import { formatUsd } from "@/lib/money";
 import { conditionLabel, marketPrice, pictureFor } from "@/lib/market";
-import { forPublic, readSharedSheet } from "@/lib/share";
+import { getSessionUser } from "@/lib/auth";
+import { forPublic, readSharedSheet, shareOwnerId } from "@/lib/share";
 import { shareGrowthOffer } from "@/lib/share-growth";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,8 @@ export default async function PublicSheetPage({
   const condition = sheet.condition || (live ? conditionLabel(live.condition) : "");
   const photo = sheet.photo || live?.comparables[0]?.thumbnail || pictureFor(sheet.title);
   const offer = shareGrowthOffer(token);
+  const [viewer, ownerId] = await Promise.all([getSessionUser(), shareOwnerId(token)]);
+  const showGrowth = !viewer || !ownerId || viewer.id !== ownerId;
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-5 py-10 lg:py-16">
@@ -55,20 +58,48 @@ export default async function PublicSheetPage({
         <img src={photo} alt={sheet.title} data-share-photo="" className="mt-6 max-h-72 w-full rounded-2xl border border-line object-contain bg-paper" />
       ) : null}
       {sheet.note ? <p className="mt-4 text-center text-body leading-6">{sheet.note}</p> : null}
+      {sheet.grid && sheet.grid.rows.length > 0 ? (
+        <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-paper">
+          <table className="w-full min-w-[18rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-line text-caption text-muted">
+                {sheet.grid.columns.map((column) => (
+                  <th key={column} className="px-2 py-1.5 font-semibold whitespace-nowrap">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sheet.grid.rows.map((row, index) => (
+                <tr key={`${row.join("-")}-${index}`} className="border-b border-line last:border-b-0">
+                  {row.map((cell, cellIndex) => (
+                    <td key={`${index}-${cellIndex}`} className="px-2 py-1.5 text-base tabular-nums">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       {sheet.options.map((option) => (
         <section key={option.name} className="mt-8">
           <h2 className="font-serif text-title">{option.name}</h2>
-          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-paper px-4">
-            {option.lines.map((line) => (
-              <li key={`${option.name}-${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-4 py-3">
-                <div>
-                  <p className="text-base font-semibold">{line.name}</p>
-                  <p className="text-caption text-muted">{line.detail}</p>
-                </div>
-                <p className="font-serif text-title tabular-nums">{line.price}</p>
-              </li>
-            ))}
-          </ul>
+          {sheet.grid && sheet.grid.rows.length > 0 ? null : (
+            <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-paper px-4">
+              {option.lines.map((line) => (
+                <li key={`${option.name}-${line.name}-${line.detail}`} className="flex items-baseline justify-between gap-4 py-3">
+                  <div>
+                    <p className="text-base font-semibold">{line.name}</p>
+                    <p className="text-caption text-muted">{line.detail}</p>
+                  </div>
+                  <p className="font-serif text-title tabular-nums">{line.price}</p>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-4 text-right font-serif text-price text-pine tabular-nums">{option.total}</p>
         </section>
       ))}
@@ -106,18 +137,20 @@ export default async function PublicSheetPage({
           Download PDF
         </a>
       </div>
-      <aside className="mt-8 rounded-3xl border border-line bg-paper px-5 py-5 text-center">
-        <p className="font-serif text-title leading-8">Keep this price</p>
-        <p className="mt-2 text-body leading-6 text-muted">{offer.detail}</p>
-        <a
-          href={offer.href}
-          data-track="share_signup_click"
-          data-track-action={offer.action}
-          className="mt-4 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
-        >
-          {offer.label}
-        </a>
-      </aside>
+      {showGrowth ? (
+        <aside className="mt-8 rounded-3xl border border-line bg-paper px-5 py-5 text-center">
+          <p className="font-serif text-title leading-8">Keep this price</p>
+          <p className="mt-2 text-body leading-6 text-muted">{offer.detail}</p>
+          <a
+            href={offer.href}
+            data-track="share_signup_click"
+            data-track-action={offer.action}
+            className="mt-4 inline-flex h-12 w-full items-center justify-center whitespace-nowrap rounded-2xl bg-pine px-4 text-base font-semibold text-cream"
+          >
+            {offer.label}
+          </a>
+        </aside>
+      ) : null}
     </main>
   );
 }

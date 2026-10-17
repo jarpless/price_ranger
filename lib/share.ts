@@ -1,6 +1,7 @@
 import { dataBackend } from "./env";
 import { sendSupportEmail } from "./feedback/mail";
 import { adjustmentFromSources, lineSettlement, linesAtAsking, settledTotal, type Adjustment } from "./guide/pricing";
+import { sheetDisplay, type QuoteSheet, type SheetGrid } from "./guide/sheet";
 import { formatUsd } from "./money";
 import { publishLocalSheet, readLocalSheet } from "./store/local";
 import { createClient } from "./supabase/server";
@@ -28,6 +29,8 @@ export interface SharedSheet {
   condition?: string;
   range?: string;
   options: SheetOption[];
+  /** Settled cells from the inline quote, when the seller built one. */
+  grid?: SheetGrid;
 }
 
 const PLACEHOLDER_NAME = /^(buyer|customer|sample|price check|listing)$/i;
@@ -91,9 +94,10 @@ export function buyerSheet(
     seller?: string;
     date?: string;
     askingCents?: number | null;
+    quoteSheet?: QuoteSheet | null;
   } = {},
 ): SharedSheet {
-  return buildSheet(quote, groups, {
+  const built = buildSheet(quote, groups, {
     sources: guide.sources ?? [],
     note: guide.note || undefined,
     photo: guide.photo ?? null,
@@ -101,6 +105,14 @@ export function buyerSheet(
     date: guide.date,
     askingCents: guide.askingCents,
   });
+  if (guide.quoteSheet) {
+    built.grid = sheetDisplay(
+      guide.quoteSheet,
+      adjustmentFromSources(guide.sources ?? []),
+      guide.askingCents ?? null,
+    );
+  }
+  return built;
 }
 
 function isSheet(value: unknown): value is SharedSheet {
@@ -165,6 +177,12 @@ export function forPublic(sheet: SharedSheet): SharedSheet {
     condition: stripContact(sheet.condition || ""),
     range: stripContact(sheet.range || ""),
     options,
+    grid: sheet.grid
+      ? {
+          columns: sheet.grid.columns.map((column) => stripContact(column)),
+          rows: sheet.grid.rows.map((row) => row.map((cell) => stripContact(cell))),
+        }
+      : undefined,
   };
 }
 
@@ -205,6 +223,23 @@ export async function deliverShareNote(
     text: `${name} wrote about a Price Ranger price:\n\n${message}\n`,
   });
   return result.sent ? "sent" : "held";
+}
+
+/** Owner id for a share token. Used to hide the seller's own signup prompt. */
+export async function shareOwnerId(token: string): Promise<string | null> {
+  if (!token || token.length > 80) return null;
+  if (dataBackend() !== "supabase") {
+    const { readLocalShareOwner } = await import("./store/local");
+    return readLocalShareOwner(token);
+  }
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!key || !url) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  const service = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const quote = await service.from("quotes").select("user_id").eq("share_token", token).maybeSingle();
+  const userId = (quote.data as { user_id?: string } | null)?.user_id;
+  return userId || null;
 }
 
 export async function readSharedSheet(token: string): Promise<SharedSheet | null> {
